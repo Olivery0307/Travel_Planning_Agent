@@ -138,7 +138,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         request.message,
         session=session,
         context=ctx,
-        max_turns=20,
+        max_turns=50,
     )
 
     ctx.save()

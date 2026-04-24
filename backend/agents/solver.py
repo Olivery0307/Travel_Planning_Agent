@@ -7,7 +7,6 @@ from pathlib import Path
 from agents import Agent
 from agents.extensions.models.litellm_model import LitellmModel
 
-from backend.models.itinerary import Itinerary
 from backend.tools.routing import compute_route_matrix
 
 _PROMPT = (Path(__file__).parent / "prompts" / "solver.md").read_text()
@@ -19,5 +18,6 @@ def build_solver_agent(model: LitellmModel) -> Agent:
         model=model,
         instructions=_PROMPT,
         tools=[compute_route_matrix],
-        output_type=Itinerary,
+        # No output_type: return a formatted text itinerary.
+        # Structured Itinerary storage wired in Week 2 once the demo flow works.
     )

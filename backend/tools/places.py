@@ -8,7 +8,7 @@ from typing import Literal
 
 import googlemaps
 from agents import function_tool
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from backend.models.places import OpeningHours, PlaceResult
 
@@ -27,29 +27,16 @@ def _client() -> googlemaps.Client:
     return _gmaps
 
 
-class SearchPlacesRequest(BaseModel):
-    query: str = Field(description="Natural language search, e.g. 'ancient Roman ruins in Rome'")
-    location: str = Field(description="City name or 'lat,lng' string, e.g. 'Rome, Italy'")
-    category: Literal["lodging", "activity", "restaurant", "attraction"] = Field(
-        description="Category to narrow results."
-    )
-    max_results: int = Field(default=10, description="Max number of places to return (1-20).")
-    min_rating: float = Field(default=3.5, description="Minimum Google rating to include.")
-
-
-class GetPlaceDetailsRequest(BaseModel):
-    place_id: str = Field(description="Google Places place_id, obtained from search_places.")
-
-
-class GetOpeningHoursRequest(BaseModel):
-    place_id: str = Field(description="Google Places place_id.")
-    day_of_week: int = Field(description="0=Monday through 6=Sunday.")
-
-
 @function_tool
-def search_places(request: SearchPlacesRequest) -> list[PlaceResult] | dict:
+def search_places(
+    query: str,
+    location: str,
+    category: Literal["lodging", "activity", "restaurant", "attraction"],
+    max_results: int = 10,
+    min_rating: float = 3.5,
+) -> list[PlaceResult] | dict:
     """Search Google Places for travel-relevant locations matching a query.
-    Use category to narrow results. location should be a city name or lat,lng string.
+    Use category to narrow results. location should be a city name e.g. 'Rome, Italy'.
     Returns up to max_results places with name, address, rating, price_level,
     opening_hours summary, and place_id. Always call this before get_place_details
     to get place_ids first.
@@ -62,17 +49,17 @@ def search_places(request: SearchPlacesRequest) -> list[PlaceResult] | dict:
             "activity": "tourist_attraction",
             "attraction": "tourist_attraction",
         }
-        place_type = category_type_map.get(request.category)
+        place_type = category_type_map.get(category)
 
         raw = client.places(
-            query=f"{request.query} in {request.location}",
+            query=f"{query} in {location}",
             type=place_type,
         )
 
         results: list[PlaceResult] = []
-        for p in raw.get("results", [])[: request.max_results]:
+        for p in raw.get("results", [])[:max_results]:
             rating = p.get("rating")
-            if rating is not None and rating < request.min_rating:
+            if rating is not None and rating < min_rating:
                 continue
             loc = p.get("geometry", {}).get("location", {})
             hours_raw = p.get("opening_hours", {})
@@ -87,10 +74,10 @@ def search_places(request: SearchPlacesRequest) -> list[PlaceResult] | dict:
                     user_ratings_total=p.get("user_ratings_total"),
                     price_level=p.get("price_level"),
                     opening_hours=OpeningHours(open_now=hours_raw.get("open_now")),
-                    category=request.category,
+                    category=category,
                 )
             )
-        logger.info("search_places query=%r returned %d results", request.query, len(results))
+        logger.info("search_places query=%r returned %d results", query, len(results))
         return results
     except Exception as exc:
         logger.error("search_places error: %s", exc)
@@ -98,7 +85,7 @@ def search_places(request: SearchPlacesRequest) -> list[PlaceResult] | dict:
 
 
 @function_tool
-def get_place_details(request: GetPlaceDetailsRequest) -> PlaceResult | dict:
+def get_place_details(place_id: str) -> PlaceResult | dict:
     """Fetch full details for a specific place by its Google Places place_id.
     Returns name, address, lat/lng, phone, website, opening_hours (all days),
     rating, user_ratings_total, price_level, photos (first 3 URLs), editorial_summary.
@@ -109,10 +96,10 @@ def get_place_details(request: GetPlaceDetailsRequest) -> PlaceResult | dict:
         fields = [
             "place_id", "name", "formatted_address", "geometry",
             "rating", "user_ratings_total", "price_level",
-            "opening_hours", "photos", "website", "formatted_phone_number",
+            "opening_hours", "photo", "website", "formatted_phone_number",
             "editorial_summary",
         ]
-        raw = client.place(request.place_id, fields=fields).get("result", {})
+        raw = client.place(place_id, fields=fields).get("result", {})
         loc = raw.get("geometry", {}).get("location", {})
         hours_raw = raw.get("opening_hours", {})
         photo_urls = []
@@ -125,7 +112,7 @@ def get_place_details(request: GetPlaceDetailsRequest) -> PlaceResult | dict:
                     f"?maxwidth=800&photoreference={ref}&key={key}"
                 )
         result = PlaceResult(
-            place_id=raw.get("place_id", request.place_id),
+            place_id=raw.get("place_id", place_id),
             name=raw.get("name", ""),
             address=raw.get("formatted_address", ""),
             lat=loc.get("lat", 0.0),
@@ -142,7 +129,7 @@ def get_place_details(request: GetPlaceDetailsRequest) -> PlaceResult | dict:
             phone=raw.get("formatted_phone_number"),
             editorial_summary=raw.get("editorial_summary", {}).get("overview"),
         )
-        logger.info("get_place_details place_id=%r name=%r", request.place_id, result.name)
+        logger.info("get_place_details place_id=%r name=%r", place_id, result.name)
         return result
     except Exception as exc:
         logger.error("get_place_details error: %s", exc)
@@ -150,28 +137,28 @@ def get_place_details(request: GetPlaceDetailsRequest) -> PlaceResult | dict:
 
 
 @function_tool
-def get_opening_hours(request: GetOpeningHoursRequest) -> dict:
+def get_opening_hours(place_id: str, day_of_week: int) -> dict:
     """Get opening hours for a specific place on a given day (0=Monday, 6=Sunday).
-    Returns {'open': bool, 'hours': '9:00 AM – 6:00 PM', 'note': str}.
+    Returns {'open': bool, 'hours': '9:00 AM - 6:00 PM', 'note': str}.
     Use this when you need to schedule a slot and must confirm the place is open.
     """
     try:
         client = _client()
-        raw = client.place(request.place_id, fields=["opening_hours"]).get("result", {})
+        raw = client.place(place_id, fields=["opening_hours"]).get("result", {})
         periods = raw.get("opening_hours", {}).get("periods", [])
         weekday_text = raw.get("opening_hours", {}).get("weekday_text", [])
         # day_of_week: 0=Monday in our contract; Google uses 0=Sunday
-        google_day = (request.day_of_week + 1) % 7
+        google_day = (day_of_week + 1) % 7
         for period in periods:
             if period.get("open", {}).get("day") == google_day:
                 open_time = period["open"].get("time", "")
                 close_time = period.get("close", {}).get("time", "")
                 return {
                     "open": True,
-                    "hours": f"{open_time[:2]}:{open_time[2:]} – {close_time[:2]}:{close_time[2:]}",
-                    "note": weekday_text[request.day_of_week] if weekday_text else "",
+                    "hours": f"{open_time[:2]}:{open_time[2:]} - {close_time[:2]}:{close_time[2:]}",
+                    "note": weekday_text[day_of_week] if weekday_text else "",
                 }
-        return {"open": False, "hours": "Closed", "note": weekday_text[request.day_of_week] if weekday_text else ""}
+        return {"open": False, "hours": "Closed", "note": weekday_text[day_of_week] if weekday_text else ""}
     except Exception as exc:
         logger.error("get_opening_hours error: %s", exc)
         return {"error": str(exc)}
