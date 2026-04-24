@@ -1,0 +1,56 @@
+steps:
+  # Build the frontend
+  - name: "node:20"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        cd frontend
+        npm ci
+        npm run build
+    id: build-frontend
+
+  # Build the Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - build
+      - -t
+      - gcr.io/$PROJECT_ID/travel-optimizer:$COMMIT_SHA
+      - -t
+      - gcr.io/$PROJECT_ID/travel-optimizer:latest
+      - .
+    waitFor: ["build-frontend"]
+    id: build-image
+
+  # Push the image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - push
+      - --all-tags
+      - gcr.io/$PROJECT_ID/travel-optimizer
+    waitFor: ["build-image"]
+    id: push-image
+
+  # Deploy to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - travel-optimizer
+      - --image=gcr.io/$PROJECT_ID/travel-optimizer:$COMMIT_SHA
+      - --region=us-east4
+      - --platform=managed
+      - --allow-unauthenticated
+      - --min-instances=1
+      - --memory=1Gi
+      - --set-env-vars=ENV=prod
+      - --set-secrets=OPENAI_API_KEY=openai-key:latest,GOOGLE_MAPS_API_KEY=gmaps-key:latest,GOOGLE_PLACES_API_KEY=places-key:latest
+    waitFor: ["push-image"]
+
+images:
+  - gcr.io/$PROJECT_ID/travel-optimizer:$COMMIT_SHA
+  - gcr.io/$PROJECT_ID/travel-optimizer:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

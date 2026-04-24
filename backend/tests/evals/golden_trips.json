@@ -1,0 +1,126 @@
+[
+  {
+    "id": "rome_classic",
+    "input": "5-day Rome trip for a couple, $200/day budget, obsessed with ancient history, must see Vatican and Colosseum",
+    "expected_criteria": {
+      "destination_city": "Rome",
+      "destination_country": "Italy",
+      "duration_days": 5,
+      "client.budget_per_day_usd": 200,
+      "client.group_type": "couple",
+      "must_include": ["Vatican", "Colosseum"]
+    },
+    "must_appear_places": ["Colosseum", "Vatican"]
+  },
+  {
+    "id": "paris_luxury",
+    "input": "Week-long Paris trip, luxury budget $500/day, solo traveler, art museums and fine dining, no fast food",
+    "expected_criteria": {
+      "destination_city": "Paris",
+      "destination_country": "France",
+      "duration_days": 7,
+      "client.budget_per_day_usd": 500,
+      "client.travel_style": "luxury",
+      "client.group_type": "solo",
+      "must_exclude": ["fast food"]
+    },
+    "must_appear_places": ["Louvre", "Musée d'Orsay"]
+  },
+  {
+    "id": "barcelona_family",
+    "input": "4 days Barcelona, family of 4 with two kids age 8 and 10, $300/day, beach and Gaudi architecture, kids must enjoy it",
+    "expected_criteria": {
+      "destination_city": "Barcelona",
+      "destination_country": "Spain",
+      "duration_days": 4,
+      "client.budget_per_day_usd": 300,
+      "client.group_type": "family",
+      "client.group_size": 4
+    },
+    "must_appear_places": ["Sagrada Familia", "Park Güell"]
+  },
+  {
+    "id": "rome_mobility",
+    "input": "5 days Rome, couple, $180/day, one partner uses a cane and can't walk more than 1.5km per day, loves food and art",
+    "expected_criteria": {
+      "destination_city": "Rome",
+      "duration_days": 5,
+      "client.budget_per_day_usd": 180,
+      "client.mobility_notes": "uses a cane"
+    },
+    "must_appear_places": []
+  },
+  {
+    "id": "amsterdam_budget",
+    "input": "3-day Amsterdam trip, solo backpacker, $80/day, bike-friendly, coffee shops and canals",
+    "expected_criteria": {
+      "destination_city": "Amsterdam",
+      "destination_country": "Netherlands",
+      "duration_days": 3,
+      "client.budget_per_day_usd": 80,
+      "client.travel_style": "budget",
+      "client.group_type": "solo"
+    },
+    "must_appear_places": []
+  },
+  {
+    "id": "tokyo_food",
+    "input": "7-day Tokyo itinerary for two foodies, $250/day, vegetarian, ramen doesn't count, want sushi omakase and izakayas",
+    "expected_criteria": {
+      "destination_city": "Tokyo",
+      "destination_country": "Japan",
+      "duration_days": 7,
+      "client.budget_per_day_usd": 250,
+      "client.dietary_restrictions": ["vegetarian"]
+    },
+    "must_appear_places": []
+  },
+  {
+    "id": "lisbon_remote",
+    "input": "10 days Lisbon, remote worker couple, $150/day, need good wifi cafes, fado music, coastal day trips",
+    "expected_criteria": {
+      "destination_city": "Lisbon",
+      "destination_country": "Portugal",
+      "duration_days": 10,
+      "client.budget_per_day_usd": 150,
+      "client.group_type": "couple"
+    },
+    "must_appear_places": []
+  },
+  {
+    "id": "nyc_weekend",
+    "input": "Long weekend NYC, 3 days, friends group of 5, $120/day each, Broadway show, good bars, street food",
+    "expected_criteria": {
+      "destination_city": "New York City",
+      "destination_country": "USA",
+      "duration_days": 3,
+      "client.budget_per_day_usd": 120,
+      "client.group_size": 5,
+      "client.group_type": "friends"
+    },
+    "must_appear_places": []
+  },
+  {
+    "id": "florence_art",
+    "input": "4 days Florence, couple, $220/day, art history focus, Uffizi Gallery is a must, gluten-free diet",
+    "expected_criteria": {
+      "destination_city": "Florence",
+      "destination_country": "Italy",
+      "duration_days": 4,
+      "client.budget_per_day_usd": 220,
+      "client.dietary_restrictions": ["gluten-free"],
+      "must_include": ["Uffizi Gallery"]
+    },
+    "must_appear_places": ["Uffizi Gallery"]
+  },
+  {
+    "id": "replan_disruption",
+    "input": "Day 3 afternoon: the Borghese Gallery is unexpectedly closed. We have the Vatican booked and locked for Day 3 morning.",
+    "expected_criteria": {
+      "disruption": true,
+      "day_number": 3,
+      "period": "afternoon"
+    },
+    "must_appear_places": []
+  }
+]

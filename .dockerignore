@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Dev / test
+.env
+.env.*
+!.env.example
+backend/tests/
+scripts/
+*.ipynb
+
+# Node (frontend built separately)
+frontend/node_modules/
+frontend/src/
+frontend/public/
+frontend/*.config.*
+frontend/index.html
+
+# Version control
+.git/
+.gitignore
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+plan.md

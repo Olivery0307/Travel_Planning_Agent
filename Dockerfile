@@ -1,0 +1,21 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install uv
+RUN pip install --no-cache-dir uv
+
+# Copy dependency files first for layer caching
+COPY pyproject.toml uv.lock ./
+
+# Install production dependencies only
+RUN uv sync --frozen --no-dev
+
+# Copy application code
+COPY backend/ backend/
+COPY static/ static/
+
+# Cloud Run injects PORT env var
+ENV PORT=8080
+
+CMD uv run python main.py serve --host 0.0.0.0 --port ${PORT}

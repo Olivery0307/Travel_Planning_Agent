@@ -1,3 +1,38 @@
-.claude
-.venv
+# Claude
+.claude/
+
+# Python
+.venv/
 __pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*service-account*.json
+
+# Data (large files — seed cache is committed intentionally, remove from here if needed)
+backend/data/*.json
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
