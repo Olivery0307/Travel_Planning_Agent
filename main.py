@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import re
 import sys
 import traceback
 import uuid
 
 import typer
 import uvicorn
-from agents import Runner
+from agents import InputGuardrailTripwireTriggered, Runner
 from agents.extensions.models.litellm_model import LitellmModel
 from agents.items import TResponseInputItem
 from agents.memory.session import SessionABC
@@ -78,6 +80,43 @@ class AppContext(BaseModel):
         _context_store[self.session_id] = self
 
 
+# Itinerary capture ------------------------------------------------------------
+
+def _looks_like_itinerary(text: str) -> bool:
+    """Return True if the response text contains a full itinerary."""
+    return bool(
+        re.search(r"\*\*Day \d", text) and
+        re.search(r"(morning|afternoon|evening)", text, re.IGNORECASE)
+    )
+
+
+def _guardrail_message(user_input: str) -> str:
+    """Return a friendly rejection message based on what the user sent."""
+    lower = user_input.lower()
+    if re.search(r"\$\s*\d+", lower):
+        return (
+            "That budget doesn't look right for a travel plan — "
+            "I can help with trips in the $20–$10,000/day range per person. "
+            "What's your daily budget?"
+        )
+    return (
+        "I'm a travel planning assistant — I can help you build itineraries, "
+        "find places, and re-plan when things go wrong. "
+        "What trip are you planning?"
+    )
+
+
+def _capture_itinerary(ctx: "AppContext", response: str) -> None:
+    """If the response contains an itinerary, store it in AppContext for the re-planner."""
+    if _looks_like_itinerary(response):
+        ctx.itinerary_json = json.dumps({
+            "text": response,
+            "version": ctx.disruption_count + 1,
+        })
+        logger.info("itinerary captured in AppContext (session=%s, %d chars)",
+                    ctx.session_id, len(response))
+
+
 # Models & Agents --------------------------------------------------------------
 
 _orchestrator_model = LitellmModel(model=_orchestrator_model_str, api_key="unused")
@@ -96,6 +135,7 @@ init_guardrail_agents(_specialist_model)
 agent = build_orchestrator(
     orchestrator_model=_orchestrator_model,
     specialist_model=_specialist_model,
+    input_guardrails=[off_topic_guardrail, budget_sanity_guardrail],
 )
 
 
@@ -133,14 +173,22 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
     logger.info("chat session=%s message=%r", session_id, request.message[:80])
 
-    result = await Runner.run(
-        agent,
-        request.message,
-        session=session,
-        context=ctx,
-        max_turns=50,
-    )
+    try:
+        result = await Runner.run(
+            agent,
+            request.message,
+            session=session,
+            context=ctx,
+            max_turns=50,
+        )
+    except InputGuardrailTripwireTriggered as e:
+        # Return a clean user-facing message instead of a 500
+        guardrail_name = type(e).__name__
+        logger.info("guardrail triggered session=%s guardrail=%s", session_id, guardrail_name)
+        msg = _guardrail_message(request.message)
+        return ChatResponse(response=msg, session_id=session_id)
 
+    _capture_itinerary(ctx, result.final_output)
     ctx.save()
     return ChatResponse(response=result.final_output, session_id=session_id)
 
@@ -171,9 +219,14 @@ def ask(query: str, session_id: str = "cli_session") -> None:
         session = InMemorySession(session_id)
         ctx = AppContext.get_or_create(session_id)
 
-        result = await Runner.run(agent, query, session=session, context=ctx, max_turns=20)
-        ctx.save()
+        try:
+            result = await Runner.run(agent, query, session=session, context=ctx, max_turns=50)
+        except InputGuardrailTripwireTriggered:
+            typer.echo(_guardrail_message(query))
+            return
 
+        _capture_itinerary(ctx, result.final_output)
+        ctx.save()
         typer.echo(f"Agent:\n{result.final_output}\n" + "-" * 60)
 
     asyncio.run(_run())
