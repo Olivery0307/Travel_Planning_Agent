@@ -5,6 +5,7 @@ description = "AI Travel Itinerary Optimizer — multi-agent trip planning and r
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.136.1",
+    "google-cloud-storage>=3.10.1",
     "googlemaps>=4.10.0",
     "httpx>=0.28.1",
     "litellm[google]>=1.83.12",

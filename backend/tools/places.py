@@ -1,16 +1,22 @@
-"""Google Places API tools exposed to specialist agents."""
+"""Google Places API tools exposed to specialist agents.
+
+Lookup order for every call:
+  1. PlacesCache (local JSON + GCS)   — zero cost, zero latency
+  2. Live Google Places API           — only on cache miss
+"""
 
 from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Literal
 
 import googlemaps
 from agents import function_tool
-from pydantic import Field
 
 from backend.models.places import OpeningHours, PlaceResult
+from backend.tools.cache import get_cache
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +33,37 @@ def _client() -> googlemaps.Client:
     return _gmaps
 
 
+def _city_from_location(location: str) -> str:
+    """Extract city name from 'Rome, Italy' or 'Rome' or '41.9,12.4'."""
+    if re.match(r"^-?\d+\.?\d*,\s*-?\d+\.?\d*$", location.strip()):
+        return ""  # lat,lng — can't determine city
+    return location.split(",")[0].strip().lower()
+
+
+def _dict_to_place_result(p: dict, category: str = "other") -> PlaceResult:
+    """Convert a cache dict to a PlaceResult model."""
+    hours_raw = p.get("opening_hours") or {}
+    return PlaceResult(
+        place_id=p["place_id"],
+        name=p.get("name", ""),
+        address=p.get("address") or p.get("formatted_address", ""),
+        lat=float(p.get("lat", 0.0)),
+        lng=float(p.get("lng", 0.0)),
+        rating=p.get("rating"),
+        user_ratings_total=p.get("user_ratings_total"),
+        price_level=p.get("price_level"),
+        opening_hours=OpeningHours(
+            open_now=hours_raw.get("open_now"),
+            weekday_text=hours_raw.get("weekday_text", []),
+        ),
+        photo_urls=p.get("photo_urls", []),
+        website=p.get("website"),
+        phone=p.get("phone"),
+        editorial_summary=p.get("editorial_summary"),
+        category=p.get("category") or category,  # type: ignore[arg-type]
+    )
+
+
 @function_tool
 def search_places(
     query: str,
@@ -35,102 +72,156 @@ def search_places(
     max_results: int = 10,
     min_rating: float = 3.5,
 ) -> list[PlaceResult] | dict:
-    """Search Google Places for travel-relevant locations matching a query.
+    """Search for travel-relevant places matching a query in a given location.
+    Checks local cache first (fast, free). Falls back to live Google Places API on miss.
     Use category to narrow results. location should be a city name e.g. 'Rome, Italy'.
     Returns up to max_results places with name, address, rating, price_level,
-    opening_hours summary, and place_id. Always call this before get_place_details
-    to get place_ids first.
+    opening_hours summary, and place_id. Always call this before get_place_details.
     """
+    cache = get_cache()
+    city  = _city_from_location(location)
+
+    # ── Cache lookup ─────────────────────────────────────
+    if city:
+        cached = cache.search(city, category, query, max_results, min_rating)
+        if len(cached) >= 3:
+            results = [_dict_to_place_result(p, category) for p in cached]
+            logger.info("search_places cache HIT city=%r cat=%r query=%r → %d results",
+                        city, category, query, len(results))
+            return results
+        if cached:
+            logger.info("search_places cache PARTIAL city=%r cat=%r → %d results, supplementing live",
+                        city, category, len(cached))
+        else:
+            logger.info("search_places cache MISS city=%r cat=%r, calling live API", city, category)
+
+    # ── Live API ─────────────────────────────────────────
     try:
         client = _client()
         category_type_map = {
-            "lodging": "lodging",
+            "lodging":    "lodging",
             "restaurant": "restaurant",
-            "activity": "tourist_attraction",
+            "activity":   "tourist_attraction",
             "attraction": "tourist_attraction",
         }
-        place_type = category_type_map.get(category)
-
         raw = client.places(
             query=f"{query} in {location}",
-            type=place_type,
+            type=category_type_map.get(category),
         )
 
-        results: list[PlaceResult] = []
+        live_results: list[PlaceResult] = []
         for p in raw.get("results", [])[:max_results]:
             rating = p.get("rating")
             if rating is not None and rating < min_rating:
                 continue
             loc = p.get("geometry", {}).get("location", {})
-            hours_raw = p.get("opening_hours", {})
-            results.append(
-                PlaceResult(
-                    place_id=p["place_id"],
-                    name=p.get("name", ""),
-                    address=p.get("formatted_address", p.get("vicinity", "")),
-                    lat=loc.get("lat", 0.0),
-                    lng=loc.get("lng", 0.0),
-                    rating=rating,
-                    user_ratings_total=p.get("user_ratings_total"),
-                    price_level=p.get("price_level"),
-                    opening_hours=OpeningHours(open_now=hours_raw.get("open_now")),
-                    category=category,
-                )
-            )
-        logger.info("search_places query=%r returned %d results", query, len(results))
-        return results
+            place_dict = {
+                "place_id":           p["place_id"],
+                "name":               p.get("name", ""),
+                "address":            p.get("formatted_address", p.get("vicinity", "")),
+                "lat":                loc.get("lat", 0.0),
+                "lng":                loc.get("lng", 0.0),
+                "rating":             rating,
+                "user_ratings_total": p.get("user_ratings_total"),
+                "price_level":        p.get("price_level"),
+                "category":           category,
+                "opening_hours":      {"open_now": p.get("opening_hours", {}).get("open_now")},
+            }
+            if city:
+                cache.store(place_dict, city)
+            live_results.append(_dict_to_place_result(place_dict, category))
+
+        logger.info("search_places live API city=%r query=%r → %d results",
+                    city, query, len(live_results))
+
+        # merge cached partials + live, dedupe by place_id
+        if city and cached:
+            seen = {r.place_id for r in live_results}
+            for p in cached:
+                if p["place_id"] not in seen:
+                    live_results.append(_dict_to_place_result(p, category))
+                    seen.add(p["place_id"])
+
+        return live_results[:max_results]
+
     except Exception as exc:
-        logger.error("search_places error: %s", exc)
+        logger.error("search_places live API error: %s", exc)
+        # return whatever we have from cache rather than an error dict
+        if city and cached:
+            return [_dict_to_place_result(p, category) for p in cached]
         return {"error": str(exc)}
 
 
 @function_tool
 def get_place_details(place_id: str) -> PlaceResult | dict:
-    """Fetch full details for a specific place by its Google Places place_id.
+    """Fetch full details for a place by its Google Places place_id.
     Returns name, address, lat/lng, phone, website, opening_hours (all days),
-    rating, user_ratings_total, price_level, photos (first 3 URLs), editorial_summary.
-    Use this after search_places to get complete data for shortlisted candidates.
+    rating, user_ratings_total, price_level, photos, editorial_summary.
+    Checks local cache first. Falls back to live API on miss.
     """
+    cache = get_cache()
+
+    # ── Cache lookup ─────────────────────────────────────
+    cached = cache.get(place_id)
+    if cached and cached.get("opening_hours", {}).get("weekday_text"):
+        logger.info("get_place_details cache HIT place_id=%r name=%r",
+                    place_id, cached.get("name"))
+        return _dict_to_place_result(cached)
+
+    # ── Live API ─────────────────────────────────────────
+    logger.info("get_place_details cache MISS place_id=%r, calling live API", place_id)
     try:
         client = _client()
         fields = [
             "place_id", "name", "formatted_address", "geometry",
             "rating", "user_ratings_total", "price_level",
-            "opening_hours", "photo", "website", "formatted_phone_number",
-            "editorial_summary",
+            "opening_hours", "photo", "website",
+            "formatted_phone_number", "editorial_summary",
         ]
         raw = client.place(place_id, fields=fields).get("result", {})
         loc = raw.get("geometry", {}).get("location", {})
         hours_raw = raw.get("opening_hours", {})
+
+        api_key = os.environ.get("GOOGLE_PLACES_API_KEY") or os.environ.get("GOOGLE_MAPS_API_KEY", "")
         photo_urls = []
         for photo in raw.get("photos", [])[:3]:
             ref = photo.get("photo_reference")
             if ref:
-                key = os.environ.get("GOOGLE_PLACES_API_KEY") or os.environ.get("GOOGLE_MAPS_API_KEY", "")
                 photo_urls.append(
                     f"https://maps.googleapis.com/maps/api/place/photo"
-                    f"?maxwidth=800&photoreference={ref}&key={key}"
+                    f"?maxwidth=800&photoreference={ref}&key={api_key}"
                 )
-        result = PlaceResult(
-            place_id=raw.get("place_id", place_id),
-            name=raw.get("name", ""),
-            address=raw.get("formatted_address", ""),
-            lat=loc.get("lat", 0.0),
-            lng=loc.get("lng", 0.0),
-            rating=raw.get("rating"),
-            user_ratings_total=raw.get("user_ratings_total"),
-            price_level=raw.get("price_level"),
-            opening_hours=OpeningHours(
-                open_now=hours_raw.get("open_now"),
-                weekday_text=hours_raw.get("weekday_text", []),
-            ),
-            photo_urls=photo_urls,
-            website=raw.get("website"),
-            phone=raw.get("formatted_phone_number"),
-            editorial_summary=raw.get("editorial_summary", {}).get("overview"),
-        )
-        logger.info("get_place_details place_id=%r name=%r", place_id, result.name)
-        return result
+
+        place_dict = {
+            "place_id":           raw.get("place_id", place_id),
+            "name":               raw.get("name", ""),
+            "address":            raw.get("formatted_address", ""),
+            "lat":                loc.get("lat", 0.0),
+            "lng":                loc.get("lng", 0.0),
+            "rating":             raw.get("rating"),
+            "user_ratings_total": raw.get("user_ratings_total"),
+            "price_level":        raw.get("price_level"),
+            "website":            raw.get("website"),
+            "phone":              raw.get("formatted_phone_number"),
+            "editorial_summary":  raw.get("editorial_summary", {}).get("overview"),
+            "photo_urls":         photo_urls,
+            "opening_hours": {
+                "open_now":      hours_raw.get("open_now"),
+                "weekday_text":  hours_raw.get("weekday_text", []),
+                "periods":       hours_raw.get("periods", []),
+            },
+        }
+
+        # store back — use existing city tag if present in cache
+        existing = cache.get(place_id)
+        city = (existing or {}).get("city", "")
+        if city:
+            place_dict["category"] = (existing or {}).get("category", "attraction")
+            cache.store(place_dict, city)
+
+        logger.info("get_place_details live API place_id=%r name=%r", place_id, place_dict["name"])
+        return _dict_to_place_result(place_dict)
+
     except Exception as exc:
         logger.error("get_place_details error: %s", exc)
         return {"error": str(exc)}
@@ -140,25 +231,47 @@ def get_place_details(place_id: str) -> PlaceResult | dict:
 def get_opening_hours(place_id: str, day_of_week: int) -> dict:
     """Get opening hours for a specific place on a given day (0=Monday, 6=Sunday).
     Returns {'open': bool, 'hours': '9:00 AM - 6:00 PM', 'note': str}.
-    Use this when you need to schedule a slot and must confirm the place is open.
+    Checks cache first; falls back to live API.
     """
+    cache = get_cache()
+    cached = cache.get(place_id)
+
+    # try to answer from cache periods
+    if cached:
+        periods = (cached.get("opening_hours") or {}).get("periods", [])
+        weekday_text = (cached.get("opening_hours") or {}).get("weekday_text", [])
+        google_day = (day_of_week + 1) % 7
+        for period in periods:
+            if period.get("open", {}).get("day") == google_day:
+                open_time  = period["open"].get("time", "")
+                close_time = period.get("close", {}).get("time", "")
+                return {
+                    "open":  True,
+                    "hours": f"{open_time[:2]}:{open_time[2:]} - {close_time[:2]}:{close_time[2:]}",
+                    "note":  weekday_text[day_of_week] if weekday_text else "",
+                }
+        if weekday_text:
+            return {"open": False, "hours": "Closed",
+                    "note": weekday_text[day_of_week] if weekday_text else ""}
+
+    # live API fallback
     try:
         client = _client()
         raw = client.place(place_id, fields=["opening_hours"]).get("result", {})
         periods = raw.get("opening_hours", {}).get("periods", [])
         weekday_text = raw.get("opening_hours", {}).get("weekday_text", [])
-        # day_of_week: 0=Monday in our contract; Google uses 0=Sunday
         google_day = (day_of_week + 1) % 7
         for period in periods:
             if period.get("open", {}).get("day") == google_day:
-                open_time = period["open"].get("time", "")
+                open_time  = period["open"].get("time", "")
                 close_time = period.get("close", {}).get("time", "")
                 return {
-                    "open": True,
+                    "open":  True,
                     "hours": f"{open_time[:2]}:{open_time[2:]} - {close_time[:2]}:{close_time[2:]}",
-                    "note": weekday_text[day_of_week] if weekday_text else "",
+                    "note":  weekday_text[day_of_week] if weekday_text else "",
                 }
-        return {"open": False, "hours": "Closed", "note": weekday_text[day_of_week] if weekday_text else ""}
+        return {"open": False, "hours": "Closed",
+                "note": weekday_text[day_of_week] if weekday_text else ""}
     except Exception as exc:
         logger.error("get_opening_hours error: %s", exc)
         return {"error": str(exc)}

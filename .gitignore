@@ -19,8 +19,8 @@ build/
 *.pem
 *service-account*.json
 
-# Data (large files — seed cache is committed intentionally, remove from here if needed)
-backend/data/*.json
+# Data — seeded city caches are committed; exclude only manifest/temp files
+backend/data/tmp_*
 
 # Node
 frontend/node_modules/
@@ -36,3 +36,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+data/
+logs/
