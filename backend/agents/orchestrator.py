@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from agents import Agent
 from agents.extensions.models.litellm_model import LitellmModel
@@ -17,7 +18,11 @@ from backend.agents.solver import build_solver_agent
 _PROMPT = (Path(__file__).parent / "prompts" / "orchestrator.md").read_text()
 
 
-def build_orchestrator(orchestrator_model: LitellmModel, specialist_model: LitellmModel) -> Agent:
+def build_orchestrator(
+    orchestrator_model: LitellmModel,
+    specialist_model: LitellmModel,
+    input_guardrails: list[Any] | None = None,
+) -> Agent:
     intake = build_intake_agent(specialist_model)
     lodging = build_lodging_agent(specialist_model)
     activity = build_activity_agent(specialist_model)
@@ -29,6 +34,7 @@ def build_orchestrator(orchestrator_model: LitellmModel, specialist_model: Litel
         name="OrchestratorAgent",
         model=orchestrator_model,
         instructions=_PROMPT,
+        input_guardrails=input_guardrails or [],
         tools=[
             intake.as_tool(
                 tool_name="intake_agent",
