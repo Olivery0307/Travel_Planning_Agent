@@ -960,6 +960,96 @@
       white-space: nowrap;
     }
 
+    /* Day nav bar (maps link + QR toggle) */
+    .day-nav-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 1.35rem 0.65rem;
+      border-top: 1px solid var(--border-subtle);
+      background: rgba(201,160,90,0.04);
+    }
+
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--amber);
+      text-decoration: none;
+      border: 1px solid var(--amber-line);
+      padding: 0.28rem 0.65rem;
+      border-radius: 2px;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .nav-btn:hover { background: var(--amber-glow); color: var(--amber-lt); }
+
+    .qr-toggle {
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone);
+      background: none;
+      border: 1px solid var(--border-mid);
+      padding: 0.28rem 0.65rem;
+      border-radius: 2px;
+      cursor: pointer;
+      font-family: var(--font-body);
+      transition: background 0.15s, color 0.15s;
+    }
+    .qr-toggle:hover { background: rgba(255,255,255,0.04); color: var(--silk); }
+
+    .qr-panel {
+      display: none;
+      padding: 0.75rem 1.35rem 0.9rem;
+      background: rgba(255,255,255,0.02);
+      border-top: 1px solid var(--border-subtle);
+      align-items: center;
+      gap: 1rem;
+    }
+    .qr-panel.open { display: flex; }
+
+    .qr-panel img {
+      width: 96px;
+      height: 96px;
+      border-radius: 4px;
+      border: 2px solid var(--border-mid);
+      image-rendering: pixelated;
+    }
+
+    .qr-label {
+      font-size: 0.62rem;
+      color: var(--stone);
+      line-height: 1.6;
+    }
+    .qr-label strong { color: var(--silk); display: block; margin-bottom: 0.2rem; }
+
+    /* Slot booking link */
+    .slot-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+      font-size: 0.56rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--cerulean);
+      text-decoration: none;
+      border: 1px solid rgba(74,122,171,0.3);
+      padding: 0.1rem 0.32rem;
+      border-radius: 2px;
+      margin-top: 0.25rem;
+      transition: background 0.12s;
+      white-space: nowrap;
+    }
+    .slot-link:hover { background: rgba(74,122,171,0.1); }
+
     /* Total bar */
     .itin-total {
       margin-top: 1.5rem;
@@ -1333,12 +1423,13 @@ async function sendMessage(text) {
     sessionId      = data.session_id;
     const response = data.response;
 
+    const isItin = looksLikeItinerary(response);
+    const summary = extractSummary(response);
     loadWrap.querySelector('.bubble').innerHTML =
-      mdToHtml(escHtml(extractSummary(response)));
+      mdToHtml(escHtml(summary || (isItin ? 'Your itinerary is ready — see the panel on the right.' : response)));
     loadWrap.classList.remove('loading');
 
-    if (looksLikeItinerary(response)) {
-      console.log('RAW RESPONSE:\n', response);
+    if (isItin) {
       renderItinerary(response);
     }
 
@@ -1372,13 +1463,25 @@ nlInput.addEventListener('keydown', e => {
 
 // ─── Summary extractor ───────────────────────────────────────────────
 function extractSummary(text) {
+  // Return only the short human-readable preamble before the itinerary block.
+  // Stop at the first line that looks like structured itinerary content.
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const nonSlot = lines.filter(l =>
-    !/^[-•]\s*[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}️]/u.test(l) &&
-    !/^\*\*Day\s+\d/i.test(l) &&
-    !/^Budget:/i.test(l)
-  );
-  return (nonSlot.slice(0, 3).join('\n')) || lines[0] || text;
+  const out = [];
+  for (const l of lines) {
+    if (
+      /^\*\*\d+-Day/i.test(l) ||      // **5-Day Rome Itinerary**
+      /^\*\*Day\s+\d/i.test(l) ||      // **Day 1 —
+      /^Budget:/i.test(l) ||
+      /^---/.test(l) ||
+      /^\[🗺/.test(l) ||               // maps link lines
+      /^\[QR_DAY_/i.test(l)
+    ) break;
+    // Also stop if the line is a bullet slot line (starts with - 🌅 etc.)
+    if (/^[-•]\s*[\p{Emoji}]/u.test(l)) break;
+    out.push(l);
+    if (out.length >= 3) break;
+  }
+  return out.join('\n') || lines[0] || '';
 }
 
 // ─── Itinerary detection ─────────────────────────────────────────────
@@ -1401,22 +1504,21 @@ const PERIOD_ICON = {
 };
 
 const COST_RE = /~?\$[\d,]+(?:[^\s,\)]*)?/;
-const NOTE_RE = /[—–]\s*(.+)$/;
+// Note: stops before any [ to avoid eating booking links that follow a dash
+const NOTE_RE = /[—–]\s*([^\[]+?)(?:\s*\[|$)/;
 
 function parseLine(raw) {
-  // Strip leading bullet + any emoji + optional period keyword, all in one pass
-  // Pattern: optional bullet, optional emoji chars, then the period keyword
   let s = raw.replace(/^[-•*]\s+/, '').trim();
 
   // Skip cost lines
   if (/💰/.test(s) || /^\*?day\s+total/i.test(s))
     return { type: 'cost', text: s.replace(/💰\s*/, '').replace(/\*\*/g, '').trim() };
 
-  // Strip any leading emoji characters (handles multi-codepoint emoji safely)
-  // \p{Emoji} covers all emoji including variation selectors
+  // Skip maps navigation lines and QR markers — handled by parseItinerary
+  if (/^\[🗺/.test(s) || /^\[QR_DAY_/i.test(s)) return null;
+
   s = s.replace(/^[\p{Emoji}️⃣‍]+\s*/u, '').trim();
 
-  // Now detect period from keyword
   const kw = s.match(/^(morning|afternoon|evening|lunch|dinner|breakfast|lodging|hotel)[:\s–—]+/i);
   if (!kw) return null;
 
@@ -1424,10 +1526,27 @@ function parseLine(raw) {
   s = s.slice(kw[0].length).trim();
   s = s.replace(/\*\*/g, '').trim();
 
+  // 1. Extract ALL markdown links [label](url) — there may be one per slot
+  //    Collect all links, remove them from s, keep the last one as the action link.
+  let link = null;
+  const linkRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+  let lm;
+  while ((lm = linkRe.exec(s)) !== null) {
+    // Normalize common link labels to short display text
+    let label = lm[1].trim();
+    if (/maps/i.test(label))         label = 'Maps';
+    else if (/book ticket/i.test(label)) label = 'Book Tickets';
+    else if (/official|book/i.test(label)) label = 'Book';
+    link = { label, url: lm[2] };
+  }
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '').trim();
+
+  // 2. Extract note (text after em-dash, stopping before any remaining bracket)
   let note = '';
   const nm = s.match(NOTE_RE);
   if (nm) { note = nm[1].trim(); s = s.slice(0, nm.index).trim(); }
 
+  // 3. Extract cost
   let cost = '';
   const cm = s.match(/\(~?\$[\d,]+[^)]*\)/);
   if (cm) {
@@ -1438,36 +1557,56 @@ function parseLine(raw) {
     if (tm) { cost = tm[0]; s = s.replace(tm[0], '').replace(/,\s*$/, '').trim(); }
   }
 
+  // Clean up leftover empty parens like "(3h, )" after cost extraction
+  s = s.replace(/\(\s*[\w\s]+,?\s*\)/, '').trim();
   s = s.replace(/[,\s]+$/, '').trim();
   if (!s) return null;
 
-  return { type: 'slot', period, icon: PERIOD_ICON[period] || '📍', name: s, note, cost };
+  return { type: 'slot', period, icon: PERIOD_ICON[period] || '📍', name: s, note, cost, link };
 }
 
 function parseItinerary(text) {
-  const lines  = text.split('\n').map(l => l.trim()).filter(Boolean);
+  // Keep empty lines so we can detect line breaks; filter only truly blank ones later.
+  const lines  = text.split('\n').map(l => l.trim());
   const result = { title: '', meta: [], days: [], total: '' };
   let cur      = null;
 
   for (const line of lines) {
-    if (!result.title && /itinerary/i.test(line) && /\*\*|^#+/.test(line)) {
+    if (!line || /^---+$/.test(line)) continue;  // skip blank lines and hr separators
+
+    // Title: any bold/heading line containing "itinerary" or "Day Plan"
+    if (!result.title && /itinerary|day plan/i.test(line) && /\*\*|^#+/.test(line)) {
       result.title = line.replace(/\*\*/g, '').replace(/^#+\s*/, '').trim();
       continue;
     }
+
     if (/^[\*\s]*budget\s*:/i.test(line)) {
       result.meta = line.replace(/\*\*/g, '').split('|').map(s => s.trim()).filter(Boolean);
       continue;
     }
+
     if (/total\s+estimated\s+cost/i.test(line)) {
       result.total = line.replace(/\*\*/g, '').replace(/^[-•*]\s*/, '').trim();
       continue;
     }
-    const dm = line.match(/^(?:\*\*|#+\s*)?Day\s+(\d+)\s*[—–:\-]+\s*(.+?)[\*]*$/i);
+
+    // Day header: **Day N — Name** or ## Day N — Name
+    const dm = line.match(/^(?:\*\*|#+\s*)?Day\s+(\d+)\s*[—–:\-]+\s*(.+?)(?:\*\*)?$/i);
     if (dm) {
-      cur = { number: +dm[1], name: dm[2].replace(/\*\*/g, '').trim(), slots: [], cost: '' };
+      cur = { number: +dm[1], name: dm[2].replace(/\*\*/g, '').trim(), slots: [], cost: '', mapsUrl: '', qrUrl: '' };
       result.days.push(cur);
       continue;
     }
+
+    // Maps navigation link: [🗺 Navigate Day N on Google Maps](url)
+    // May appear as a bare line (not prefixed with bullet)
+    const mm = line.match(/\[🗺[^\]]*\]\((https?:\/\/[^)]+)\)/);
+    if (mm && cur) { cur.mapsUrl = mm[1]; continue; }
+
+    // QR marker: [QR_DAY_N](url)
+    const qm = line.match(/\[QR_DAY_\d+\]\((https?:\/\/[^)]+)\)/i);
+    if (qm && cur) { cur.qrUrl = qm[1]; continue; }
+
     if (cur && /^[-•*]/.test(line)) {
       const parsed = parseLine(line);
       if (!parsed) continue;
@@ -1501,9 +1640,21 @@ function renderItinerary(text) {
           <div class="slot-period ${sl.period}">${sl.period}</div>
           <div class="slot-name">${escHtml(sl.name)}</div>
           ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
+          ${sl.link ? `<a class="slot-link" href="${escHtml(sl.link.url)}" target="_blank" rel="noopener">↗ ${escHtml(sl.link.label)}</a>` : ''}
         </div>
         ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : ''}
       </div>`).join('');
+
+    const navBar = day.mapsUrl ? `
+      <div class="day-nav-bar">
+        <a class="nav-btn" href="${escHtml(day.mapsUrl)}" target="_blank" rel="noopener">🗺 Navigate Day ${day.number}</a>
+        ${day.qrUrl ? `<button class="qr-toggle" onclick="toggleQr(this)">QR Code</button>` : ''}
+      </div>
+      ${day.qrUrl ? `
+      <div class="qr-panel">
+        <img src="" data-qr-url="${escHtml(day.qrUrl)}" alt="QR code for Day ${day.number} route" loading="lazy" />
+        <div class="qr-label"><strong>Scan to navigate</strong>Opens Day ${day.number} route in Google Maps on your phone.</div>
+      </div>` : ''}` : '';
 
     return `
       <div class="day-card" style="animation-delay:${i * 0.058}s" data-open="1">
@@ -1513,7 +1664,7 @@ function renderItinerary(text) {
           ${day.cost ? `<span class="day-cost">${escHtml(day.cost)}</span>` : ''}
           <span class="day-chev">▼</span>
         </div>
-        <div class="day-body" style="max-height:2000px">${slots}</div>
+        <div class="day-body" style="max-height:2000px">${slots}${navBar}</div>
       </div>`;
   }).join('');
 
@@ -1554,6 +1705,27 @@ function toggleDay(header) {
 
   card.dataset.open = open ? '0' : '1';
   card.classList.toggle('collapsed', open);
+}
+
+// ─── QR panel toggle ─────────────────────────────────────────────────
+function toggleQr(btn) {
+  const navBar = btn.closest('.day-nav-bar');
+  const panel  = navBar.nextElementSibling;
+  if (!panel || !panel.classList.contains('qr-panel')) return;
+  const opening = !panel.classList.contains('open');
+  panel.classList.toggle('open', opening);
+  btn.textContent = opening ? 'Hide QR' : 'QR Code';
+  // Lazy-load QR image on first open
+  if (opening) {
+    const img = panel.querySelector('img[data-qr-url]');
+    if (img && !img.src.startsWith('data:')) {
+      // Fetch QR as base64 from backend
+      fetch('/qr?url=' + encodeURIComponent(img.dataset.qrUrl))
+        .then(r => r.json())
+        .then(d => { if (d.data_uri) img.src = d.data_uri; })
+        .catch(() => { img.alt = 'QR unavailable'; });
+    }
+  }
 }
 
 // ─── Boot ────────────────────────────────────────────────────────────

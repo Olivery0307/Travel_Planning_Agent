@@ -209,6 +209,16 @@ async def debug_last_run() -> dict:
     return {"session_id": last_session_id, "context": ctx.model_dump()}
 
 
+@app.get("/qr")
+async def qr_endpoint(url: str) -> JSONResponse:
+    """Generate a QR code PNG for *url* and return it as a base64 data URI."""
+    from backend.tools.maps_links import qr_code_base64
+    data_uri = qr_code_base64(url)
+    if not data_uri:
+        return JSONResponse(status_code=500, content={"error": "qr generation failed"})
+    return JSONResponse(content={"data_uri": data_uri})
+
+
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 
