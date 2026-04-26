@@ -182,14 +182,14 @@ def get_place_details(place_id: str) -> PlaceResult | dict:
         loc = raw.get("geometry", {}).get("location", {})
         hours_raw = raw.get("opening_hours", {})
 
-        api_key = os.environ.get("GOOGLE_PLACES_API_KEY") or os.environ.get("GOOGLE_MAPS_API_KEY", "")
         photo_urls = []
         for photo in raw.get("photos", [])[:3]:
             ref = photo.get("photo_reference")
             if ref:
+                # Store without key — never embed credentials in cached data.
                 photo_urls.append(
                     f"https://maps.googleapis.com/maps/api/place/photo"
-                    f"?maxwidth=800&photoreference={ref}&key={api_key}"
+                    f"?maxwidth=800&photoreference={ref}"
                 )
 
         place_dict = {

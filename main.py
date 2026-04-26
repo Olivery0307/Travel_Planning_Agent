@@ -27,6 +27,12 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
+# Global LiteLLM retry on 429/503 — fires before the error reaches the SDK.
+# 3 retries with exponential backoff: waits 5s, 10s, 20s before each retry.
+import litellm  # noqa: E402
+litellm.num_retries = 3
+litellm.retry_after = 5
+
 _orchestrator_model_str = os.environ.get("ORCHESTRATOR_MODEL") or os.environ.get("MODEL")
 _specialist_model_str = os.environ.get("SPECIALIST_MODEL") or os.environ.get("MODEL")
 
