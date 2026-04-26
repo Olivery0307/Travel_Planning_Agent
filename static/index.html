@@ -3,734 +3,1403 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Itinerary AI</title>
+  <title>Voyager — AI Travel Intelligence</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Instrument+Sans:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <style>
+    /* ══════════════════════════════════════════════
+       DESIGN TOKENS
+    ══════════════════════════════════════════════ */
     :root {
-      --ink:       #1a1a18;
-      --paper:     #f7f4ef;
-      --cream:     #efe9df;
-      --gold:      #b8924a;
-      --gold-lt:   #d4b07a;
-      --rust:      #c45c3a;
-      --sage:      #6b8c6e;
-      --mist:      #8a96a3;
-      --border:    #ddd8cf;
-      --card-bg:   #ffffff;
-      --chat-w:    380px;
+      /* Core palette — deep obsidian grounds */
+      --void:       #0d0c0a;
+      --obsidian:   #161512;
+      --charcoal:   #1e1c18;
+      --graphite:   #2a2823;
+      --smoke:      #3d3a34;
+      --ash:        #56524b;
+      --stone:      #7a7469;
+      --fog:        #a09890;
+      --silk:       #c8bfb2;
+      --parchment:  #e8e0d4;
+      --ivory:      #f4f0ea;
+      --white:      #faf8f5;
+
+      /* Accent — burnished gold */
+      --amber:      #c9a05a;
+      --amber-lt:   #dfc080;
+      --amber-dk:   #9e7a3a;
+      --amber-glow: rgba(201,160,90,0.10);
+      --amber-line: rgba(201,160,90,0.22);
+
+      /* Semantic accents */
+      --terra:       #c05840;
+      --terra-soft:  rgba(192,88,64,0.10);
+      --verdant:     #5a8c64;
+      --verdant-soft:rgba(90,140,100,0.10);
+      --cerulean:    #4a7aab;
+
+      /* Surface layers */
+      --surface-0: var(--void);
+      --surface-1: var(--obsidian);
+      --surface-2: var(--charcoal);
+      --surface-3: var(--graphite);
+
+      /* Borders */
+      --border-subtle: rgba(255,255,255,0.055);
+      --border-mid:    rgba(255,255,255,0.09);
+      --border-strong: rgba(255,255,255,0.15);
+
+      /* Layout */
+      --chat-w: 420px;
+
+      /* Typography */
+      --font-display: 'Cormorant Garamond', serif;
+      --font-body:    'Instrument Sans', sans-serif;
+      --font-serif:   'Instrument Serif', serif;
     }
 
+    /* ══════════════════════════════════════════════
+       RESET & BASE
+    ══════════════════════════════════════════════ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--paper);
-      color: var(--ink);
+      font-family: var(--font-body);
+      background: var(--surface-0);
+      color: var(--ivory);
       height: 100dvh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ── HEADER ─────────────────────────────────────────── */
+    /* Fine grain texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px;
+      opacity: 0.022;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* Ambient radial glow top-right */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -25%;
+      right: -8%;
+      width: 55vw;
+      height: 65vh;
+      background: radial-gradient(ellipse at center, rgba(201,160,90,0.045) 0%, transparent 68%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ══════════════════════════════════════════════
+       HEADER
+    ══════════════════════════════════════════════ */
     header {
+      position: relative;
+      z-index: 100;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 2rem;
       height: 56px;
-      border-bottom: 1px solid var(--border);
-      background: var(--paper);
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(13,12,10,0.90);
+      backdrop-filter: blur(24px);
       flex-shrink: 0;
-      z-index: 10;
-    }
-    .logo {
-      display: flex;
-      align-items: baseline;
-      gap: 0.5rem;
-    }
-    .logo-word {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.25rem;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: var(--ink);
-    }
-    .logo-tag {
-      font-size: 0.7rem;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--gold);
-    }
-    .header-hint {
-      font-size: 0.72rem;
-      color: var(--mist);
-      font-style: italic;
     }
 
-    /* ── LAYOUT ─────────────────────────────────────────── */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-mark {
+      width: 26px;
+      height: 26px;
+      border: 1.5px solid var(--amber);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-mark::before {
+      content: '✦';
+      font-size: 0.58rem;
+      color: var(--amber);
+      line-height: 1;
+    }
+
+    .logo-name {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--white);
+    }
+
+    .logo-divider {
+      width: 1px;
+      height: 14px;
+      background: var(--border-mid);
+    }
+
+    .logo-sub {
+      font-size: 0.62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--amber);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--stone);
+    }
+
+    .status-indicator::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--verdant);
+      box-shadow: 0 0 7px var(--verdant);
+      animation: pulse-live 2.8s ease-in-out infinite;
+    }
+
+    @keyframes pulse-live {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.45; }
+    }
+
+    .header-tagline {
+      font-family: var(--font-display);
+      font-size: 0.78rem;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--stone);
+    }
+
+    /* ══════════════════════════════════════════════
+       MAIN LAYOUT
+    ══════════════════════════════════════════════ */
     #main {
       display: flex;
       flex: 1;
       overflow: hidden;
+      position: relative;
+      z-index: 1;
     }
 
-    /* ── CHAT PANE ──────────────────────────────────────── */
+    /* ══════════════════════════════════════════════
+       CHAT PANE
+    ══════════════════════════════════════════════ */
     #chat-pane {
       width: var(--chat-w);
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
-      border-right: 1px solid var(--border);
-      background: var(--paper);
+      border-right: 1px solid var(--border-subtle);
+      background: var(--surface-1);
+      position: relative;
     }
 
+    /* Gilded right edge accent */
+    #chat-pane::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: 15%;
+      bottom: 15%;
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, var(--amber-line), transparent);
+      pointer-events: none;
+    }
+
+    /* ── Messages area ── */
     #messages {
       flex: 1;
       overflow-y: auto;
-      padding: 1.25rem 1.25rem 0.5rem;
+      padding: 1.5rem 1.2rem 0.75rem;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 1.1rem;
       scrollbar-width: thin;
-      scrollbar-color: var(--border) transparent;
+      scrollbar-color: var(--graphite) transparent;
     }
 
-    .msg-wrap { display: flex; flex-direction: column; }
-    .msg-wrap.user { align-items: flex-end; }
+    #messages::-webkit-scrollbar       { width: 3px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: var(--graphite); border-radius: 2px; }
+
+    /* Welcome block */
+    .welcome-block {
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .welcome-heading {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--silk);
+      line-height: 1.25;
+      margin-bottom: 0.55rem;
+    }
+
+    .welcome-heading em {
+      color: var(--amber-lt);
+      font-style: normal;
+    }
+
+    .welcome-body {
+      font-size: 0.71rem;
+      color: var(--stone);
+      line-height: 1.72;
+      font-weight: 300;
+      margin-bottom: 0.9rem;
+    }
+
+    .example-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .example-btn {
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-body);
+      font-size: 0.69rem;
+      color: var(--ash);
+      padding: 0.42rem 0.65rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px;
+      background: transparent;
+      cursor: pointer;
+      line-height: 1.45;
+      transition: all 0.15s ease;
+    }
+
+    .example-btn:hover {
+      border-color: var(--amber-line);
+      color: var(--silk);
+      background: var(--amber-glow);
+    }
+
+    .example-btn::before {
+      content: '↗ ';
+      color: var(--amber);
+      opacity: 0.65;
+    }
+
+    /* Message bubbles */
+    .msg-wrap {
+      display: flex;
+      flex-direction: column;
+      animation: msgSlideIn 0.22s ease both;
+    }
+
+    @keyframes msgSlideIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-wrap.user      { align-items: flex-end; }
     .msg-wrap.assistant { align-items: flex-start; }
 
     .msg-label {
-      font-size: 0.62rem;
+      font-size: 0.57rem;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--mist);
-      margin-bottom: 0.3rem;
-      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: var(--ash);
+      margin-bottom: 0.28rem;
+      font-weight: 600;
     }
 
     .bubble {
-      max-width: 88%;
-      padding: 0.65rem 0.9rem;
+      max-width: 92%;
+      padding: 0.62rem 0.9rem;
       border-radius: 2px;
-      line-height: 1.55;
-      font-size: 0.85rem;
+      line-height: 1.6;
+      font-size: 0.82rem;
     }
+
     .msg-wrap.user .bubble {
-      background: var(--ink);
-      color: #fff;
+      background: linear-gradient(135deg, var(--amber), var(--amber-dk));
+      color: var(--void);
+      font-weight: 500;
     }
+
     .msg-wrap.assistant .bubble {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      color: var(--ink);
-    }
-    .msg-wrap.assistant.loading .bubble {
-      color: var(--mist);
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      color: var(--parchment);
     }
 
-    /* typing dots */
-    .typing { display: flex; align-items: center; gap: 4px; height: 18px; }
+    .msg-wrap.assistant.loading .bubble { color: var(--stone); }
+
+    /* Typing indicator */
+    .typing {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      height: 20px;
+      padding: 0 0.1rem;
+    }
+
     .typing span {
-      width: 5px; height: 5px; border-radius: 50%;
-      background: var(--mist);
-      animation: blink 1.2s infinite;
-    }
-    .typing span:nth-child(2) { animation-delay: 0.2s; }
-    .typing span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes blink {
-      0%,80%,100% { opacity: 0.2; transform: scale(0.8); }
-      40% { opacity: 1; transform: scale(1); }
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--amber);
+      animation: typePulse 1.4s ease-in-out infinite;
     }
 
+    .typing span:nth-child(2) { animation-delay: 0.22s; }
+    .typing span:nth-child(3) { animation-delay: 0.44s; }
+
+    @keyframes typePulse {
+      0%, 80%, 100% { opacity: 0.2; transform: scale(0.65); }
+      40%            { opacity: 1;   transform: scale(1);    }
+    }
+
+    /* ── Input Area ── */
     #input-area {
-      padding: 0.9rem 1.25rem 1rem;
-      border-top: 1px solid var(--border);
+      border-top: 1px solid var(--border-subtle);
       display: flex;
       flex-direction: column;
-      gap: 0.6rem;
+      flex-shrink: 0;
+      background: var(--surface-1);
     }
+
+    /* Mode tabs */
+    .mode-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 0.58rem 0;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--ash);
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      font-family: var(--font-body);
+    }
+
+    .mode-tab.active {
+      color: var(--amber);
+      border-bottom-color: var(--amber);
+    }
+
+    .mode-tab:hover:not(.active) { color: var(--silk); }
+
+    /* NL panel */
+    #nl-mode {
+      padding: 0.85rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    #nl-mode.hidden, #form-mode.hidden { display: none; }
+
     #user-input {
       width: 100%;
-      padding: 0.6rem 0.75rem;
-      border: 1px solid var(--border);
-      background: var(--card-bg);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.85rem;
-      color: var(--ink);
+      padding: 0.62rem 0.78rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px;
+      background: var(--surface-2);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      color: var(--ivory);
       resize: none;
       outline: none;
-      border-radius: 2px;
-      line-height: 1.5;
-      transition: border-color 0.15s;
+      line-height: 1.55;
+      transition: border-color 0.18s;
     }
-    #user-input:focus { border-color: var(--gold); }
-    #user-input::placeholder { color: var(--mist); }
 
-    #send-btn {
-      align-self: flex-end;
-      padding: 0.45rem 1.2rem;
-      background: var(--ink);
-      color: #fff;
+    #user-input:focus   { border-color: var(--amber-line); }
+    #user-input::placeholder { color: var(--ash); }
+
+    .send-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .send-hint {
+      font-size: 0.58rem;
+      color: var(--ash);
+      font-style: italic;
+    }
+
+    .btn-send {
+      display: flex;
+      align-items: center;
+      gap: 0.42rem;
+      padding: 0.44rem 1.05rem;
+      background: var(--amber);
+      color: var(--void);
       border: none;
       cursor: pointer;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.72rem;
-      font-weight: 500;
+      font-family: var(--font-body);
+      font-size: 0.62rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.15em;
       border-radius: 2px;
-      transition: background 0.15s, transform 0.1s;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
     }
-    #send-btn:hover { background: #333; }
-    #send-btn:active { transform: scale(0.97); }
-    #send-btn:disabled { opacity: 0.35; cursor: default; transform: none; }
 
-    /* ── ITINERARY PANE ─────────────────────────────────── */
+    .btn-send:hover {
+      background: var(--amber-lt);
+      box-shadow: 0 4px 18px rgba(201,160,90,0.22);
+    }
+
+    .btn-send:active  { transform: scale(0.97); }
+    .btn-send:disabled {
+      opacity: 0.28;
+      cursor: default;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-send-arrow {
+      font-size: 0.8rem;
+      line-height: 1;
+    }
+
+    /* Disruption hint */
+    .disruption-hint {
+      margin-top: 0.2rem;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid rgba(192,88,64,0.22);
+      border-radius: 2px;
+      background: rgba(192,88,64,0.06);
+      font-size: 0.65rem;
+      color: var(--terra);
+      line-height: 1.5;
+      display: none;
+    }
+
+    .disruption-hint.visible { display: block; }
+
+    .disruption-hint strong {
+      font-size: 0.57rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    /* Form panel */
+    #form-mode {
+      padding: 0.8rem 1.1rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.52rem;
+      max-height: 400px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--graphite) transparent;
+    }
+
+    .form-row { display: flex; gap: 0.45rem; }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      flex: 1;
+    }
+
+    .form-label {
+      font-size: 0.57rem;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: var(--ash);
+      font-weight: 700;
+    }
+
+    .form-input, .form-select {
+      padding: 0.4rem 0.58rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px;
+      background: var(--surface-2);
+      font-family: var(--font-body);
+      font-size: 0.79rem;
+      color: var(--ivory);
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+
+    .form-input:focus, .form-select:focus { border-color: var(--amber-line); }
+    .form-input::placeholder { color: var(--ash); }
+    .form-select option { background: var(--obsidian); }
+
+    /* Pill input */
+    .pill-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.28rem;
+      padding: 0.32rem 0.48rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px;
+      background: var(--surface-2);
+      min-height: 30px;
+      cursor: text;
+      transition: border-color 0.15s;
+    }
+
+    .pill-wrap:focus-within { border-color: var(--amber-line); }
+
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 0.22rem;
+      padding: 0.08rem 0.45rem;
+      background: var(--amber-glow);
+      border: 1px solid var(--amber-line);
+      border-radius: 2px;
+      font-size: 0.68rem;
+      color: var(--amber-lt);
+    }
+
+    .pill-remove {
+      cursor: pointer;
+      color: var(--amber);
+      opacity: 0.55;
+      font-size: 0.72rem;
+      line-height: 1;
+      background: none;
+      border: none;
+      padding: 0;
+      transition: opacity 0.12s;
+    }
+
+    .pill-remove:hover { opacity: 1; }
+
+    .pill-input {
+      border: none;
+      outline: none;
+      background: transparent;
+      font-family: var(--font-body);
+      font-size: 0.79rem;
+      color: var(--ivory);
+      min-width: 70px;
+      flex: 1;
+    }
+
+    .pill-input::placeholder { color: var(--ash); }
+
+    /* ══════════════════════════════════════════════
+       ITINERARY PANE
+    ══════════════════════════════════════════════ */
     #itinerary-pane {
       flex: 1;
       overflow-y: auto;
-      background: var(--cream);
+      background: var(--surface-0);
+      position: relative;
       scrollbar-width: thin;
-      scrollbar-color: var(--border) transparent;
+      scrollbar-color: var(--graphite) transparent;
     }
 
-    /* empty state */
+    #itinerary-pane::-webkit-scrollbar       { width: 3px; }
+    #itinerary-pane::-webkit-scrollbar-thumb { background: var(--graphite); border-radius: 2px; }
+
+    /* ── Empty State ── */
     #empty-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100%;
-      gap: 1rem;
+      gap: 0;
       padding: 2rem;
       text-align: center;
       pointer-events: none;
-    }
-    .empty-compass {
-      font-size: 2.5rem;
-      opacity: 0.18;
-    }
-    .empty-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.4rem;
-      color: var(--ink);
-      opacity: 0.25;
-    }
-    .empty-sub {
-      font-size: 0.78rem;
-      color: var(--mist);
-      opacity: 0.7;
-      max-width: 240px;
-      line-height: 1.6;
+      position: relative;
+      overflow: hidden;
     }
 
-    /* itinerary content */
+    /* Cartographic grid background */
+    #empty-state::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(ellipse 60% 60% at center, black 10%, transparent 70%);
+    }
+
+    .empty-ornament {
+      position: relative;
+      width: 88px;
+      height: 88px;
+      margin-bottom: 2rem;
+    }
+
+    .empty-ornament::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1px solid var(--border-subtle);
+      border-radius: 50%;
+      animation: orbSpin 14s linear infinite;
+    }
+
+    .empty-ornament::after {
+      content: '';
+      position: absolute;
+      inset: 12px;
+      border: 1px solid var(--amber-line);
+      border-radius: 50%;
+      animation: orbSpin 9s linear infinite reverse;
+    }
+
+    @keyframes orbSpin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    .ornament-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: var(--amber);
+      opacity: 0.45;
+    }
+
+    .empty-title {
+      font-family: var(--font-display);
+      font-size: 2.1rem;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--smoke);
+      line-height: 1.2;
+      margin-bottom: 0.65rem;
+    }
+
+    .empty-sub {
+      font-size: 0.7rem;
+      color: var(--ash);
+      max-width: 220px;
+      line-height: 1.8;
+      font-weight: 300;
+    }
+
+    /* ── Itinerary Content ── */
     #itinerary-content {
       display: none;
-      padding: 2rem 2.5rem 3rem;
-      max-width: 820px;
-    }
-    #itinerary-content.visible { display: block; }
-
-    .itin-header {
-      margin-bottom: 2rem;
-      padding-bottom: 1.25rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .itin-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.9rem;
-      font-weight: 600;
-      line-height: 1.2;
-      color: var(--ink);
-      margin-bottom: 0.5rem;
-    }
-    .itin-meta {
-      display: flex;
-      gap: 1.25rem;
-      flex-wrap: wrap;
-    }
-    .itin-meta-chip {
-      font-size: 0.72rem;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
-      color: var(--gold);
-      border: 1px solid var(--gold-lt);
-      padding: 0.2rem 0.6rem;
-      border-radius: 2px;
-      background: rgba(184,146,74,0.06);
+      padding: 2.5rem 3rem 4rem;
+      max-width: 860px;
+      animation: itinFadeIn 0.4s ease both;
     }
 
-    /* day cards */
-    .days-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
-
-    .day-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      overflow: hidden;
-      animation: fadeUp 0.35s ease both;
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(12px); }
+    @keyframes itinFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    .day-card-header {
+    #itinerary-content.visible { display: block; }
+
+    /* Header block */
+    .itin-header {
+      margin-bottom: 2.25rem;
+      padding-bottom: 1.4rem;
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+
+    .itin-header::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 72px;
+      height: 1px;
+      background: var(--amber);
+    }
+
+    .itin-eyebrow {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--amber);
+      margin-bottom: 0.55rem;
+    }
+
+    .itin-title {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--white);
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+
+    .itin-meta {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .itin-chip {
+      font-size: 0.62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone);
+      border: 1px solid var(--border-subtle);
+      padding: 0.18rem 0.55rem;
+      border-radius: 1px;
+    }
+
+    /* Day cards — flush grid */
+    .days-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: var(--border-subtle);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .day-card {
+      background: var(--surface-1);
+      overflow: hidden;
+      animation: fadeUp 0.3s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .day-header {
       display: flex;
       align-items: center;
       gap: 1rem;
-      padding: 0.85rem 1.25rem;
-      background: var(--ink);
-      color: #fff;
+      padding: 0.9rem 1.35rem;
       cursor: pointer;
       user-select: none;
+      position: relative;
+      transition: background 0.15s;
     }
-    .day-number {
-      font-size: 0.65rem;
-      font-weight: 500;
+
+    .day-header:hover { background: rgba(255,255,255,0.018); }
+
+    /* Amber left bar on open days */
+    .day-header::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--amber);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .day-card[data-open="1"] .day-header::before { opacity: 1; }
+
+    .day-num {
+      font-size: 0.53rem;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      opacity: 0.55;
+      letter-spacing: 0.2em;
+      font-weight: 700;
+      color: var(--amber);
       flex-shrink: 0;
+      min-width: 40px;
     }
+
     .day-name {
-      font-family: 'Playfair Display', serif;
-      font-size: 1rem;
+      font-family: var(--font-display);
+      font-size: 1.02rem;
+      font-weight: 400;
       font-style: italic;
+      color: var(--silk);
       flex: 1;
     }
+
     .day-cost {
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: var(--gold-lt);
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--stone);
       flex-shrink: 0;
     }
-    .day-chevron {
-      font-size: 0.7rem;
-      opacity: 0.45;
+
+    .day-chev {
+      font-size: 0.52rem;
+      color: var(--ash);
       flex-shrink: 0;
-      transition: transform 0.2s;
+      transition: transform 0.22s ease;
     }
-    .day-card.collapsed .day-chevron { transform: rotate(-90deg); }
+
+    .day-card.collapsed .day-chev { transform: rotate(-90deg); }
 
     .day-body {
-      padding: 0.5rem 0;
       overflow: hidden;
       transition: max-height 0.3s ease;
+      border-top: 1px solid var(--border-subtle);
     }
-    .day-card.collapsed .day-body { max-height: 0; padding: 0; }
 
+    .day-card.collapsed .day-body { max-height: 0 !important; }
+
+    /* Slot rows */
     .slot {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.9rem;
-      padding: 0.65rem 1.25rem;
-      border-bottom: 1px solid var(--border);
-      transition: background 0.12s;
+      display: grid;
+      grid-template-columns: 26px 1fr auto;
+      align-items: start;
+      gap: 0.8rem;
+      padding: 0.72rem 1.35rem;
+      border-bottom: 1px solid rgba(255,255,255,0.028);
+      transition: background 0.1s;
     }
+
     .slot:last-child { border-bottom: none; }
-    .slot:hover { background: var(--paper); }
+    .slot:hover { background: rgba(255,255,255,0.018); }
 
     .slot-icon {
-      font-size: 1rem;
-      flex-shrink: 0;
-      width: 22px;
+      font-size: 0.88rem;
       text-align: center;
-      margin-top: 1px;
+      margin-top: 2px;
+      opacity: 0.72;
     }
-    .slot-body { flex: 1; min-width: 0; }
+
+    .slot-body { min-width: 0; }
+
     .slot-period {
-      font-size: 0.62rem;
+      font-size: 0.53rem;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      font-weight: 500;
-      margin-bottom: 0.15rem;
+      letter-spacing: 0.15em;
+      font-weight: 700;
+      margin-bottom: 0.14rem;
     }
-    .slot-period.morning  { color: var(--gold); }
-    .slot-period.afternoon { color: var(--rust); }
-    .slot-period.evening  { color: var(--sage); }
-    .slot-period.lodging  { color: var(--mist); }
-    .slot-period.dining   { color: var(--sage); }
+
+    .slot-period.morning   { color: var(--amber); }
+    .slot-period.afternoon { color: var(--terra); }
+    .slot-period.evening   { color: var(--verdant); }
+    .slot-period.lodging   { color: var(--cerulean); }
+    .slot-period.dining,
+    .slot-period.lunch,
+    .slot-period.dinner    { color: var(--verdant); }
 
     .slot-name {
-      font-size: 0.88rem;
-      font-weight: 500;
-      line-height: 1.35;
-      color: var(--ink);
-    }
-    .slot-detail {
-      font-size: 0.75rem;
-      color: var(--mist);
-      margin-top: 0.15rem;
+      font-size: 0.84rem;
+      font-weight: 400;
+      color: var(--parchment);
       line-height: 1.4;
     }
+
     .slot-note {
-      display: inline-block;
-      margin-top: 0.25rem;
-      font-size: 0.68rem;
-      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.22rem;
+      font-size: 0.6rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--rust);
-      background: rgba(196,92,58,0.08);
-      padding: 0.1rem 0.4rem;
-      border-radius: 2px;
-    }
-    .slot-cost {
-      font-size: 0.78rem;
-      font-weight: 500;
-      color: var(--ink);
-      flex-shrink: 0;
-      padding-top: 1px;
+      letter-spacing: 0.06em;
+      color: var(--terra);
+      background: var(--terra-soft);
+      padding: 0.06rem 0.38rem;
+      border-radius: 1px;
     }
 
-    /* total bar */
+    .slot-cost {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--amber);
+      flex-shrink: 0;
+      padding-top: 2px;
+      white-space: nowrap;
+    }
+
+    /* Day nav bar (maps link + QR toggle) */
+    .day-nav-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 1.35rem 0.65rem;
+      border-top: 1px solid var(--border-subtle);
+      background: rgba(201,160,90,0.04);
+    }
+
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--amber);
+      text-decoration: none;
+      border: 1px solid var(--amber-line);
+      padding: 0.28rem 0.65rem;
+      border-radius: 2px;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .nav-btn:hover { background: var(--amber-glow); color: var(--amber-lt); }
+
+    .qr-toggle {
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone);
+      background: none;
+      border: 1px solid var(--border-mid);
+      padding: 0.28rem 0.65rem;
+      border-radius: 2px;
+      cursor: pointer;
+      font-family: var(--font-body);
+      transition: background 0.15s, color 0.15s;
+    }
+    .qr-toggle:hover { background: rgba(255,255,255,0.04); color: var(--silk); }
+
+    .qr-panel {
+      display: none;
+      padding: 0.75rem 1.35rem 0.9rem;
+      background: rgba(255,255,255,0.02);
+      border-top: 1px solid var(--border-subtle);
+      align-items: center;
+      gap: 1rem;
+    }
+    .qr-panel.open { display: flex; }
+
+    .qr-panel img {
+      width: 96px;
+      height: 96px;
+      border-radius: 4px;
+      border: 2px solid var(--border-mid);
+      image-rendering: pixelated;
+    }
+
+    .qr-label {
+      font-size: 0.62rem;
+      color: var(--stone);
+      line-height: 1.6;
+    }
+    .qr-label strong { color: var(--silk); display: block; margin-bottom: 0.2rem; }
+
+    /* Slot booking link */
+    .slot-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+      font-size: 0.56rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--cerulean);
+      text-decoration: none;
+      border: 1px solid rgba(74,122,171,0.3);
+      padding: 0.1rem 0.32rem;
+      border-radius: 2px;
+      margin-top: 0.25rem;
+      transition: background 0.12s;
+      white-space: nowrap;
+    }
+    .slot-link:hover { background: rgba(74,122,171,0.1); }
+
+    /* Total bar */
     .itin-total {
       margin-top: 1.5rem;
-      padding: 1rem 1.5rem;
-      background: var(--ink);
-      color: #fff;
+      padding: 1.05rem 1.35rem;
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      border-left: 3px solid var(--amber);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-radius: 3px;
+      border-radius: 2px;
     }
+
     .total-label {
-      font-size: 0.72rem;
+      font-size: 0.6rem;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      opacity: 0.55;
+      letter-spacing: 0.15em;
+      color: var(--stone);
+      font-weight: 700;
     }
+
     .total-amount {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.4rem;
+      font-family: var(--font-display);
+      font-size: 1.55rem;
+      font-weight: 300;
+      color: var(--amber-lt);
     }
 
-    /* disruption banner */
-    #disruption-banner {
-      display: none;
-      margin-top: 1.25rem;
-      padding: 0.9rem 1.25rem;
-      background: rgba(196,92,58,0.08);
-      border: 1px solid rgba(196,92,58,0.25);
-      border-radius: 3px;
-      font-size: 0.8rem;
-      color: var(--rust);
-      line-height: 1.5;
-    }
-    #disruption-banner.visible { display: block; }
-    .disruption-label {
-      font-weight: 600;
-      text-transform: uppercase;
-      font-size: 0.65rem;
-      letter-spacing: 0.1em;
-      margin-bottom: 0.3rem;
-    }
-
-    /* raw fallback */
+    /* Raw response fallback */
     .raw-response {
       white-space: pre-wrap;
-      font-size: 0.83rem;
-      line-height: 1.7;
-      color: var(--ink);
-      padding: 1.5rem;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      line-height: 1.75;
+      padding: 1.75rem;
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
       border-radius: 3px;
+      color: var(--parchment);
     }
   </style>
 </head>
 <body>
 
+<!-- ══════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════ -->
 <header>
   <div class="logo">
-    <span class="logo-word">Itinerary AI</span>
-    <span class="logo-tag">Travel Optimizer</span>
+    <div class="logo-mark"></div>
+    <span class="logo-name">Voyager</span>
+    <div class="logo-divider"></div>
+    <span class="logo-sub">Travel Intelligence</span>
   </div>
-  <span class="header-hint">For travel advisors &amp; independent explorers</span>
+  <div class="header-right">
+    <span class="header-tagline">For advisors who know the difference</span>
+    <div class="status-indicator">Live</div>
+  </div>
 </header>
 
 <div id="main">
 
-  <!-- ── CHAT ── -->
+  <!-- ══════════════════════════════════════════════
+       CHAT PANE
+  ══════════════════════════════════════════════ -->
   <div id="chat-pane">
-    <div id="messages"></div>
-    <div id="input-area">
-      <textarea id="user-input" rows="3"
-        placeholder="Describe a trip — or report a disruption&#10;e.g. &quot;5-day Rome, couple, $200/day, ancient history&quot;"></textarea>
-      <button id="send-btn">Plan trip →</button>
-    </div>
-  </div>
+    <div id="messages">
 
-  <!-- ── ITINERARY ── -->
+      <div class="welcome-block">
+        <div class="welcome-heading">Good to have you,<br><em>where to next?</em></div>
+        <div class="welcome-body">
+          Describe a trip in plain language — destination, duration, budget, interests, any constraints.
+          I'll return a full day-by-day itinerary with real places, hours, routing, and costs.
+        </div>
+        <div class="example-list">
+          <button class="example-btn" onclick="usePrompt(this)">5-day Rome, couple, $200/day, ancient history — one partner uses a cane</button>
+          <button class="example-btn" onclick="usePrompt(this)">3-day Florence, solo, $150/day, art museums, no meat</button>
+          <button class="example-btn" onclick="usePrompt(this)">Day 2 afternoon: Borghese Gallery closed — please re-plan</button>
+        </div>
+      </div>
+
+    </div><!-- /messages -->
+
+    <div id="input-area">
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tab-nl"   onclick="switchMode('nl')">Quick Chat</button>
+        <button class="mode-tab"        id="tab-form" onclick="switchMode('form')">Trip Builder</button>
+      </div>
+
+      <!-- NL mode -->
+      <div id="nl-mode">
+        <textarea id="user-input" rows="3"
+          placeholder="Describe a trip or report a disruption…&#10;e.g. &quot;5-day Rome, couple, $200/day, ancient history&quot;"></textarea>
+        <div class="send-row">
+          <span class="send-hint">Enter to send · Shift+Enter new line</span>
+          <button class="btn-send" id="nl-send-btn" onclick="sendNL()">
+            Plan trip <span class="btn-send-arrow">→</span>
+          </button>
+        </div>
+        <div class="disruption-hint" id="disruption-hint">
+          <strong>Re-plan mode detected</strong><br>
+          Specify the day and slot affected — I'll re-optimize around locked commitments.
+        </div>
+      </div>
+
+      <!-- Form mode -->
+      <div id="form-mode" class="hidden">
+        <div class="form-row">
+          <div class="form-group" style="flex:2">
+            <label class="form-label">Destination</label>
+            <input class="form-input" id="f-dest" placeholder="Rome, Italy" />
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Days</label>
+            <input class="form-input" id="f-days" type="number" min="1" max="30" placeholder="5" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Budget / day (USD)</label>
+            <input class="form-input" id="f-budget" type="number" min="20" placeholder="200" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Group</label>
+            <select class="form-select" id="f-group">
+              <option value="solo">Solo</option>
+              <option value="couple" selected>Couple</option>
+              <option value="family">Family</option>
+              <option value="friends">Friends</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Style</label>
+            <select class="form-select" id="f-style">
+              <option value="budget">Budget</option>
+              <option value="mid-range" selected>Mid-range</option>
+              <option value="luxury">Luxury</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Interests
+            <span style="color:var(--ash);font-weight:300;text-transform:none;letter-spacing:0"> — Enter or comma to add</span>
+          </label>
+          <div class="pill-wrap" id="interests-wrap" onclick="document.getElementById('interests-input').focus()">
+            <input class="pill-input" id="interests-input" placeholder="ancient history, food, art…" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Dietary restrictions</label>
+            <input class="form-input" id="f-diet" placeholder="vegetarian, gluten-free" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Lodging</label>
+            <select class="form-select" id="f-lodging">
+              <option value="any" selected>Any</option>
+              <option value="hotel">Hotel</option>
+              <option value="bnb">B&amp;B</option>
+              <option value="hostel">Hostel</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Must-see places</label>
+          <input class="form-input" id="f-must" placeholder="Vatican, Colosseum" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Mobility / accessibility notes</label>
+          <input class="form-input" id="f-mobility" placeholder="wheelchair user, max 2km walking/day" />
+        </div>
+
+        <div class="send-row" style="padding-top:0.2rem">
+          <span></span>
+          <button class="btn-send" id="form-send-btn" onclick="sendForm()">
+            Build itinerary <span class="btn-send-arrow">→</span>
+          </button>
+        </div>
+      </div><!-- /form-mode -->
+
+    </div><!-- /input-area -->
+  </div><!-- /chat-pane -->
+
+  <!-- ══════════════════════════════════════════════
+       ITINERARY PANE
+  ══════════════════════════════════════════════ -->
   <div id="itinerary-pane">
     <div id="empty-state">
-      <div class="empty-compass">✦</div>
-      <div class="empty-title">Your itinerary<br>will appear here</div>
-      <div class="empty-sub">Describe your trip in the chat to generate a day-by-day plan</div>
+      <div class="empty-ornament">
+        <div class="ornament-center">✦</div>
+      </div>
+      <div class="empty-title">Your itinerary<br>awaits</div>
+      <div class="empty-sub">Use Quick Chat or Trip Builder to generate a precision-crafted day-by-day plan</div>
     </div>
     <div id="itinerary-content"></div>
   </div>
 
-</div>
+</div><!-- /main -->
 
 <script>
-// ─── State ────────────────────────────────────────────────
-let sessionId = null;
+// ─── State ──────────────────────────────────────────────────────────
+let sessionId     = null;
+let interestPills = [];
 
-// ─── DOM refs ─────────────────────────────────────────────
-const msgs       = document.getElementById('messages');
-const input      = document.getElementById('user-input');
-const btn        = document.getElementById('send-btn');
-const emptyState = document.getElementById('empty-state');
-const itinPane   = document.getElementById('itinerary-content');
+// ─── DOM refs ───────────────────────────────────────────────────────
+const msgs           = document.getElementById('messages');
+const nlInput        = document.getElementById('user-input');
+const emptyState     = document.getElementById('empty-state');
+const itinPane       = document.getElementById('itinerary-content');
+const disruptionHint = document.getElementById('disruption-hint');
 
-// ─── Chat helpers ─────────────────────────────────────────
+// ─── Example prompt click-to-fill ──────────────────────────────────
+function usePrompt(btn) {
+  nlInput.value = btn.textContent.trim();
+  switchMode('nl');
+  nlInput.focus();
+}
+
+// ─── Mode switching ─────────────────────────────────────────────────
+function switchMode(mode) {
+  document.getElementById('tab-nl').classList.toggle('active', mode === 'nl');
+  document.getElementById('tab-form').classList.toggle('active', mode === 'form');
+  document.getElementById('nl-mode').classList.toggle('hidden', mode !== 'nl');
+  document.getElementById('form-mode').classList.toggle('hidden', mode !== 'form');
+  if (mode === 'nl') nlInput.focus();
+  else document.getElementById('f-dest').focus();
+}
+
+// ─── Disruption detection ───────────────────────────────────────────
+nlInput.addEventListener('input', () => {
+  const val = nlInput.value.toLowerCase();
+  const isDisruption = val.length > 10 &&
+    /\b(re.?plan|disruption|closed|cancel|sick|delay|day\s+\d.*(close|cancel|change))\b/.test(val);
+  disruptionHint.classList.toggle('visible', isDisruption);
+});
+
+// ─── Pill interests input ────────────────────────────────────────────
+const interestInput = document.getElementById('interests-input');
+const interestWrap  = document.getElementById('interests-wrap');
+
+interestInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    addPill(interestInput.value.trim().replace(/,$/, ''));
+  } else if (e.key === 'Backspace' && interestInput.value === '' && interestPills.length) {
+    removePill(interestPills.length - 1);
+  }
+});
+
+interestInput.addEventListener('blur', () => {
+  const v = interestInput.value.trim().replace(/,$/, '');
+  if (v) addPill(v);
+});
+
+function addPill(text) {
+  if (!text || interestPills.includes(text)) return;
+  interestPills.push(text);
+  interestInput.value = '';
+  renderPills();
+}
+
+function removePill(idx) {
+  interestPills.splice(idx, 1);
+  renderPills();
+}
+
+function renderPills() {
+  interestWrap.querySelectorAll('.pill').forEach(p => p.remove());
+  interestPills.forEach((text, idx) => {
+    const pill = document.createElement('span');
+    pill.className = 'pill';
+    pill.innerHTML = `${escHtml(text)}<button class="pill-remove" onclick="removePill(${idx})">×</button>`;
+    interestWrap.insertBefore(pill, interestInput);
+  });
+}
+
+// ─── Form → NL message ──────────────────────────────────────────────
+function formToMessage() {
+  const dest    = document.getElementById('f-dest').value.trim();
+  const days    = document.getElementById('f-days').value.trim();
+  const budget  = document.getElementById('f-budget').value.trim();
+  const group   = document.getElementById('f-group').value;
+  const style   = document.getElementById('f-style').value;
+  const diet    = document.getElementById('f-diet').value.trim();
+  const lodging = document.getElementById('f-lodging').value;
+  const must    = document.getElementById('f-must').value.trim();
+  const mob     = document.getElementById('f-mobility').value.trim();
+
+  if (!dest)   { document.getElementById('f-dest').focus(); return null; }
+  if (!days)   { document.getElementById('f-days').focus(); return null; }
+  if (!budget) { document.getElementById('f-budget').focus(); return null; }
+
+  const rawInput = interestInput.value.trim().replace(/,$/, '');
+  if (rawInput) addPill(rawInput);
+  const interests = [...interestPills];
+
+  let msg = `${days}-day trip to ${dest} for a ${group}, $${budget}/day budget`;
+  if (style !== 'mid-range') msg += `, ${style} travel style`;
+  if (interests.length)      msg += `, interested in ${interests.join(', ')}`;
+  if (diet)                  msg += `, dietary restrictions: ${diet}`;
+  if (lodging !== 'any')     msg += `, prefer ${lodging}`;
+  if (must)                  msg += `, must include: ${must}`;
+  if (mob)                   msg += `, mobility notes: ${mob}`;
+
+  return msg;
+}
+
+// ─── Chat helpers ────────────────────────────────────────────────────
 function addMsg(role, html, loading = false) {
   const wrap = document.createElement('div');
   wrap.className = `msg-wrap ${role}${loading ? ' loading' : ''}`;
-  const label = role === 'user' ? 'You' : 'Advisor AI';
   wrap.innerHTML = `
-    <div class="msg-label">${label}</div>
+    <div class="msg-label">${role === 'user' ? 'You' : 'Voyager AI'}</div>
     <div class="bubble">${html}</div>`;
   msgs.appendChild(wrap);
   msgs.scrollTop = msgs.scrollHeight;
   return wrap;
 }
 
-function mdToHtml(text) {
-  return text
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function mdToHtml(t) {
+  return t
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/\n/g, '<br>');
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// ─── Send plumbing ───────────────────────────────────────────────────
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (btn) btn.disabled = loading;
 }
 
-// ─── Itinerary parser ─────────────────────────────────────
-//
-// Parses the solver's markdown text format into structured day objects.
-// Expected format (from solver prompt):
-//   **N-Day City Itinerary**
-//   Budget: $X/day | Group: Y
-//   **Day N — Theme**
-//   - 🏨 ...  - 🌅 Morning: ...  - 🌇 Afternoon: ...  - 🍽️ Lunch: ...
-//   - 💰 Day total: ~$X/person
-//   **Total estimated cost: $X ...**
-
-const PERIOD_ICONS = {
-  '🏨': { period: 'lodging',   label: 'Lodging'    },
-  '🌅': { period: 'morning',   label: 'Morning'    },
-  '🌇': { period: 'afternoon', label: 'Afternoon'  },
-  '🌆': { period: 'evening',   label: 'Evening'    },
-  '🍽': { period: 'dining',    label: 'Dining'     },
-  '🍽️': { period: 'dining',    label: 'Dining'     },
-  '💰': { period: 'cost',      label: 'Daily Cost' },
-};
-
-const SLOT_ICONS = {
-  lodging:   '🏨',
-  morning:   '🌅',
-  afternoon: '🌇',
-  evening:   '🌆',
-  dining:    '🍽️',
-  cost:      '💰',
-};
-
-function parseItinerary(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const result = { title: '', meta: [], days: [], total: '', raw: text };
-
-  let currentDay = null;
-
-  for (const line of lines) {
-    // Title line: **5-Day Rome Itinerary**
-    if (!result.title && /^\*\*.+itinerary.*/i.test(line)) {
-      result.title = line.replace(/\*\*/g, '').replace(/^#+\s*/, '');
-      continue;
-    }
-
-    // Meta line: Budget: $200/day | Group: Couple
-    if (/^budget:/i.test(line) || /^\*?budget:/i.test(line)) {
-      const clean = line.replace(/\*\*/g, '');
-      result.meta = clean.split('|').map(s => s.trim()).filter(Boolean);
-      continue;
-    }
-
-    // Total line
-    if (/total estimated cost/i.test(line)) {
-      result.total = line.replace(/\*\*/g, '').replace(/^-\s*/, '');
-      continue;
-    }
-
-    // Day header: **Day 1 — Vatican**  or  **Day 1 - Vatican**
-    const dayMatch = line.match(/^\*?\*?Day\s+(\d+)\s*[—–-]+\s*(.+?)\*?\*?$/i);
-    if (dayMatch) {
-      currentDay = { number: parseInt(dayMatch[1]), name: dayMatch[2].replace(/\*\*/g,'').trim(), slots: [], cost: '' };
-      result.days.push(currentDay);
-      continue;
-    }
-
-    // Slot line starting with - emoji or bullet
-    if (currentDay && /^[-•]\s/.test(line)) {
-      const content = line.replace(/^[-•]\s+/, '');
-
-      // cost line
-      if (/💰/.test(content) || /day total/i.test(content)) {
-        currentDay.cost = content.replace(/💰\s*/, '').replace(/\*\*/g,'').trim();
-        continue;
-      }
-
-      // detect icon and period
-      let period = 'morning';
-      let icon = '📍';
-      for (const [emoji, meta] of Object.entries(PERIOD_ICONS)) {
-        if (content.startsWith(emoji)) {
-          period = meta.period;
-          icon = emoji;
-          break;
-        }
-      }
-
-      // strip leading emoji + period label (e.g. "Morning: ")
-      let body = content.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}️\s]+/u, '').trim();
-      body = body.replace(/^(morning|afternoon|evening|lunch|dinner|breakfast|lodging):\s*/i, '').trim();
-
-      // extract note (text after " — " or parenthesized)
-      let note = '';
-      const noteMatch = body.match(/—\s*(.+)$/);
-      if (noteMatch) {
-        note = noteMatch[1].trim();
-        body = body.slice(0, noteMatch.index).trim();
-      }
-
-      // extract cost from parens (~$X or $X/person)
-      let cost = '';
-      const costMatch = body.match(/\(~?\$[\d,]+[^)]*\)/);
-      if (costMatch) {
-        cost = costMatch[0].replace(/[()]/g,'').trim();
-        body = body.replace(costMatch[0], '').trim();
-      } else {
-        // cost at end without parens: "...  ~$20/person"
-        const endCost = body.match(/~?\$[\d,]+[^\s,]*/);
-        if (endCost) {
-          cost = endCost[0];
-          body = body.replace(endCost[0], '').replace(/,\s*$/, '').trim();
-        }
-      }
-
-      if (body) {
-        currentDay.slots.push({ period, icon: SLOT_ICONS[period] || '📍', name: body, note, cost });
-      }
-    }
-  }
-
-  return result;
-}
-
-// ─── Render itinerary ─────────────────────────────────────
-function renderItinerary(text) {
-  const data = parseItinerary(text);
-
-  // hide empty state
-  emptyState.style.display = 'none';
-  itinPane.classList.add('visible');
-
-  // if parsing produced no days, fall back to raw
-  if (data.days.length === 0) {
-    itinPane.innerHTML = `<div class="raw-response">${mdToHtml(escHtml(text))}</div>`;
-    return;
-  }
-
-  const metaChips = data.meta
-    .map(m => `<span class="itin-meta-chip">${escHtml(m)}</span>`)
-    .join('');
-
-  const dayCards = data.days.map((day, i) => {
-    const slots = day.slots.map(slot => {
-      const noteHtml = slot.note
-        ? `<span class="slot-note">⚠ ${escHtml(slot.note)}</span>` : '';
-      return `
-        <div class="slot">
-          <div class="slot-icon">${slot.icon}</div>
-          <div class="slot-body">
-            <div class="slot-period ${slot.period}">${slot.period}</div>
-            <div class="slot-name">${escHtml(slot.name)}</div>
-            ${slot.note ? `<div class="slot-detail">${noteHtml}</div>` : ''}
-          </div>
-          ${slot.cost ? `<div class="slot-cost">${escHtml(slot.cost)}</div>` : ''}
-        </div>`;
-    }).join('');
-
-    const costBadge = day.cost
-      ? `<span class="day-cost">${escHtml(day.cost)}</span>` : '';
-
-    return `
-      <div class="day-card" style="animation-delay:${i * 0.06}s">
-        <div class="day-card-header" onclick="toggleDay(this)">
-          <span class="day-number">Day ${day.number}</span>
-          <span class="day-name">${escHtml(day.name)}</span>
-          ${costBadge}
-          <span class="day-chevron">▼</span>
-        </div>
-        <div class="day-body">${slots}</div>
-      </div>`;
-  }).join('');
-
-  const totalHtml = data.total ? `
-    <div class="itin-total">
-      <span class="total-label">Total estimated cost</span>
-      <span class="total-amount">${escHtml(data.total.replace(/total estimated cost:?\s*/i,''))}</span>
-    </div>` : '';
-
-  itinPane.innerHTML = `
-    <div class="itin-header">
-      <div class="itin-title">${escHtml(data.title || 'Your Itinerary')}</div>
-      <div class="itin-meta">${metaChips}</div>
-    </div>
-    <div class="days-grid">${dayCards}</div>
-    ${totalHtml}
-    <div id="disruption-banner"></div>`;
-}
-
-function toggleDay(header) {
-  header.closest('.day-card').classList.toggle('collapsed');
-}
-
-// ─── Detect & render disruption delta ────────────────────
-function renderDisruption(text) {
-  const banner = document.getElementById('disruption-banner');
-  if (!banner) return;
-  // show disruption as a banner above the itinerary
-  banner.innerHTML = `<div class="disruption-label">⚡ Re-plan applied</div>${mdToHtml(escHtml(text))}`;
-  banner.classList.add('visible');
-  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-function isDisruptionResponse(text) {
-  return /re.plan|disruption|replaced|removed slot|affected day/i.test(text);
-}
-
-// ─── Send ─────────────────────────────────────────────────
-async function send() {
-  const text = input.value.trim();
+async function sendMessage(text) {
   if (!text) return;
-  input.value = '';
-  btn.disabled = true;
+  setLoading('nl-send-btn', true);
+  setLoading('form-send-btn', true);
+  disruptionHint.classList.remove('visible');
 
   addMsg('user', escHtml(text));
-  const loadingWrap = addMsg('assistant', '<div class="typing"><span></span><span></span><span></span></div>', true);
+  const loadWrap = addMsg('assistant',
+    '<div class="typing"><span></span><span></span><span></span></div>', true);
 
   try {
     const res = await fetch('/chat', {
@@ -738,61 +1407,329 @@ async function send() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text, session_id: sessionId }),
     });
-
     const raw = await res.text();
 
     if (!res.ok) {
       let detail = raw;
       try { detail = JSON.parse(raw).detail ?? raw; } catch(_) {}
-      loadingWrap.querySelector('.bubble').innerHTML =
-        `<span style="color:var(--rust)">Error ${res.status}</span><br><small>${escHtml(detail.slice(0,200))}</small>`;
-      loadingWrap.classList.remove('loading');
-      btn.disabled = false;
+      loadWrap.querySelector('.bubble').innerHTML =
+        `<span style="color:var(--terra)">Error ${res.status}</span>` +
+        `<br><small style="color:var(--stone)">${escHtml(String(detail).slice(0, 300))}</small>`;
+      loadWrap.classList.remove('loading');
       return;
     }
 
-    const data = JSON.parse(raw);
-    sessionId = data.session_id;
+    const data     = JSON.parse(raw);
+    sessionId      = data.session_id;
     const response = data.response;
 
-    // update chat bubble with plain summary (first 3 lines or short response)
-    const summary = extractChatSummary(response);
-    loadingWrap.querySelector('.bubble').innerHTML = mdToHtml(escHtml(summary));
-    loadingWrap.classList.remove('loading');
+    const isItin = looksLikeItinerary(response);
+    const summary = extractSummary(response);
+    loadWrap.querySelector('.bubble').innerHTML =
+      mdToHtml(escHtml(summary || (isItin ? 'Your itinerary is ready — see the panel on the right.' : response)));
+    loadWrap.classList.remove('loading');
 
-    // render itinerary or disruption in right pane
-    if (isDisruptionResponse(response)) {
-      renderDisruption(response);
-    } else if (/day \d/i.test(response) && /morning|afternoon|evening|itinerary/i.test(response)) {
+    if (isItin) {
       renderItinerary(response);
     }
 
   } catch(e) {
-    loadingWrap.querySelector('.bubble').textContent = e.message;
-    loadingWrap.classList.remove('loading');
+    loadWrap.querySelector('.bubble').innerHTML =
+      `<span style="color:var(--terra)">${escHtml(e.message)}</span>`;
+    loadWrap.classList.remove('loading');
+  } finally {
+    setLoading('nl-send-btn', false);
+    setLoading('form-send-btn', false);
+  }
+}
+
+async function sendNL() {
+  const text = nlInput.value.trim();
+  if (!text) return;
+  nlInput.value = '';
+  await sendMessage(text);
+}
+
+async function sendForm() {
+  const msg = formToMessage();
+  if (!msg) return;
+  switchMode('nl');
+  await sendMessage(msg);
+}
+
+nlInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendNL(); }
+});
+
+// ─── Summary extractor ───────────────────────────────────────────────
+function extractSummary(text) {
+  // Return only the short human-readable preamble before the itinerary block.
+  // Stop at the first line that looks like structured itinerary content.
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const out = [];
+  for (const l of lines) {
+    if (
+      /^\*\*\d+-Day/i.test(l) ||      // **5-Day Rome Itinerary**
+      /^\*\*Day\s+\d/i.test(l) ||      // **Day 1 —
+      /^Budget:/i.test(l) ||
+      /^---/.test(l) ||
+      /^\[🗺/.test(l) ||               // maps link lines
+      /^\[QR_DAY_/i.test(l)
+    ) break;
+    // Also stop if the line is a bullet slot line (starts with - 🌅 etc.)
+    if (/^[-•]\s*[\p{Emoji}]/u.test(l)) break;
+    out.push(l);
+    if (out.length >= 3) break;
+  }
+  return out.join('\n') || lines[0] || '';
+}
+
+// ─── Itinerary detection ─────────────────────────────────────────────
+function looksLikeItinerary(text) {
+  return /day\s+\d/i.test(text) &&
+    /(morning|afternoon|evening|itinerary)/i.test(text);
+}
+
+// ─── Itinerary parser ────────────────────────────────────────────────
+const EMOJI_PERIOD = {
+  '🏨': 'lodging', '🌅': 'morning', '🌇': 'afternoon',
+  '🌆': 'evening', '🍽':  'dining', '🍽️': 'dining',
+  '🥗': 'dining',  '🍴': 'dining',  '☀':  'morning',
+  '🌙': 'evening', '💰': 'cost',
+};
+
+const PERIOD_ICON = {
+  lodging: '🏨', morning: '🌅', afternoon: '🌇',
+  evening: '🌆', dining: '🍽️', lunch: '🍽️', dinner: '🍽️',
+};
+
+const COST_RE = /~?\$[\d,]+(?:[^\s,\)]*)?/;
+// Note: stops before any [ to avoid eating booking links that follow a dash
+const NOTE_RE = /[—–]\s*([^\[]+?)(?:\s*\[|$)/;
+
+function parseLine(raw) {
+  let s = raw.replace(/^[-•*]\s+/, '').trim();
+
+  // Skip cost lines
+  if (/💰/.test(s) || /^\*?day\s+total/i.test(s))
+    return { type: 'cost', text: s.replace(/💰\s*/, '').replace(/\*\*/g, '').trim() };
+
+  // Skip maps navigation lines and QR markers — handled by parseItinerary
+  if (/^\[🗺/.test(s) || /^\[QR_DAY_/i.test(s)) return null;
+
+  s = s.replace(/^[\p{Emoji}️⃣‍]+\s*/u, '').trim();
+
+  const kw = s.match(/^(morning|afternoon|evening|lunch|dinner|breakfast|lodging|hotel)[:\s–—]+/i);
+  if (!kw) return null;
+
+  const period = kw[1].toLowerCase() === 'hotel' ? 'lodging' : kw[1].toLowerCase();
+  s = s.slice(kw[0].length).trim();
+  s = s.replace(/\*\*/g, '').trim();
+
+  // 1. Extract ALL markdown links [label](url) — there may be one per slot
+  //    Collect all links, remove them from s, keep the last one as the action link.
+  let link = null;
+  const linkRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+  let lm;
+  while ((lm = linkRe.exec(s)) !== null) {
+    // Normalize common link labels to short display text
+    let label = lm[1].trim();
+    if (/maps/i.test(label))         label = 'Maps';
+    else if (/book ticket/i.test(label)) label = 'Book Tickets';
+    else if (/official|book/i.test(label)) label = 'Book';
+    link = { label, url: lm[2] };
+  }
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '').trim();
+
+  // 2. Extract note (text after em-dash, stopping before any remaining bracket)
+  let note = '';
+  const nm = s.match(NOTE_RE);
+  if (nm) { note = nm[1].trim(); s = s.slice(0, nm.index).trim(); }
+
+  // 3. Extract cost
+  let cost = '';
+  const cm = s.match(/\(~?\$[\d,]+[^)]*\)/);
+  if (cm) {
+    cost = cm[0].replace(/[()]/g, '').trim();
+    s    = s.replace(cm[0], '').trim();
+  } else {
+    const tm = s.match(COST_RE);
+    if (tm) { cost = tm[0]; s = s.replace(tm[0], '').replace(/,\s*$/, '').trim(); }
   }
 
-  btn.disabled = false;
-  input.focus();
+  // Clean up leftover empty parens like "(3h, )" after cost extraction
+  s = s.replace(/\(\s*[\w\s]+,?\s*\)/, '').trim();
+  s = s.replace(/[,\s]+$/, '').trim();
+  if (!s) return null;
+
+  return { type: 'slot', period, icon: PERIOD_ICON[period] || '📍', name: s, note, cost, link };
 }
 
-// extract a short chat summary (first paragraph or ~3 lines)
-function extractChatSummary(text) {
-  const lines = text.split('\n').filter(l => l.trim());
-  // find non-slot lines (no leading emoji or dash-slot pattern)
-  const summary = lines
-    .filter(l => !/^[-•]\s*[🏨🌅🌇🌆🍽💰]/.test(l) && !/^\*\*Day \d/.test(l))
-    .slice(0, 3)
-    .join('\n');
-  return summary || lines[0] || text;
+function parseItinerary(text) {
+  // Keep empty lines so we can detect line breaks; filter only truly blank ones later.
+  const lines  = text.split('\n').map(l => l.trim());
+  const result = { title: '', meta: [], days: [], total: '' };
+  let cur      = null;
+
+  for (const line of lines) {
+    if (!line || /^---+$/.test(line)) continue;  // skip blank lines and hr separators
+
+    // Title: any bold/heading line containing "itinerary" or "Day Plan"
+    if (!result.title && /itinerary|day plan/i.test(line) && /\*\*|^#+/.test(line)) {
+      result.title = line.replace(/\*\*/g, '').replace(/^#+\s*/, '').trim();
+      continue;
+    }
+
+    if (/^[\*\s]*budget\s*:/i.test(line)) {
+      result.meta = line.replace(/\*\*/g, '').split('|').map(s => s.trim()).filter(Boolean);
+      continue;
+    }
+
+    if (/total\s+estimated\s+cost/i.test(line)) {
+      result.total = line.replace(/\*\*/g, '').replace(/^[-•*]\s*/, '').trim();
+      continue;
+    }
+
+    // Day header: **Day N — Name** or ## Day N — Name
+    const dm = line.match(/^(?:\*\*|#+\s*)?Day\s+(\d+)\s*[—–:\-]+\s*(.+?)(?:\*\*)?$/i);
+    if (dm) {
+      cur = { number: +dm[1], name: dm[2].replace(/\*\*/g, '').trim(), slots: [], cost: '', mapsUrl: '', qrUrl: '' };
+      result.days.push(cur);
+      continue;
+    }
+
+    // Maps navigation link: [🗺 Navigate Day N on Google Maps](url)
+    // May appear as a bare line (not prefixed with bullet)
+    const mm = line.match(/\[🗺[^\]]*\]\((https?:\/\/[^)]+)\)/);
+    if (mm && cur) { cur.mapsUrl = mm[1]; continue; }
+
+    // QR marker: [QR_DAY_N](url)
+    const qm = line.match(/\[QR_DAY_\d+\]\((https?:\/\/[^)]+)\)/i);
+    if (qm && cur) { cur.qrUrl = qm[1]; continue; }
+
+    if (cur && /^[-•*]/.test(line)) {
+      const parsed = parseLine(line);
+      if (!parsed) continue;
+      if (parsed.type === 'cost') cur.cost = parsed.text;
+      else                        cur.slots.push(parsed);
+    }
+  }
+  return result;
 }
 
-// ─── Event listeners ──────────────────────────────────────
-btn.addEventListener('click', send);
-input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-});
-input.focus();
+// ─── Render itinerary ────────────────────────────────────────────────
+function renderItinerary(text) {
+  const data = parseItinerary(text);
+
+  emptyState.style.display = 'none';
+  itinPane.classList.add('visible');
+
+  if (data.days.length === 0) {
+    itinPane.innerHTML = `<div class="raw-response">${mdToHtml(escHtml(text))}</div>`;
+    return;
+  }
+
+  const chips = data.meta
+    .map(m => `<span class="itin-chip">${escHtml(m)}</span>`).join('');
+
+  const cards = data.days.map((day, i) => {
+    const slots = day.slots.map(sl => `
+      <div class="slot">
+        <div class="slot-icon">${sl.icon}</div>
+        <div class="slot-body">
+          <div class="slot-period ${sl.period}">${sl.period}</div>
+          <div class="slot-name">${escHtml(sl.name)}</div>
+          ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
+          ${sl.link ? `<a class="slot-link" href="${escHtml(sl.link.url)}" target="_blank" rel="noopener">↗ ${escHtml(sl.link.label)}</a>` : ''}
+        </div>
+        ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : ''}
+      </div>`).join('');
+
+    const navBar = day.mapsUrl ? `
+      <div class="day-nav-bar">
+        <a class="nav-btn" href="${escHtml(day.mapsUrl)}" target="_blank" rel="noopener">🗺 Navigate Day ${day.number}</a>
+        ${day.qrUrl ? `<button class="qr-toggle" onclick="toggleQr(this)">QR Code</button>` : ''}
+      </div>
+      ${day.qrUrl ? `
+      <div class="qr-panel">
+        <img src="" data-qr-url="${escHtml(day.qrUrl)}" alt="QR code for Day ${day.number} route" loading="lazy" />
+        <div class="qr-label"><strong>Scan to navigate</strong>Opens Day ${day.number} route in Google Maps on your phone.</div>
+      </div>` : ''}` : '';
+
+    return `
+      <div class="day-card" style="animation-delay:${i * 0.058}s" data-open="1">
+        <div class="day-header" onclick="toggleDay(this)">
+          <span class="day-num">Day ${day.number}</span>
+          <span class="day-name">${escHtml(day.name)}</span>
+          ${day.cost ? `<span class="day-cost">${escHtml(day.cost)}</span>` : ''}
+          <span class="day-chev">▼</span>
+        </div>
+        <div class="day-body" style="max-height:2000px">${slots}${navBar}</div>
+      </div>`;
+  }).join('');
+
+  const totalBar = data.total ? `
+    <div class="itin-total">
+      <span class="total-label">Total estimated cost</span>
+      <span class="total-amount">${escHtml(data.total.replace(/total\s+estimated\s+cost:?\s*/i, ''))}</span>
+    </div>` : '';
+
+  const cityMatch = data.title.match(/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/);
+  const city = cityMatch ? cityMatch[1] : 'Your destination';
+
+  itinPane.innerHTML = `
+    <div class="itin-header">
+      <div class="itin-eyebrow">Curated itinerary · ${escHtml(city)}</div>
+      <div class="itin-title">${escHtml(data.title || 'Your Itinerary')}</div>
+      <div class="itin-meta">${chips}</div>
+    </div>
+    <div class="days-grid">${cards}</div>
+    ${totalBar}`;
+}
+
+// ─── Day collapse/expand ─────────────────────────────────────────────
+function toggleDay(header) {
+  const card = header.closest('.day-card');
+  const body = card.querySelector('.day-body');
+  const open = card.dataset.open === '1';
+
+  if (open) {
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(() => { body.style.maxHeight = '0'; });
+  } else {
+    body.style.maxHeight = body.scrollHeight + 'px';
+    body.addEventListener('transitionend', () => {
+      if (card.dataset.open === '1') body.style.maxHeight = '2000px';
+    }, { once: true });
+  }
+
+  card.dataset.open = open ? '0' : '1';
+  card.classList.toggle('collapsed', open);
+}
+
+// ─── QR panel toggle ─────────────────────────────────────────────────
+function toggleQr(btn) {
+  const navBar = btn.closest('.day-nav-bar');
+  const panel  = navBar.nextElementSibling;
+  if (!panel || !panel.classList.contains('qr-panel')) return;
+  const opening = !panel.classList.contains('open');
+  panel.classList.toggle('open', opening);
+  btn.textContent = opening ? 'Hide QR' : 'QR Code';
+  // Lazy-load QR image on first open
+  if (opening) {
+    const img = panel.querySelector('img[data-qr-url]');
+    if (img && !img.src.startsWith('data:')) {
+      // Fetch QR as base64 from backend
+      fetch('/qr?url=' + encodeURIComponent(img.dataset.qrUrl))
+        .then(r => r.json())
+        .then(d => { if (d.data_uri) img.src = d.data_uri; })
+        .catch(() => { img.alt = 'QR unavailable'; });
+    }
+  }
+}
+
+// ─── Boot ────────────────────────────────────────────────────────────
+nlInput.focus();
 </script>
 </body>
 </html>

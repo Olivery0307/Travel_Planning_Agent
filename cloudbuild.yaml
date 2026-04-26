@@ -10,6 +10,22 @@ steps:
         npm run build
     id: build-frontend
 
+  # Upload seeded place caches to GCS bucket
+  # This runs on every deploy so the bucket always has the latest seed data.
+  # Skipped gracefully if bucket does not exist yet.
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        for f in backend/data/places_*.json; do
+          city=$(basename "$f" .json | sed 's/places_//')
+          gsutil -q cp "$f" "gs://${_PLACES_CACHE_BUCKET}/places/${city}.json" \
+            && echo "Uploaded $f" \
+            || echo "WARNING: upload failed for $f (bucket may not exist yet)"
+        done
+    id: upload-cache
+
   # Build the Docker image
   - name: "gcr.io/cloud-builders/docker"
     args:
@@ -44,9 +60,12 @@ steps:
       - --allow-unauthenticated
       - --min-instances=1
       - --memory=1Gi
-      - --set-env-vars=ENV=prod
+      - --set-env-vars=ENV=prod,PLACES_CACHE_BUCKET=${_PLACES_CACHE_BUCKET}
       - --set-secrets=OPENAI_API_KEY=openai-key:latest,GOOGLE_MAPS_API_KEY=gmaps-key:latest,GOOGLE_PLACES_API_KEY=places-key:latest
-    waitFor: ["push-image"]
+    waitFor: ["push-image", "upload-cache"]
+
+substitutions:
+  _PLACES_CACHE_BUCKET: travel-optimizer-cache  # override with --substitutions on deploy
 
 images:
   - gcr.io/$PROJECT_ID/travel-optimizer:$COMMIT_SHA
