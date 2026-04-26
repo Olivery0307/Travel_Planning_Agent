@@ -81,9 +81,10 @@ def _fetch_details(client: googlemaps.Client, place_id: str, api_key: str) -> di
         for photo in raw.get("photos", [])[:3]:
             ref = photo.get("photo_reference")
             if ref:
+                # Store without the API key — never embed credentials in cached data.
                 photo_urls.append(
                     f"https://maps.googleapis.com/maps/api/place/photo"
-                    f"?maxwidth=800&photoreference={ref}&key={api_key}"
+                    f"?maxwidth=800&photoreference={ref}"
                 )
 
         return {
