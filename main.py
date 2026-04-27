@@ -27,11 +27,19 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
+# Suppress noisy third-party loggers that obscure agent workflow visibility.
+# "LiteLLM completion() model=..." comes from the LiteLLM logger.
+# "OPENAI_API_KEY is not set, skipping trace export" comes from openai.agents.
+logging.getLogger("LiteLLM").setLevel(logging.ERROR)
+logging.getLogger("litellm").setLevel(logging.ERROR)
+logging.getLogger("openai.agents").setLevel(logging.ERROR)
+
 # Global LiteLLM retry on 429/503 — fires before the error reaches the SDK.
 # 3 retries with exponential backoff: waits 5s, 10s, 20s before each retry.
 import litellm  # noqa: E402
 litellm.num_retries = 3
 litellm.retry_after = 5
+litellm.suppress_debug_info = True
 
 _orchestrator_model_str = os.environ.get("ORCHESTRATOR_MODEL") or os.environ.get("MODEL")
 _specialist_model_str = os.environ.get("SPECIALIST_MODEL") or os.environ.get("MODEL")

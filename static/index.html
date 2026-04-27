@@ -573,6 +573,30 @@
     .form-input::placeholder { color: var(--ash); }
     .form-select option { background: var(--obsidian); }
 
+    .trip-type-toggle {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border-mid);
+      border-radius: 3px;
+      overflow: hidden;
+      width: fit-content;
+    }
+    .tt-btn {
+      font-family: var(--font-body);
+      font-size: 0.62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.32rem 0.8rem;
+      background: none;
+      color: var(--stone);
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tt-btn + .tt-btn { border-left: 1px solid var(--border-mid); }
+    .tt-btn.active { background: var(--amber-glow); color: var(--amber); }
+
     /* Pill input */
     .pill-wrap {
       display: flex;
@@ -925,9 +949,23 @@
     .slot-period.afternoon { color: var(--terra); }
     .slot-period.evening   { color: var(--verdant); }
     .slot-period.lodging   { color: var(--cerulean); }
+    .slot-period.travel    { color: var(--cerulean); }
     .slot-period.dining,
     .slot-period.lunch,
     .slot-period.dinner    { color: var(--verdant); }
+
+    /* City section banner between day cards */
+    .city-banner {
+      padding: 0.55rem 1.35rem;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--amber);
+      background: var(--surface-2);
+      border-left: 3px solid var(--amber);
+      margin-top: 1rem;
+    }
 
     .slot-name {
       font-size: 0.84rem;
@@ -1125,7 +1163,7 @@
         </div>
         <div class="example-list">
           <button class="example-btn" onclick="usePrompt(this)">5-day Rome, couple, $200/day, ancient history — one partner uses a cane</button>
-          <button class="example-btn" onclick="usePrompt(this)">3-day Florence, solo, $150/day, art museums, no meat</button>
+          <button class="example-btn" onclick="usePrompt(this)">10-day country trip to Portugal, solo, $150/day, seafood and wine lover</button>
           <button class="example-btn" onclick="usePrompt(this)">Day 2 afternoon: Borghese Gallery closed — please re-plan</button>
         </div>
       </div>
@@ -1156,9 +1194,18 @@
 
       <!-- Form mode -->
       <div id="form-mode" class="hidden">
+
+        <div class="form-group" style="margin-bottom:0.6rem">
+          <label class="form-label">Trip type</label>
+          <div class="trip-type-toggle">
+            <button class="tt-btn active" id="tt-single" onclick="setTripType('single')">Single city</button>
+            <button class="tt-btn"        id="tt-multi"  onclick="setTripType('multi')">Multi-city / country</button>
+          </div>
+        </div>
+
         <div class="form-row">
           <div class="form-group" style="flex:2">
-            <label class="form-label">Destination</label>
+            <label class="form-label" id="f-dest-label">Destination</label>
             <input class="form-input" id="f-dest" placeholder="Rome, Italy" />
           </div>
           <div class="form-group" style="flex:1">
@@ -1330,6 +1377,24 @@ function renderPills() {
   });
 }
 
+// ─── Trip type toggle ────────────────────────────────────────────────
+let tripTypeMulti = false;
+
+function setTripType(type) {
+  tripTypeMulti = type === 'multi';
+  document.getElementById('tt-single').classList.toggle('active', !tripTypeMulti);
+  document.getElementById('tt-multi').classList.toggle('active', tripTypeMulti);
+  const destLabel = document.getElementById('f-dest-label');
+  const destInput = document.getElementById('f-dest');
+  if (tripTypeMulti) {
+    destLabel.textContent = 'Country / region';
+    destInput.placeholder = 'Portugal, Japan, Northern Italy…';
+  } else {
+    destLabel.textContent = 'Destination';
+    destInput.placeholder = 'Rome, Italy';
+  }
+}
+
 // ─── Form → NL message ──────────────────────────────────────────────
 function formToMessage() {
   const dest    = document.getElementById('f-dest').value.trim();
@@ -1350,7 +1415,10 @@ function formToMessage() {
   if (rawInput) addPill(rawInput);
   const interests = [...interestPills];
 
-  let msg = `${days}-day trip to ${dest} for a ${group}, $${budget}/day budget`;
+  const tripPhrase = tripTypeMulti
+    ? `${days}-day country trip to ${dest} for a ${group}, $${budget}/day budget`
+    : `${days}-day trip to ${dest} for a ${group}, $${budget}/day budget`;
+  let msg = tripPhrase;
   if (style !== 'mid-range') msg += `, ${style} travel style`;
   if (interests.length)      msg += `, interested in ${interests.join(', ')}`;
   if (diet)                  msg += `, dietary restrictions: ${diet}`;
@@ -1501,7 +1569,10 @@ const EMOJI_PERIOD = {
 const PERIOD_ICON = {
   lodging: '🏨', morning: '🌅', afternoon: '🌇',
   evening: '🌆', dining: '🍽️', lunch: '🍽️', dinner: '🍽️',
+  travel: '🚆',
 };
+
+const TRANSPORT_EMOJI = { '🚆': true, '✈️': true, '🚌': true, '⛴': true, '🚗': true, '🛳': true };
 
 const COST_RE = /~?\$[\d,]+(?:[^\s,\)]*)?/;
 // Note: stops before any [ to avoid eating booking links that follow a dash
@@ -1516,6 +1587,22 @@ function parseLine(raw) {
 
   // Skip maps navigation lines and QR markers — handled by parseItinerary
   if (/^\[🗺/.test(s) || /^\[QR_DAY_/i.test(s)) return null;
+
+  // Transport slot: line starts with a transport emoji (🚆 ✈️ 🚌 ⛴ 🚗)
+  const firstEmoji = [...s][0];
+  if (firstEmoji && TRANSPORT_EMOJI[firstEmoji]) {
+    const rest = s.replace(/^[\p{Emoji}️⃣‍]+\s*/u, '').trim();
+    // Strip period keyword if present (e.g. "Afternoon: Travel ...")
+    const kw2 = rest.match(/^(morning|afternoon|evening)[:\s–—]+/i);
+    const text = kw2 ? rest.slice(kw2[0].length).trim() : rest;
+    const period = kw2 ? kw2[1].toLowerCase() : 'afternoon';
+    // Extract link if present
+    let link = null;
+    const lm2 = text.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/);
+    if (lm2) link = { label: lm2[1], url: lm2[2] };
+    const cleanText = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '').trim();
+    return { type: 'slot', period: 'travel', icon: firstEmoji, name: cleanText, note: '', cost: '', link };
+  }
 
   s = s.replace(/^[\p{Emoji}️⃣‍]+\s*/u, '').trim();
 
@@ -1566,15 +1653,15 @@ function parseLine(raw) {
 }
 
 function parseItinerary(text) {
-  // Keep empty lines so we can detect line breaks; filter only truly blank ones later.
   const lines  = text.split('\n').map(l => l.trim());
-  const result = { title: '', meta: [], days: [], total: '' };
+  const result = { title: '', meta: [], days: [], total: '', cities: [] };
   let cur      = null;
+  let curCity  = '';
 
   for (const line of lines) {
-    if (!line || /^---+$/.test(line)) continue;  // skip blank lines and hr separators
+    if (!line || /^---+$/.test(line)) continue;
 
-    // Title: any bold/heading line containing "itinerary" or "Day Plan"
+    // Title
     if (!result.title && /itinerary|day plan/i.test(line) && /\*\*|^#+/.test(line)) {
       result.title = line.replace(/\*\*/g, '').replace(/^#+\s*/, '').trim();
       continue;
@@ -1585,25 +1672,36 @@ function parseItinerary(text) {
       continue;
     }
 
+    // Cities summary line: "Cities: Lisbon (4 nights) → Porto (3 nights)"
+    if (/^cities\s*:/i.test(line)) {
+      result.meta.push(line.replace(/\*\*/g, '').trim());
+      continue;
+    }
+
     if (/total\s+estimated\s+cost/i.test(line)) {
       result.total = line.replace(/\*\*/g, '').replace(/^[-•*]\s*/, '').trim();
+      continue;
+    }
+
+    // City section header: 🏙 **Lisbon** — Days 1–4  or  ## Lisbon — Days 1-4
+    const cm = line.match(/(?:🏙[️\s]*)?(?:\*\*|#+\s*)?([A-Z][a-zA-Z\s]+?)\s*(?:\*\*)?\s*[—–]\s*Days?\s*[\d–\-]+/);
+    if (cm && !/^Day\s+\d/i.test(line)) {
+      curCity = cm[1].replace(/\*\*/g, '').trim();
+      if (!result.cities.includes(curCity)) result.cities.push(curCity);
       continue;
     }
 
     // Day header: **Day N — Name** or ## Day N — Name
     const dm = line.match(/^(?:\*\*|#+\s*)?Day\s+(\d+)\s*[—–:\-]+\s*(.+?)(?:\*\*)?$/i);
     if (dm) {
-      cur = { number: +dm[1], name: dm[2].replace(/\*\*/g, '').trim(), slots: [], cost: '', mapsUrl: '', qrUrl: '' };
+      cur = { number: +dm[1], name: dm[2].replace(/\*\*/g, '').trim(), slots: [], cost: '', mapsUrl: '', qrUrl: '', city: curCity };
       result.days.push(cur);
       continue;
     }
 
-    // Maps navigation link: [🗺 Navigate Day N on Google Maps](url)
-    // May appear as a bare line (not prefixed with bullet)
     const mm = line.match(/\[🗺[^\]]*\]\((https?:\/\/[^)]+)\)/);
     if (mm && cur) { cur.mapsUrl = mm[1]; continue; }
 
-    // QR marker: [QR_DAY_N](url)
     const qm = line.match(/\[QR_DAY_\d+\]\((https?:\/\/[^)]+)\)/i);
     if (qm && cur) { cur.qrUrl = qm[1]; continue; }
 
@@ -1612,6 +1710,15 @@ function parseItinerary(text) {
       if (!parsed) continue;
       if (parsed.type === 'cost') cur.cost = parsed.text;
       else                        cur.slots.push(parsed);
+    }
+
+    // Transport lines may appear without a bullet (bare emoji lines)
+    if (cur && !line.startsWith('-') && !line.startsWith('*')) {
+      const firstEmoji = [...line][0];
+      if (firstEmoji && TRANSPORT_EMOJI[firstEmoji]) {
+        const parsed = parseLine('- ' + line);
+        if (parsed) cur.slots.push(parsed);
+      }
     }
   }
   return result;
@@ -1656,7 +1763,13 @@ function renderItinerary(text) {
         <div class="qr-label"><strong>Scan to navigate</strong>Opens Day ${day.number} route in Google Maps on your phone.</div>
       </div>` : ''}` : '';
 
-    return `
+    // City banner: show when this day belongs to a new city vs the previous day
+    const prevCity = i > 0 ? data.days[i - 1].city : null;
+    const cityBanner = (day.city && day.city !== prevCity)
+      ? `<div class="city-banner">🏙 ${escHtml(day.city)}</div>`
+      : '';
+
+    return cityBanner + `
       <div class="day-card" style="animation-delay:${i * 0.058}s" data-open="1">
         <div class="day-header" onclick="toggleDay(this)">
           <span class="day-num">Day ${day.number}</span>
@@ -1674,12 +1787,13 @@ function renderItinerary(text) {
       <span class="total-amount">${escHtml(data.total.replace(/total\s+estimated\s+cost:?\s*/i, ''))}</span>
     </div>` : '';
 
-  const cityMatch = data.title.match(/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/);
-  const city = cityMatch ? cityMatch[1] : 'Your destination';
+  const eyebrow = data.cities.length > 1
+    ? `Multi-city · ${data.cities.join(' → ')}`
+    : `Curated itinerary · ${escHtml(data.cities[0] || data.title.match(/\b([A-Z][a-z]+)\b/)?.[1] || 'Your destination')}`;
 
   itinPane.innerHTML = `
     <div class="itin-header">
-      <div class="itin-eyebrow">Curated itinerary · ${escHtml(city)}</div>
+      <div class="itin-eyebrow">${eyebrow}</div>
       <div class="itin-title">${escHtml(data.title || 'Your Itinerary')}</div>
       <div class="itin-meta">${chips}</div>
     </div>
