@@ -14,6 +14,7 @@ from backend.agents.intake import build_intake_agent
 from backend.agents.lodging import build_lodging_agent
 from backend.agents.replanner import build_replanner_agent
 from backend.agents.solver import build_solver_agent
+from backend.agents.transport import build_transport_agent
 
 _PROMPT = (Path(__file__).parent / "prompts" / "orchestrator.md").read_text()
 
@@ -29,6 +30,7 @@ def build_orchestrator(
     dining = build_dining_agent(specialist_model)
     solver = build_solver_agent(specialist_model)
     replanner = build_replanner_agent(specialist_model)
+    transport = build_transport_agent(specialist_model)
 
     return Agent(
         name="OrchestratorAgent",
@@ -42,19 +44,26 @@ def build_orchestrator(
             ),
             lodging.as_tool(
                 tool_name="lodging_agent",
-                tool_description="Find hotel/lodging options for the trip. Call after intake_agent.",
+                tool_description="Find hotel/lodging options for a single city. For multi-city trips, call once per city leg.",
             ),
             activity.as_tool(
                 tool_name="activity_agent",
-                tool_description="Find attractions and activities matching trip interests. Call after intake_agent.",
+                tool_description="Find attractions and activities for a single city. For multi-city trips, call once per city leg.",
             ),
             dining.as_tool(
                 tool_name="dining_agent",
-                tool_description="Find restaurants matching cuisine preferences and budget. Call after intake_agent.",
+                tool_description="Find restaurants for a single city. For multi-city trips, call once per city leg.",
+            ),
+            transport.as_tool(
+                tool_name="transport_agent",
+                tool_description=(
+                    "Get inter-city transport options (train, bus, flight, ferry) between two consecutive cities. "
+                    "Call for each city transition in a multi-city trip to get travel time and cost for the travel day."
+                ),
             ),
             solver.as_tool(
                 tool_name="solver_agent",
-                tool_description="Sequence all candidates into a valid day-by-day itinerary. Call after lodging, activity, and dining agents have returned results.",
+                tool_description="Sequence all candidates into a valid day-by-day itinerary. Call once after all city candidates are gathered.",
             ),
             replanner.as_tool(
                 tool_name="replanner_agent",

@@ -92,46 +92,37 @@
 
 ---
 
-## Phase 5 — Multi-City Planning  📋 TO DO
+## Phase 5 — Multi-City Planning  ✅ DONE (5A–5D)
 
-### 5A — IntakeAgent: multi-city detection & splitting
-- [ ] Extend `TripRequest` with `destinations: list[CityLeg]` where `CityLeg` has `city: str`, `country: str`, `nights: int`.
-  - Keep `destination_city` / `destination_country` as a single-city shortcut (populated from `destinations[0]` for backward compat).
-- [ ] Add `CityLeg` Pydantic model to `backend/models/request.py`.
-- [ ] Update `IntakeAgent` prompt (`backend/agents/prompts/intake.md`) to:
-  - Detect multi-city intent: country names, region phrases ("Portugal trip", "Northern Italy", "Scandinavia 10 days").
-  - Apply canonical city-split heuristics for top destinations (Portugal → Lisbon + Porto; Japan → Tokyo + Kyoto + Osaka; etc.).
-  - Allocate nights proportionally by city importance and total duration.
-  - Populate `destinations` list; set `duration_days` = sum of all nights.
+### 5A — Model + IntakeAgent ✅
+- [x] `CityLeg` Pydantic model added to `backend/models/request.py`
+- [x] `TripRequest.destinations: list[CityLeg]` field added; `@model_validator` auto-syncs `destination_city` and synthesises a single-city leg for backward compat
+- [x] `IntakeAgent` prompt updated with multi-city detection rules and canonical city-split table for 20+ destinations (Portugal, Japan, Italy, Spain, Greece, etc.)
 
-### 5B — OrchestratorAgent: per-city planning loop
-- [ ] Update `OrchestratorAgent` to iterate over `destinations` list:
-  - For each `CityLeg`, run the full Lodging → Activity → Dining pipeline scoped to that city.
-  - Accumulate `CandidatePool` per city.
-  - Pass all city pools to Solver together.
-- [ ] Cache keying already supports multi-city (`(city, category)` key) — no change needed.
+### 5B — OrchestratorAgent: per-city loop ✅
+- [x] Orchestrator prompt updated with explicit multi-city flow: call lodging/activity/dining per city leg, transport_agent per city transition, then solver_agent once with all results
+- [x] Single-city flow unchanged (backward compat)
 
-### 5C — Unified Solver: city-transition awareness
-- [ ] Update `SolverAgent` prompt to:
-  - Accept multi-city candidate pool.
-  - Assign days to cities based on `CityLeg.nights`.
-  - Insert a **Travel Day** slot at city transitions (e.g., Day 3: "Travel Lisbon → Porto").
-  - Travel day slots: category = `"transit"`, duration = travel time, `cost_usd` = estimated transport cost.
-  - Use a new `get_intercity_transport()` tool (see 5D) for travel time + cost between cities.
-  - Per-city hotel: `lodging` assigned per city cluster, not per trip.
+### 5C — Unified Solver: city-transition awareness ✅
+- [x] Solver prompt updated: multi-city process, day assignment per city leg, travel day format with transport emoji (🚆 ✈️ 🚌 ⛴)
+- [x] City section header format (`🏙 **Lisbon** — Days 1–4`) in output
+- [x] No restaurant repeats enforced across all cities
 
-### 5D — TransportAgent: real inter-city options
-- [ ] Add `TransportAgent` (`backend/agents/transport.py`) with:
-  - Tool: `get_intercity_transport(origin_city, destination_city, date)` → returns list of options (train, bus, flight) with price range and duration.
-  - Initial implementation: static lookup table for top routes (Lisbon→Porto, Rome→Florence, Paris→Amsterdam, etc.) — no external API needed for MVP.
-  - Phase 2: integrate Trainline API or Rome2Rio API for live pricing (add to future checkpoints below).
-- [ ] `TransportAgent` exposed as tool on `OrchestratorAgent`.
-- [ ] Solver inserts the best transport option as a `transit` slot on city-change days.
+### 5D — TransportAgent ✅
+- [x] `backend/tools/transport.py`: `get_intercity_transport()` with static lookup table for 25+ common routes (Europe, Japan, SEA, Americas) + driving fallback
+- [x] `backend/agents/transport.py`: `TransportAgent` using the tool
+- [x] `TransportAgent` wired into `OrchestratorAgent` as `transport_agent` tool
+
+### Frontend: multi-city rendering ✅
+- [x] `parseItinerary()` captures city name per day from `🏙 **City**` headers
+- [x] `parseLine()` handles transport slots (🚆 ✈️ 🚌 ⛴ 🚗 lines)
+- [x] City banners rendered between day cards when city changes
+- [x] Multi-city eyebrow: "Multi-city · Lisbon → Porto" vs single "Curated itinerary · Rome"
+- [x] `.slot-period.travel` color + `.city-banner` CSS
 
 ### 5E — Future transport checkpoints
 - [ ] **Rome2Rio API** integration for real inter-city routes + prices (free tier available).
 - [ ] **Flight search** via Skyscanner/Amadeus API for city pairs requiring flights.
-- [ ] **Seat61 / Trainline** static data for European train routes.
 - [ ] **Multi-city budget tracking** — per-city daily budget breakdown + inter-city transport budget line.
 
 ---
