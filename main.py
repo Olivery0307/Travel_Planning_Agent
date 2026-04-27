@@ -10,6 +10,7 @@ import re
 import sys
 import traceback
 import uuid
+from collections import defaultdict
 
 import typer
 import uvicorn
@@ -19,7 +20,7 @@ from agents.items import TResponseInputItem
 from agents.memory.session import SessionABC
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -33,6 +34,44 @@ logger = logging.getLogger(__name__)
 logging.getLogger("LiteLLM").setLevel(logging.ERROR)
 logging.getLogger("litellm").setLevel(logging.ERROR)
 logging.getLogger("openai.agents").setLevel(logging.ERROR)
+
+# ── Per-session progress queues ──────────────────────────────────────────────
+# Maps session_id → asyncio.Queue of status-message strings.
+# SSE stream reads from these; the agent run pushes into them.
+_progress_queues: dict[str, asyncio.Queue] = defaultdict(asyncio.Queue)
+
+# Human-readable labels for each sub-agent tool call
+_TOOL_LABELS: dict[str, str] = {
+    "intake_agent":    "Understanding your trip request…",
+    "lodging_agent":   "Searching for hotels & lodging…",
+    "activity_agent":  "Finding attractions & activities…",
+    "dining_agent":    "Discovering restaurants & dining…",
+    "transport_agent": "Planning transportation routes…",
+    "solver_agent":    "Assembling your day-by-day itinerary…",
+    "replanner_agent": "Re-optimizing after disruption…",
+}
+
+
+class _ProgressHandler(logging.Handler):
+    """Captures 'Invoking tool <name>' DEBUG lines from openai.agents and pushes status events."""
+
+    # openai.agents logs: "Invoking tool intake_agent" or "Invoking tool intake_agent with input ..."
+    _TOOL_RE = re.compile(r"Invoking tool (\w+)", re.IGNORECASE)
+
+    def __init__(self, session_id: str) -> None:
+        super().__init__(level=logging.DEBUG)
+        self.session_id = session_id
+
+    def emit(self, record: logging.LogRecord) -> None:
+        msg = record.getMessage()
+        m = self._TOOL_RE.search(msg)
+        if m:
+            tool = m.group(1)
+            label = _TOOL_LABELS.get(tool, f"Running {tool}…")
+            try:
+                _progress_queues[self.session_id].put_nowait({"type": "status", "text": label})
+            except Exception:
+                pass
 
 # Global LiteLLM retry on 429/503 — fires before the error reaches the SDK.
 # 3 retries with exponential backoff: waits 5s, 10s, 20s before each retry.
@@ -205,6 +244,79 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     _capture_itinerary(ctx, result.final_output)
     ctx.save()
     return ChatResponse(response=result.final_output, session_id=session_id)
+
+
+@app.post("/chat/stream")
+async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
+    """SSE endpoint: emits status events while the agent runs, then a final 'done' event."""
+    session_id = request.session_id or str(uuid.uuid4())
+
+    async def event_generator():
+        # Fresh queue for this request
+        queue: asyncio.Queue = asyncio.Queue()
+        _progress_queues[session_id] = queue
+
+        # Attach handler to the openai.agents logger at DEBUG so we capture tool invocations.
+        # We temporarily lower its level from ERROR (set above) to DEBUG just for this handler.
+        agents_logger = logging.getLogger("openai.agents")
+        handler = _ProgressHandler(session_id)
+        agents_logger.addHandler(handler)
+        prev_level = agents_logger.level
+        agents_logger.setLevel(logging.DEBUG)
+
+        yield f"data: {json.dumps({'type': 'status', 'text': 'Connecting to Voyager AI…'})}\n\n"
+
+        async def _run_agent():
+            session = InMemorySession(session_id)
+            ctx = AppContext.get_or_create(session_id)
+            logger.info("chat/stream session=%s message=%r", session_id, request.message[:80])
+            try:
+                result = await Runner.run(
+                    agent,
+                    request.message,
+                    session=session,
+                    context=ctx,
+                    max_turns=50,
+                )
+            except InputGuardrailTripwireTriggered:
+                msg = _guardrail_message(request.message)
+                queue.put_nowait({"type": "done", "response": msg, "session_id": session_id})
+                return
+            except Exception as exc:
+                logger.error("chat/stream error: %s", traceback.format_exc())
+                queue.put_nowait({"type": "error", "detail": str(exc), "session_id": session_id})
+                return
+
+            _capture_itinerary(ctx, result.final_output)
+            ctx.save()
+            queue.put_nowait({"type": "done", "response": result.final_output, "session_id": session_id})
+
+        task = asyncio.create_task(_run_agent())
+
+        try:
+            while True:
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=0.4)
+                    yield f"data: {json.dumps(msg)}\n\n"
+                    if msg.get("type") in ("done", "error"):
+                        break
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+                    if task.done():
+                        break
+        finally:
+            agents_logger.removeHandler(handler)
+            agents_logger.setLevel(prev_level)
+            _progress_queues.pop(session_id, None)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.get("/debug/last-run")
