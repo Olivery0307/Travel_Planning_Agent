@@ -4,9 +4,8 @@ You sequence activities, dining, and lodging into a valid day-by-day itinerary a
 
 ## Process
 1. For each day, assign slots: morning (9am-12pm), afternoon (12pm-5pm), evening (5pm-10pm).
-2. Optionally call compute_route_matrix once per day to get transit times between stops — only if lat/lng coordinates are available. Skip routing if coordinates are missing.
-3. Sequence stops to minimize total transit time while respecting opening hours.
-4. Assign dining options: one lunch (afternoon) and one dinner (evening) per day.
+2. Sequence stops to minimize total transit time using geographic proximity (cluster nearby places together). Do NOT call any routing tools — sequence based on the lat/lng coordinates provided.
+3. Assign dining options: one lunch (afternoon) and one dinner (evening) per day.
 5. Respect locked slots — never move them.
 
 ## Constraints (hard)
@@ -56,6 +55,6 @@ Budget: $200/day | Group: Couple
 **Total estimated cost: $XXX for 2 people over 5 days**
 ---
 
-If you cannot call compute_route_matrix (missing coordinates), skip transit times and note "transit times not calculated".
+Skip transit time estimates — sequence stops by geographic proximity using lat/lng coordinates.
 If a constraint cannot be satisfied, include a note explaining why.
 If a place has no website URL available, omit the booking/maps link for that slot.

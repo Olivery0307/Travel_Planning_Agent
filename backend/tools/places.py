@@ -13,7 +13,7 @@ import re
 from typing import Literal
 
 import googlemaps
-from agents import function_tool
+from agents import RunContextWrapper, function_tool
 
 from backend.models.places import OpeningHours, PlaceResult
 from backend.tools.cache import get_cache
@@ -64,8 +64,34 @@ def _dict_to_place_result(p: dict, category: str = "other") -> PlaceResult:
     )
 
 
+def _pool_key(category: str) -> str:
+    """Map Places API category to candidate_pool dict key."""
+    return "lodging" if category == "lodging" else (
+        "dining" if category == "restaurant" else "activities"
+    )
+
+
+def _add_to_pool(ctx: RunContextWrapper | None, results: list[PlaceResult], category: str) -> None:
+    """Append new PlaceResults to the session candidate pool, deduplicating by place_id."""
+    if ctx is None or not hasattr(ctx, "context") or ctx.context is None:
+        return
+    pool = ctx.context.candidate_pool
+    key = _pool_key(category)
+    existing_ids = {p["place_id"] for p in pool.get(key, [])}
+    added = 0
+    for r in results:
+        if r.place_id not in existing_ids:
+            pool.setdefault(key, []).append(r.model_dump())
+            existing_ids.add(r.place_id)
+            added += 1
+    if added:
+        ctx.context.save()
+        logger.info("candidate_pool updated key=%r added=%d total=%d", key, added, len(pool[key]))
+
+
 @function_tool
 def search_places(
+    ctx: RunContextWrapper,
     query: str,
     location: str,
     category: Literal["lodging", "activity", "restaurant", "attraction"],
@@ -88,6 +114,7 @@ def search_places(
             results = [_dict_to_place_result(p, category) for p in cached]
             logger.info("search_places cache HIT city=%r cat=%r query=%r → %d results",
                         city, category, query, len(results))
+            _add_to_pool(ctx, results, category)
             return results
         if cached:
             logger.info("search_places cache PARTIAL city=%r cat=%r → %d results, supplementing live",
@@ -142,13 +169,17 @@ def search_places(
                     live_results.append(_dict_to_place_result(p, category))
                     seen.add(p["place_id"])
 
-        return live_results[:max_results]
+        final = live_results[:max_results]
+        _add_to_pool(ctx, final, category)
+        return final
 
     except Exception as exc:
         logger.error("search_places live API error: %s", exc)
         # return whatever we have from cache rather than an error dict
         if city and cached:
-            return [_dict_to_place_result(p, category) for p in cached]
+            fallback = [_dict_to_place_result(p, category) for p in cached]
+            _add_to_pool(ctx, fallback, category)
+            return fallback
         return {"error": str(exc)}
 
 

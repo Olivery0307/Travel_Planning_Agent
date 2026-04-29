@@ -527,6 +527,58 @@
       letter-spacing: 0.07em;
     }
 
+    /* Slot lock button */
+    .slot-lock-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      opacity: 0.35;
+      padding: 0.15rem 0.25rem;
+      border-radius: 2px;
+      transition: opacity 0.15s, background 0.15s;
+      flex-shrink: 0;
+      align-self: flex-start;
+    }
+
+    .slot-lock-btn:hover { opacity: 0.8; background: var(--amber-glow); }
+    .slot-lock-btn.locked { opacity: 1; color: var(--amber); }
+
+    .slot.locked {
+      border-color: var(--amber-line);
+      background: linear-gradient(135deg, rgba(201,160,90,0.06) 0%, transparent 100%);
+    }
+
+    .slot.locked .slot-period { color: var(--amber); }
+
+    /* Quick-action disruption buttons */
+    .quick-actions {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-top: 0.4rem;
+    }
+
+    .quick-btn {
+      background: none;
+      border: 1px solid var(--border-mid);
+      color: var(--stone);
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      letter-spacing: 0.04em;
+      padding: 0.28rem 0.55rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+
+    .quick-btn:hover {
+      border-color: var(--amber-line);
+      color: var(--amber);
+      background: var(--amber-glow);
+    }
+
     /* Form panel */
     #form-mode {
       padding: 0.8rem 1.1rem 0.85rem;
@@ -1078,6 +1130,113 @@
       color: var(--amber-lt);
     }
 
+    /* Diff UI */
+    .diff-header {
+      padding: 1.1rem 1.35rem 0.8rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .diff-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 300;
+      color: var(--amber-lt);
+      flex: 1;
+    }
+
+    .diff-toggle {
+      background: none;
+      border: 1px solid var(--border-mid);
+      color: var(--stone);
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      letter-spacing: 0.06em;
+      padding: 0.3rem 0.7rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .diff-toggle:hover { border-color: var(--amber-line); color: var(--amber); }
+
+    .diff-reasoning {
+      margin: 0.9rem 1.35rem;
+      padding: 0.75rem 1rem;
+      border-left: 3px solid var(--amber);
+      background: var(--amber-glow);
+      font-size: 0.75rem;
+      color: var(--silk);
+      line-height: 1.6;
+    }
+
+    .diff-days { padding: 0 1.35rem 1.35rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .diff-day-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--stone);
+      margin-bottom: 0.35rem;
+      font-weight: 600;
+    }
+
+    .diff-slot {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 2px;
+      border: 1px solid transparent;
+      margin-bottom: 0.3rem;
+    }
+
+    .diff-slot.removed {
+      border-color: rgba(192,88,64,0.3);
+      background: rgba(192,88,64,0.06);
+      text-decoration: line-through;
+      opacity: 0.7;
+    }
+
+    .diff-slot.added {
+      border-color: rgba(90,140,100,0.35);
+      background: rgba(90,140,100,0.07);
+    }
+
+    .diff-slot-period {
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone);
+      padding-top: 0.1rem;
+      min-width: 52px;
+    }
+
+    .diff-slot-name { font-size: 0.78rem; color: var(--ivory); flex: 1; }
+
+    .diff-cost-badge {
+      font-size: 0.6rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 2px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .diff-cost-badge.positive { background: rgba(192,88,64,0.15); color: var(--terra); }
+    .diff-cost-badge.negative { background: rgba(90,140,100,0.15); color: var(--verdant); }
+
+    .diff-cascade-banner {
+      margin: 0.5rem 1.35rem 0;
+      padding: 0.5rem 0.75rem;
+      background: rgba(74,122,171,0.1);
+      border: 1px solid rgba(74,122,171,0.25);
+      border-radius: 2px;
+      font-size: 0.65rem;
+      color: var(--cerulean);
+    }
+
     /* Raw response fallback */
     .raw-response {
       white-space: pre-wrap;
@@ -1151,6 +1310,12 @@
         <div class="disruption-hint" id="disruption-hint">
           <strong>Re-plan mode detected</strong><br>
           Specify the day and slot affected — I'll re-optimize around locked commitments.
+        </div>
+        <div class="quick-actions">
+          <button class="quick-btn" onclick="useDisruptionTemplate('venue_closed')">🏛 Venue closed</button>
+          <button class="quick-btn" onclick="useDisruptionTemplate('weather')">🌧 Bad weather</button>
+          <button class="quick-btn" onclick="useDisruptionTemplate('health')">🤒 Sick day</button>
+          <button class="quick-btn" onclick="useDisruptionTemplate('transit_delay')">✈️ Flight delayed</button>
         </div>
       </div>
 
@@ -1405,7 +1570,7 @@ async function sendMessage(text) {
     const res = await fetch('/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, session_id: sessionId }),
+      body: JSON.stringify({ message: text, session_id: sessionId, locked_slots: [...lockedSlots] }),
     });
     const raw = await res.text();
 
@@ -1422,6 +1587,7 @@ async function sendMessage(text) {
     const data     = JSON.parse(raw);
     sessionId      = data.session_id;
     const response = data.response;
+    const delta    = data.delta || null;
 
     const isItin = looksLikeItinerary(response);
     const summary = extractSummary(response);
@@ -1429,8 +1595,15 @@ async function sendMessage(text) {
       mdToHtml(escHtml(summary || (isItin ? 'Your itinerary is ready — see the panel on the right.' : response)));
     loadWrap.classList.remove('loading');
 
-    if (isItin) {
+    if (delta) {
+      renderDelta(delta, previousItineraryText);
+    } else if (isItin) {
+      previousItineraryText = response;
       renderItinerary(response);
+    } else {
+      // Fallback: try to parse re-plan prose into a diff view
+      const proseDelta = tryParseProseDelta(response);
+      if (proseDelta) renderDelta(proseDelta, previousItineraryText);
     }
 
   } catch(e) {
@@ -1618,32 +1791,41 @@ function parseItinerary(text) {
 }
 
 // ─── Render itinerary ────────────────────────────────────────────────
-function renderItinerary(text) {
-  const data = parseItinerary(text);
+function _slotHtml(sl, dayNumber) {
+  const periodKey = sl.period === 'lunch' || sl.period === 'breakfast' ? 'afternoon'
+                  : sl.period === 'dinner' ? 'evening'
+                  : sl.period;
+  const key = `day${dayNumber}_${periodKey}`;
+  const isLocked = lockedSlots.has(key);
+  return `
+  <div class="slot${isLocked ? ' locked' : ''}" data-slot-key="${escHtml(key)}">
+    <div class="slot-icon">${sl.icon || '📍'}</div>
+    <div class="slot-body">
+      <div class="slot-period ${sl.period}">${sl.period}</div>
+      <div class="slot-name">${escHtml(sl.name)}</div>
+      ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
+      ${sl.link ? `<a class="slot-link" href="${escHtml(sl.link.url)}" target="_blank" rel="noopener">↗ ${escHtml(sl.link.label)}</a>` : ''}
+    </div>
+    ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : ''}
+    <button class="slot-lock-btn${isLocked ? ' locked' : ''}"
+            title="${isLocked ? 'Locked — click to unlock' : 'Click to lock this slot'}"
+            onclick="toggleLock(this, '${escHtml(key)}')">${isLocked ? '🔒' : '🔓'}</button>
+  </div>`;
+}
 
+function _renderItineraryData(data, fallbackText) {
   emptyState.style.display = 'none';
   itinPane.classList.add('visible');
 
   if (data.days.length === 0) {
-    itinPane.innerHTML = `<div class="raw-response">${mdToHtml(escHtml(text))}</div>`;
+    itinPane.innerHTML = `<div class="raw-response">${mdToHtml(escHtml(fallbackText || ''))}</div>`;
     return;
   }
 
-  const chips = data.meta
-    .map(m => `<span class="itin-chip">${escHtml(m)}</span>`).join('');
+  const chips = data.meta.map(m => `<span class="itin-chip">${escHtml(m)}</span>`).join('');
 
   const cards = data.days.map((day, i) => {
-    const slots = day.slots.map(sl => `
-      <div class="slot">
-        <div class="slot-icon">${sl.icon}</div>
-        <div class="slot-body">
-          <div class="slot-period ${sl.period}">${sl.period}</div>
-          <div class="slot-name">${escHtml(sl.name)}</div>
-          ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
-          ${sl.link ? `<a class="slot-link" href="${escHtml(sl.link.url)}" target="_blank" rel="noopener">↗ ${escHtml(sl.link.label)}</a>` : ''}
-        </div>
-        ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : ''}
-      </div>`).join('');
+    const slots = day.slots.map(sl => _slotHtml(sl, day.number)).join('');
 
     const navBar = day.mapsUrl ? `
       <div class="day-nav-bar">
@@ -1687,6 +1869,59 @@ function renderItinerary(text) {
     ${totalBar}`;
 }
 
+function renderItinerary(text) {
+  _renderItineraryData(parseItinerary(text), text);
+}
+
+// ─── Accept re-plan: merge delta into itinerary ───────────────────────
+function applyDelta(data, delta) {
+  const removedNames = new Set(
+    (delta.removed_slots || []).map(s => `${s.day_number}:${s.period}:${s.place_name}`)
+  );
+
+  for (const day of data.days) {
+    // Remove slots that appear in removed_slots
+    day.slots = day.slots.filter(sl => {
+      const norm = sl.period === 'lunch' || sl.period === 'breakfast' ? 'afternoon'
+                 : sl.period === 'dinner' ? 'evening' : sl.period;
+      return !removedNames.has(`${day.number}:${norm}:${sl.name}`) &&
+             !removedNames.has(`${day.number}:${sl.period}:${sl.name}`);
+    });
+
+    // Replace or insert changed slots for this day
+    for (const cs of (delta.changed_slots || [])) {
+      if (cs.day_number !== day.number) continue;
+      const newSlot = {
+        type: 'slot',
+        period: cs.period,
+        icon: PERIOD_ICON[cs.period] || '📍',
+        name: cs.place_name,
+        note: cs.notes || '',
+        cost: cs.cost_usd ? `~$${cs.cost_usd}` : '',
+        link: cs.booking_url ? { label: 'Book', url: cs.booking_url } : null,
+      };
+      // Replace existing slot with same period, otherwise append
+      const idx = day.slots.findIndex(s => {
+        const norm = s.period === 'lunch' || s.period === 'breakfast' ? 'afternoon'
+                   : s.period === 'dinner' ? 'evening' : s.period;
+        return norm === cs.period;
+      });
+      if (idx >= 0) day.slots[idx] = newSlot;
+      else day.slots.push(newSlot);
+    }
+  }
+  return data;
+}
+
+function acceptReplan() {
+  if (!currentDeltaData || !previousItineraryText) return;
+  const merged = applyDelta(parseItinerary(previousItineraryText), currentDeltaData);
+  _renderItineraryData(merged, '');
+  // Update state: the merged plan is now the current plan
+  previousItineraryText = '';
+  currentDeltaData = null;
+}
+
 // ─── Day collapse/expand ─────────────────────────────────────────────
 function toggleDay(header) {
   const card = header.closest('.day-card');
@@ -1725,6 +1960,176 @@ function toggleQr(btn) {
         .then(d => { if (d.data_uri) img.src = d.data_uri; })
         .catch(() => { img.alt = 'QR unavailable'; });
     }
+  }
+}
+
+// ─── Diff / Delta rendering ──────────────────────────────────────────
+let previousItineraryText = '';
+let currentDeltaData = null;
+let showingDiff = true;
+
+function renderDelta(delta, fullItineraryText) {
+  previousItineraryText = fullItineraryText || previousItineraryText;
+  currentDeltaData = delta;
+  showingDiff = true;
+
+  emptyState.style.display = 'none';
+  itinPane.classList.add('visible');
+
+  const affectedDays = delta.affected_days || [];
+  const cascadeNote = affectedDays.length > 1
+    ? `<div class="diff-cascade-banner">⚡ Days ${affectedDays.join(', ')} updated due to cascading changes.</div>`
+    : '';
+
+  const costRows = (delta.new_daily_costs || []).map(dc =>
+    `<span style="margin-right:0.75rem">Day ${escHtml(String(dc.day))}: <strong>$${Number(dc.cost_usd).toFixed(0)}</strong></span>`
+  ).join('');
+
+  const removedHtml = (delta.removed_slots || []).map(s => `
+    <div class="diff-slot removed">
+      <div class="diff-slot-period">${escHtml(s.period || '')}</div>
+      <div class="diff-slot-name">${escHtml(s.place_name || '')}</div>
+      <span class="diff-cost-badge positive">removed</span>
+    </div>`).join('');
+
+  const changedHtml = (delta.changed_slots || []).map(s => `
+    <div class="diff-slot added">
+      <div class="diff-slot-period">${escHtml(s.period || '')}</div>
+      <div class="diff-slot-name">${escHtml(s.place_name || '')}${s.notes ? `<br><span style="font-size:0.65rem;color:var(--stone)">${escHtml(s.notes)}</span>` : ''}</div>
+      ${s.cost_usd ? `<span class="diff-cost-badge negative">$${Number(s.cost_usd).toFixed(0)}</span>` : ''}
+    </div>`).join('');
+
+  itinPane.innerHTML = `
+    <div class="diff-header">
+      <div class="diff-title">Re-plan Changes</div>
+      <button class="diff-toggle" onclick="acceptReplan()" style="border-color:rgba(90,140,100,0.5);color:#5a8c64">✓ Accept changes</button>
+      ${previousItineraryText ? `<button class="diff-toggle" onclick="showFullPlan()">View original plan</button>` : ''}
+      ${previousItineraryText ? `<button class="diff-toggle" onclick="undoReplan()">↩ Undo</button>` : ''}
+    </div>
+    <div class="diff-reasoning">${escHtml(delta.reasoning || '')}</div>
+    ${cascadeNote}
+    <div class="diff-days">
+      ${costRows ? `<div style="padding:0.5rem 0; font-size:0.65rem; color:var(--stone)">${costRows}</div>` : ''}
+      ${removedHtml || changedHtml
+        ? `<div class="diff-day-label">Changes</div>${removedHtml}${changedHtml}`
+        : '<div style="font-size:0.75rem;color:var(--stone);padding:1rem 0">No slot changes — see chat for details.</div>'
+      }
+    </div>`;
+}
+
+function showFullPlan() {
+  if (previousItineraryText) {
+    renderItinerary(previousItineraryText);
+    // Add a "back to diff" button
+    const hdr = itinPane.querySelector('.itin-header');
+    if (hdr && currentDeltaData) {
+      const btn = document.createElement('button');
+      btn.className = 'diff-toggle';
+      btn.style.cssText = 'margin:0.5rem 1.35rem; display:block;';
+      btn.textContent = 'View re-plan changes';
+      btn.onclick = () => renderDelta(currentDeltaData, previousItineraryText);
+      hdr.after(btn);
+    }
+  }
+}
+
+function undoReplan() {
+  if (previousItineraryText) {
+    renderItinerary(previousItineraryText);
+    currentDeltaData = null;
+  }
+}
+
+// ─── Prose delta fallback parser ─────────────────────────────────────
+function tryParseProseDelta(text) {
+  if (!previousItineraryText) return null;
+  if (!/replac|remov|adjust|disruption|sick|closed|delay/i.test(text)) return null;
+
+  const dayMatch = text.match(/Day\s+(\d+)/i);
+  if (!dayMatch) return null;
+  const dayNum = parseInt(dayMatch[1]);
+
+  const removed = [], changed = [];
+
+  // "X replaced with Y" or "X has been replaced with Y" — capture names and look back for period
+  const replaceRe = /([\w][\w\s&'',\-\/]+?)\s+(?:\([^)]*\)\s*)?(?:has been |have been |is |are )?replaced with\s+(?:a\s+)?(?:shorter[^,\.]*?visit to\s+)?([\w][\w\s&'',\-\/]+?)(?:\s*[\(\.,])/gi;
+  let m;
+  while ((m = replaceRe.exec(text)) !== null) {
+    const before = text.slice(Math.max(0, m.index - 150), m.index);
+    const pm = before.match(/(morning|afternoon|evening)/i);
+    const period = pm ? pm[1].toLowerCase() : 'morning';
+    removed.push({ day_number: dayNum, period, place_name: m[1].replace(/^(the|a)\s+/i,'').trim(), cost_usd: 0, notes: '', place_id: '', category: 'activity', address: '', booking_url: '', duration_minutes: 90 });
+    changed.push({ day_number: dayNum, period, place_name: m[2].replace(/^(the|a)\s+/i,'').trim(), cost_usd: 0, notes: 'replacement for disrupted slot', place_id: '', category: 'activity', address: '', booking_url: '', duration_minutes: 90 });
+  }
+
+  // "X has been removed" / "X removed entirely"
+  const removeRe = /([\w][\w\s&'',\-\/\/]+?)\s+(?:\([^)]*\)\s*)?(?:has been |have been |is |are )?removed/gi;
+  while ((m = removeRe.exec(text)) !== null) {
+    const name = m[1].replace(/^(the|a)\s+/i,'').trim();
+    if (name.length < 3 || /morning|afternoon|evening|day|slot|activity/i.test(name)) continue;
+    const before = text.slice(Math.max(0, m.index - 150), m.index);
+    const pm = before.match(/(morning|afternoon|evening)/i);
+    const period = pm ? pm[1].toLowerCase() : 'afternoon';
+    if (!removed.find(r => r.place_name === name))
+      removed.push({ day_number: dayNum, period, place_name: name, cost_usd: 0, notes: '', place_id: '', category: 'activity', address: '', booking_url: '', duration_minutes: 90 });
+  }
+
+  if (removed.length === 0 && changed.length === 0) return null;
+
+  const costMatch = text.match(/Day\s*\d+\s*(?:estimated\s+)?cost[:\s]+~?\$\s*([\d,]+)/i);
+  const costUsd = costMatch ? parseFloat(costMatch[1].replace(',','')) : 0;
+
+  // Clean reasoning: strip markdown bullets, trim
+  const reasoning = text.replace(/[*•\-]\s+/g, '').replace(/\n+/g, ' ').trim().slice(0, 400);
+
+  return {
+    disruption: { day_number: dayNum, period: '', description: reasoning.slice(0, 100), disruption_type: 'health' },
+    affected_days: [dayNum],
+    changed_slots: changed,
+    removed_slots: removed,
+    reasoning,
+    new_daily_costs: costUsd ? [{ day: dayNum, cost_usd: costUsd }] : [],
+  };
+}
+
+// ─── Disruption quick-actions ────────────────────────────────────────
+const DISRUPTION_TEMPLATES = {
+  venue_closed:   'Venue closed: [venue name] on Day [N] is unexpectedly closed. Please re-plan that slot.',
+  weather:        'Bad weather on Day [N]: heavy rain forecast, outdoor activities affected. Please suggest indoor alternatives.',
+  health:         'Sick day on Day [N]: we need a low-effort, low-walking schedule. Please adjust.',
+  transit_delay:  'Flight delayed [X hours] — arrival on Day [N] pushed back. Please shift the day\'s schedule forward.',
+};
+
+function useDisruptionTemplate(type) {
+  const tmpl = DISRUPTION_TEMPLATES[type];
+  if (!tmpl) return;
+  nlInput.value = tmpl;
+  nlInput.focus();
+  // select the first [placeholder] so user can type directly
+  const start = tmpl.indexOf('[');
+  const end   = tmpl.indexOf(']') + 1;
+  if (start >= 0) nlInput.setSelectionRange(start, end);
+  disruptionHint.classList.add('visible');
+}
+
+// ─── Lock state ──────────────────────────────────────────────────────
+const lockedSlots = new Set();
+
+function toggleLock(btn, key) {
+  const slot = btn.closest('.slot');
+  if (lockedSlots.has(key)) {
+    lockedSlots.delete(key);
+    btn.textContent = '🔓';
+    btn.classList.remove('locked');
+    btn.title = 'Click to lock this slot';
+    slot.classList.remove('locked');
+    slot.querySelector('.slot-period').style.color = '';
+  } else {
+    lockedSlots.add(key);
+    btn.textContent = '🔒';
+    btn.classList.add('locked');
+    btn.title = 'Locked — click to unlock';
+    slot.classList.add('locked');
   }
 }
 

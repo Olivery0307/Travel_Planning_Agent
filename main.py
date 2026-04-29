@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -75,6 +75,11 @@ class AppContext(BaseModel):
     itinerary_json: str = ""    # JSON-serialized current Itinerary (avoids circular imports)
     locked_slots: list[str] = []   # ["day1_morning", "day2_evening", ...]
     disruption_count: int = 0
+    pending_delta: str = ""     # JSON-serialized ItineraryDelta set by store_delta tool
+    # Keys: "lodging" | "activities" | "dining" → list of PlaceResult-like dicts
+    candidate_pool: dict[str, list[dict]] = Field(
+        default_factory=lambda: {"lodging": [], "activities": [], "dining": []}
+    )
 
     @classmethod
     def get_or_create(cls, session_id: str) -> "AppContext":
@@ -89,10 +94,12 @@ class AppContext(BaseModel):
 # Itinerary capture ------------------------------------------------------------
 
 def _looks_like_itinerary(text: str) -> bool:
-    """Return True if the response text contains a full itinerary."""
+    """Return True if the response text contains a full itinerary (not just a re-plan description)."""
     return bool(
+        len(text) > 1500 and
         re.search(r"\*\*Day \d", text) and
-        re.search(r"(morning|afternoon|evening)", text, re.IGNORECASE)
+        re.search(r"(morning|afternoon|evening)", text, re.IGNORECASE) and
+        re.search(r"💰|Day total", text)
     )
 
 
@@ -164,11 +171,56 @@ async def health() -> dict:
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
+    locked_slots: list[str] = []   # ["day2_morning", "day3_evening", ...]
 
 
 class ChatResponse(BaseModel):
     response: str
     session_id: str
+    delta: dict | None = None      # Serialized ItineraryDelta when re-planning occurred
+
+
+def _validate_delta(ctx: "AppContext") -> dict | None:
+    """Parse and validate the pending ItineraryDelta, dropping any locked slots."""
+    if not ctx.pending_delta:
+        return None
+
+    from backend.models.disruption import ItineraryDelta
+    try:
+        delta = ItineraryDelta.model_validate_json(ctx.pending_delta)
+    except Exception:
+        logger.warning("Failed to parse pending_delta — skipping validation")
+        return None
+
+    locked = set(ctx.locked_slots)
+    if not locked:
+        return delta.model_dump()
+
+    violations: list[str] = []
+
+    def _is_locked(slot) -> bool:
+        key = f"day{slot.day_number}_{slot.period}"
+        return slot.day_number > 0 and key in locked
+
+    orig_changed = delta.changed_slots
+    orig_removed = delta.removed_slots
+    delta.changed_slots = [s for s in orig_changed if not _is_locked(s)]
+    delta.removed_slots = [s for s in orig_removed if not _is_locked(s)]
+
+    dropped = (len(orig_changed) - len(delta.changed_slots)) + (len(orig_removed) - len(delta.removed_slots))
+    if dropped:
+        violations = [
+            f"day{s.day_number}_{s.period.value}"
+            for s in orig_changed + orig_removed
+            if _is_locked(s)
+        ]
+        delta.reasoning += (
+            f" Note: {dropped} locked slot(s) were protected and excluded from re-planning "
+            f"({', '.join(violations)})."
+        )
+        logger.info("validator dropped %d locked slot(s): %s", dropped, violations)
+
+    return delta.model_dump()
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -177,26 +229,41 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     session = InMemorySession(session_id)
     ctx = AppContext.get_or_create(session_id)
 
-    logger.info("chat session=%s message=%r", session_id, request.message[:80])
+    # Sync locked slots sent by the frontend on every request
+    if request.locked_slots is not None:
+        ctx.locked_slots = request.locked_slots
+    ctx.pending_delta = ""   # clear any previous delta before this run
+
+    logger.info("chat session=%s message=%r locked=%s", session_id, request.message[:80], ctx.locked_slots)
 
     try:
-        result = await Runner.run(
-            agent,
-            request.message,
-            session=session,
-            context=ctx,
-            max_turns=50,
+        result = await asyncio.wait_for(
+            Runner.run(
+                agent,
+                request.message,
+                session=session,
+                context=ctx,
+                max_turns=25,
+            ),
+            timeout=480,  # 8 minutes max per request
+        )
+    except asyncio.TimeoutError:
+        logger.warning("chat timeout session=%s after 180s", session_id)
+        return ChatResponse(
+            response="The request took too long to complete — please try again with a simpler query.",
+            session_id=session_id,
         )
     except InputGuardrailTripwireTriggered as e:
-        # Return a clean user-facing message instead of a 500
         guardrail_name = type(e).__name__
         logger.info("guardrail triggered session=%s guardrail=%s", session_id, guardrail_name)
         msg = _guardrail_message(request.message)
         return ChatResponse(response=msg, session_id=session_id)
 
     _capture_itinerary(ctx, result.final_output)
+    validated_delta = _validate_delta(ctx)
+    ctx.pending_delta = ""   # consumed
     ctx.save()
-    return ChatResponse(response=result.final_output, session_id=session_id)
+    return ChatResponse(response=result.final_output, session_id=session_id, delta=validated_delta)
 
 
 @app.get("/debug/last-run")

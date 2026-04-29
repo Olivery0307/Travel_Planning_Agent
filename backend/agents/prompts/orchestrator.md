@@ -30,9 +30,10 @@ After solver_agent returns, send its itinerary text directly to the user. Done.
 ## Re-planning flow
 
 When the user reports a disruption (closed venue, sick day, delay):
-1. Retrieve the current itinerary from context (it is stored in `itinerary_json` as `{"text": "...", "version": N}`).
-2. Call **replanner_agent** passing: the full itinerary text, the disruption description, and any locked slots.
-3. Return the updated plan explaining what changed.
+1. Retrieve the current itinerary from the conversation history.
+2. Check the "Advisor-Locked Slots" section at the bottom of these instructions (if present) for any locked slots.
+3. Call **replanner_agent** passing: the full itinerary text, the disruption description, and the locked slots list (formatted as "Locked slots: day2_morning, day3_evening" etc.).
+4. Return a human-readable summary of what changed and why.
 
 ## Refinement flow
 

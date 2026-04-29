@@ -1,24 +1,53 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from backend.models.itinerary import Slot, SlotPeriod
+from backend.models.itinerary import SlotPeriod
+
+
+class DisruptionType(str, Enum):
+    VENUE_CLOSED = "venue_closed"
+    WEATHER = "weather"
+    HEALTH = "health"
+    TRANSIT_DELAY = "transit_delay"
+    GROUP_PREFERENCE_SHIFT = "group_preference_shift"
+    BUDGET_CHANGE = "budget_change"
+    SAFETY = "safety"
+    OPPORTUNITY = "opportunity"
 
 
 class DisruptionEvent(BaseModel):
     day_number: int
-    period: SlotPeriod | None = Field(default=None, description="None means the disruption affects the whole day.")
+    period: str = Field(default="", description="Affected period: morning, afternoon, evening, or empty for whole day.")
     description: str = Field(description="Free text: e.g. 'Borghese Gallery closed', 'sick day', 'flight delayed 4 hours'")
-    reported_at: datetime = Field(default_factory=datetime.utcnow)
+    disruption_type: str = Field(default="", description="One of: venue_closed, weather, health, transit_delay, group_preference_shift, budget_change, safety, opportunity.")
+
+
+class DeltaSlot(BaseModel):
+    """A slot entry in an ItineraryDelta — includes day_number for lock validation."""
+    day_number: int = Field(description="Day of the trip (1-indexed).")
+    period: str = Field(description="One of: morning, afternoon, evening.")
+    place_name: str
+    place_id: str = ""
+    category: str = ""
+    address: str = ""
+    notes: str = ""
+    cost_usd: float = 0.0
+    booking_url: str = ""
+    duration_minutes: int = 0
+
+
+class DailyCost(BaseModel):
+    day: int = Field(description="Day number (1-indexed).")
+    cost_usd: float = Field(description="Total cost for this day in USD per person.")
 
 
 class ItineraryDelta(BaseModel):
     disruption: DisruptionEvent
     affected_days: list[int]
-    changed_slots: list[Slot]
-    removed_slots: list[Slot]
+    changed_slots: list[DeltaSlot]
+    removed_slots: list[DeltaSlot]
     reasoning: str = Field(description="2-3 sentences explaining what changed and why.")
-    new_daily_costs: dict[int, float]
+    new_daily_costs: list[DailyCost] = Field(description="Updated daily costs for affected days only.")
