@@ -87,6 +87,40 @@ def _tavily_search(client, query: str, max_results: int = 5) -> list[dict]:
         return []
 
 
+def find_booking_url(venue_name: str, city: str, category: str = "attraction") -> str:
+    """Plain Python version — call this directly from other tools (not via LLM).
+    Same 3-tier priority logic as search_booking_url.
+    """
+    api_key = os.environ.get("TAVILY_API_KEY")
+    if not api_key or not venue_name:
+        return ""
+    try:
+        from tavily import TavilyClient
+        client = TavilyClient(api_key=api_key)
+
+        # Step 1: official website
+        official_query = _OFFICIAL_QUERIES.get(category, "{name} {city} official website")
+        official_query = official_query.format(name=venue_name, city=city)
+        results = _tavily_search(client, official_query)
+        url = _best_url(results, allow_platforms=False)
+        if url:
+            logger.info("find_booking_url [official] %r → %s", venue_name, url)
+            return url
+
+        # Step 2: third-party booking platform
+        platform_query = _PLATFORM_QUERIES.get(category, "book {name} {city}")
+        platform_query = platform_query.format(name=venue_name, city=city)
+        results = _tavily_search(client, platform_query)
+        url = _best_url(results, allow_platforms=True)
+        if url:
+            logger.info("find_booking_url [platform] %r → %s", venue_name, url)
+            return url
+
+    except Exception as e:
+        logger.warning("find_booking_url failed venue=%r: %s", venue_name, e)
+    return ""
+
+
 @function_tool
 def search_booking_url(
     venue_name: str,

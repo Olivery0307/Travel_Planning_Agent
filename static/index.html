@@ -1711,18 +1711,17 @@ function parseLine(raw) {
   s = s.slice(kw[0].length).trim();
   s = s.replace(/\*\*/g, '').trim();
 
-  // 1. Extract ALL markdown links [label](url) — there may be one per slot
-  //    Collect all links, remove them from s, keep the last one as the action link.
-  let link = null;
+  // 1. Extract ALL markdown links — collect into array, show all in UI
+  const links = [];
   const linkRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
   let lm;
   while ((lm = linkRe.exec(s)) !== null) {
-    // Normalize common link labels to short display text
     let label = lm[1].trim();
-    if (/maps/i.test(label))         label = 'Maps';
-    else if (/book ticket/i.test(label)) label = 'Book Tickets';
+    if (/maps/i.test(label))              label = '📍 Maps';
+    else if (/book ticket/i.test(label))  label = 'Book Tickets';
+    else if (/reserve/i.test(label))      label = 'Reserve';
     else if (/official|book/i.test(label)) label = 'Book';
-    link = { label, url: lm[2] };
+    links.push({ label, url: lm[2] });
   }
   s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '').trim();
 
@@ -1747,7 +1746,7 @@ function parseLine(raw) {
   s = s.replace(/[,\s]+$/, '').trim();
   if (!s) return null;
 
-  return { type: 'slot', period, icon: PERIOD_ICON[period] || '📍', name: s, note, cost, link };
+  return { type: 'slot', period, icon: PERIOD_ICON[period] || '📍', name: s, note, cost, links };
 }
 
 function parseItinerary(text) {
@@ -1816,7 +1815,7 @@ function _slotHtml(sl, dayNumber) {
       <div class="slot-period ${sl.period}">${sl.period}</div>
       <div class="slot-name">${escHtml(sl.name)}</div>
       ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
-      ${sl.link ? `<a class="slot-link" href="${escHtml(sl.link.url)}" target="_blank" rel="noopener">↗ ${escHtml(sl.link.label)}</a>` : ''}
+      ${(sl.links || (sl.link ? [sl.link] : [])).map(l => `<a class="slot-link" href="${escHtml(l.url)}" target="_blank" rel="noopener">↗ ${escHtml(l.label)}</a>`).join('')}
     </div>
     ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : ''}
     <button class="slot-lock-btn${isLocked ? ' locked' : ''}"
@@ -1911,7 +1910,7 @@ function applyDelta(data, delta) {
         name: cs.place_name,
         note: cs.notes || '',
         cost: cs.cost_usd ? `~$${cs.cost_usd}` : '',
-        link: cs.booking_url ? { label: 'Book', url: cs.booking_url } : null,
+        links: cs.booking_url ? [{ label: 'Book', url: cs.booking_url }] : [],
       };
       // Replace existing slot with same period, otherwise append
       const idx = day.slots.findIndex(s => {

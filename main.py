@@ -210,6 +210,69 @@ class ChatResponse(BaseModel):
     weather: list | None = None    # Per-day weather data for badge rendering
 
 
+async def _enrich_itinerary_links(text: str, city: str) -> str:
+    """Find missing booking links in itinerary slots via Tavily. Non-blocking, capped at 20s."""
+    from backend.tools.tavily_search import find_booking_url
+
+    lines = text.split('\n')
+    slot_re = re.compile(
+        r'(?:morning|afternoon|evening|lunch|dinner|lodging)[:\s–—]+(.+?)(?:\s*\(|$)',
+        re.IGNORECASE
+    )
+
+    targets: list[tuple[int, str, str]] = []  # (line_idx, venue_name, category)
+    for i, line in enumerate(lines):
+        # Skip if line already has a non-Maps booking link
+        existing_links = re.findall(r'\[([^\]]+)\]\((https?://[^)]+)\)', line)
+        has_booking_link = any(
+            'google.com/maps' not in url and 'maps.google' not in url
+            for _, url in existing_links
+        )
+        if has_booking_link:
+            continue
+        # Skip non-slot lines (no period keyword)
+        if not re.search(r'\b(morning|afternoon|evening|lunch|dinner|lodging)\b', line, re.IGNORECASE):
+            continue
+        nm = slot_re.search(line)
+        if not nm:
+            continue
+        venue = nm.group(1).strip().rstrip('.,;—–').strip()
+        venue = re.sub(r'\s*\([^)]*\)', '', venue).strip()  # remove (Xh, $Y) parentheticals
+        venue = re.sub(r'^(?:dinner|lunch|breakfast)\s+at\s+', '', venue, flags=re.IGNORECASE).strip()
+        if len(venue) < 3:
+            continue
+        cat = ("restaurant" if re.search(r'🍽|lunch|dinner', line, re.IGNORECASE)
+               else "lodging" if '🏨' in line
+               else "attraction")
+        targets.append((i, venue, cat))
+
+    if not targets:
+        return text
+
+    loop = asyncio.get_event_loop()
+
+    async def _fetch(venue: str, cat: str) -> str:
+        try:
+            return await asyncio.wait_for(
+                loop.run_in_executor(None, find_booking_url, venue, city, cat),
+                timeout=6.0,
+            )
+        except Exception:
+            return ""
+
+    urls = await asyncio.gather(*[_fetch(v, c) for _, v, c in targets])
+
+    for (idx, venue, cat), url in zip(targets, urls):
+        if url:
+            label = ("Reserve" if cat == "restaurant"
+                     else "Book" if cat == "lodging"
+                     else "Book Tickets")
+            lines[idx] = lines[idx].rstrip() + f' [{label}]({url})'
+            logger.info("link enriched: %r → %s", venue, url)
+
+    return '\n'.join(lines)
+
+
 def _looks_like_replan(text: str) -> bool:
     """Return True if the response describes a re-plan rather than a full itinerary."""
     return bool(
@@ -388,11 +451,24 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             )
         raise
 
-    _capture_itinerary(ctx, result.final_output)
+    final_output = result.final_output
+
+    # Post-process: add missing booking links via Tavily (non-blocking, 20s cap)
+    if _looks_like_itinerary(final_output):
+        city_m = re.search(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+Itinerary\b', final_output)
+        city = city_m.group(1) if city_m else ""
+        try:
+            final_output = await asyncio.wait_for(
+                _enrich_itinerary_links(final_output, city), timeout=20.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning("link enrichment timed out — returning itinerary without enrichment")
+
+    _capture_itinerary(ctx, final_output)
 
     # If store_delta was not called by the replanner, parse prose directly (no extra LLM call)
-    if not ctx.pending_delta and ctx.itinerary_json and _looks_like_replan(result.final_output):
-        ctx.pending_delta = _parse_prose_to_delta(result.final_output) or ""
+    if not ctx.pending_delta and ctx.itinerary_json and _looks_like_replan(final_output):
+        ctx.pending_delta = _parse_prose_to_delta(final_output) or ""
 
     validated_delta = _validate_delta(ctx)
     ctx.pending_delta = ""   # consumed
@@ -404,7 +480,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         except Exception:
             pass
 
-    return ChatResponse(response=result.final_output, session_id=session_id, delta=validated_delta, weather=weather)
+    return ChatResponse(response=final_output, session_id=session_id, delta=validated_delta, weather=weather)
 
 
 @app.get("/debug/last-run")
