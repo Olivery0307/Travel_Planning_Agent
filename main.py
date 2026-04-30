@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 import litellm  # noqa: E402
 litellm.num_retries = 3
 litellm.retry_after = 5
+litellm.request_timeout = 90   # kill silent Vertex AI hangs; LiteLLM retries automatically
 
 _orchestrator_model_str = os.environ.get("ORCHESTRATOR_MODEL") or os.environ.get("MODEL")
 _specialist_model_str = os.environ.get("SPECIALIST_MODEL") or os.environ.get("MODEL")
@@ -76,6 +77,7 @@ class AppContext(BaseModel):
     locked_slots: list[str] = []   # ["day1_morning", "day2_evening", ...]
     disruption_count: int = 0
     pending_delta: str = ""     # JSON-serialized ItineraryDelta set by store_delta tool
+    weather_data: str = ""      # JSON-serialized list of per-day weather from get_weather_forecast
     # Keys: "lodging" | "activities" | "dining" → list of PlaceResult-like dicts
     candidate_pool: dict[str, list[dict]] = Field(
         default_factory=lambda: {"lodging": [], "activities": [], "dining": []}
@@ -157,6 +159,33 @@ agent = build_orchestrator(
 app = FastAPI(title="Travel Optimizer")
 
 
+async def _ping_vertex() -> None:
+    """Single keep-alive ping to Vertex AI."""
+    try:
+        await litellm.acompletion(
+            model=_orchestrator_model_str,
+            messages=[{"role": "user", "content": "hi"}],
+            max_tokens=5,
+        )
+        logger.info("Vertex AI keep-alive ping succeeded")
+    except Exception as e:
+        logger.warning("Vertex AI keep-alive ping failed: %s", e)
+
+
+async def _keepalive_loop() -> None:
+    """Ping Vertex AI every 3 minutes to prevent cold connection hangs."""
+    while True:
+        await asyncio.sleep(180)
+        await _ping_vertex()
+
+
+@app.on_event("startup")
+async def _warmup_vertex() -> None:
+    """Warm up Vertex AI at startup and start keep-alive loop."""
+    await _ping_vertex()
+    asyncio.create_task(_keepalive_loop())
+
+
 @app.exception_handler(Exception)
 async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
     logger.error("Unhandled exception: %s", traceback.format_exc())
@@ -178,6 +207,97 @@ class ChatResponse(BaseModel):
     response: str
     session_id: str
     delta: dict | None = None      # Serialized ItineraryDelta when re-planning occurred
+    weather: list | None = None    # Per-day weather data for badge rendering
+
+
+def _looks_like_replan(text: str) -> bool:
+    """Return True if the response describes a re-plan rather than a full itinerary."""
+    return bool(
+        re.search(r"\b(replac|remov|adjust|sick day|disruption|re.?plan|changed|closed)\b", text, re.IGNORECASE) and
+        re.search(r"\bDay\s+\d+\b", text, re.IGNORECASE) and
+        not _looks_like_itinerary(text)
+    )
+
+
+def _parse_prose_to_delta(response: str) -> str | None:
+    """Parse a prose re-plan response into an ItineraryDelta JSON string without an LLM call."""
+
+    # Extract day number
+    day_m = re.search(r'\bDay\s+(\d+)\b', response, re.IGNORECASE)
+    if not day_m:
+        return None
+    day_num = int(day_m.group(1))
+
+    def _clean_name(s: str) -> str:
+        return re.sub(r'^(the|a|an)\s+', '', s.strip().rstrip(',.'), flags=re.IGNORECASE).strip()
+
+    def _find_period(text: str, pos: int) -> str:
+        window = text[max(0, pos - 250):pos]
+        pm = re.search(r'\b(morning|afternoon|evening|lunch|dinner)\b', window, re.IGNORECASE)
+        if not pm:
+            return "morning"
+        raw = pm.group(1).lower()
+        return "afternoon" if raw in ("lunch",) else "evening" if raw == "dinner" else raw
+
+    removed, changed = [], []
+
+    # Pattern: "X has been removed" / "X, has been removed" / "removing X"
+    for m in re.finditer(
+        r'([\w][\w\s&\'\-\/,]+?),?\s+(?:has been|have been|is being|are being)\s+removed',
+        response, re.IGNORECASE
+    ):
+        name = _clean_name(m.group(1))
+        if len(name) > 3 and not re.search(
+            r'\b(morning|afternoon|evening|day|slot|activity|schedule|visit|entire)\b', name, re.IGNORECASE
+        ):
+            removed.append({
+                "day_number": day_num, "period": _find_period(response, m.start()),
+                "place_name": name, "cost_usd": 0.0, "notes": "",
+                "place_id": "", "category": "activity", "address": "", "booking_url": "", "duration_minutes": 90,
+            })
+
+    # Pattern: "X replaced with Y"
+    for m in re.finditer(
+        r'([\w][\w\s&\'\-\/,]+?)\s+(?:\([^)]*\)\s*)?(?:has been |have been |is |are )?replaced with\s+'
+        r'(?:a\s+)?(?:shorter[^,\.]*?visit to\s+)?([\w][\w\s&\'\-\/,]+?)(?:\s*[\(\.,]|$)',
+        response, re.IGNORECASE
+    ):
+        old_name = _clean_name(m.group(1))
+        new_name = _clean_name(m.group(2))
+        period = _find_period(response, m.start())
+        if len(old_name) > 3:
+            removed.append({
+                "day_number": day_num, "period": period, "place_name": old_name,
+                "cost_usd": 0.0, "notes": "", "place_id": "", "category": "activity",
+                "address": "", "booking_url": "", "duration_minutes": 90,
+            })
+        if len(new_name) > 3:
+            changed.append({
+                "day_number": day_num, "period": period, "place_name": new_name,
+                "cost_usd": 0.0, "notes": "replacement", "place_id": "", "category": "activity",
+                "address": "", "booking_url": "", "duration_minutes": 90,
+            })
+
+    if not removed and not changed:
+        return None
+
+    # Extract cost
+    cost_m = re.search(r'Day\s*\d+\s*(?:estimated\s+)?cost[:\s]+~?\$\s*([\d,]+)', response, re.IGNORECASE)
+    cost_usd = float(cost_m.group(1).replace(',', '')) if cost_m else 0.0
+
+    reasoning = re.sub(r'[*•]\s*', '', response).replace('\n', ' ').strip()[:400]
+
+    delta = {
+        "disruption": {"day_number": day_num, "period": "", "description": reasoning[:100], "disruption_type": ""},
+        "affected_days": [day_num],
+        "changed_slots": changed,
+        "removed_slots": removed,
+        "reasoning": reasoning,
+        "new_daily_costs": [{"day": day_num, "cost_usd": cost_usd}] if cost_usd else [],
+    }
+    result = json.dumps(delta)
+    logger.info("delta parsed from prose: %d removed, %d changed", len(removed), len(changed))
+    return result
 
 
 def _validate_delta(ctx: "AppContext") -> dict | None:
@@ -248,9 +368,9 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             timeout=480,  # 8 minutes max per request
         )
     except asyncio.TimeoutError:
-        logger.warning("chat timeout session=%s after 180s", session_id)
+        logger.warning("chat timeout session=%s", session_id)
         return ChatResponse(
-            response="The request took too long to complete — please try again with a simpler query.",
+            response="The request took too long — please try again.",
             session_id=session_id,
         )
     except InputGuardrailTripwireTriggered as e:
@@ -258,12 +378,33 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         logger.info("guardrail triggered session=%s guardrail=%s", session_id, guardrail_name)
         msg = _guardrail_message(request.message)
         return ChatResponse(response=msg, session_id=session_id)
+    except Exception as e:
+        err = str(e)
+        if any(k in err.lower() for k in ("timeout", "timed out", "read timeout", "connect")):
+            logger.warning("LLM call timeout/connection error session=%s: %s", session_id, err[:120])
+            return ChatResponse(
+                response="A model call timed out — Vertex AI is slow to respond. Please try again.",
+                session_id=session_id,
+            )
+        raise
 
     _capture_itinerary(ctx, result.final_output)
+
+    # If store_delta was not called by the replanner, parse prose directly (no extra LLM call)
+    if not ctx.pending_delta and ctx.itinerary_json and _looks_like_replan(result.final_output):
+        ctx.pending_delta = _parse_prose_to_delta(result.final_output) or ""
+
     validated_delta = _validate_delta(ctx)
     ctx.pending_delta = ""   # consumed
     ctx.save()
-    return ChatResponse(response=result.final_output, session_id=session_id, delta=validated_delta)
+    weather = None
+    if ctx.weather_data:
+        try:
+            weather = json.loads(ctx.weather_data)
+        except Exception:
+            pass
+
+    return ChatResponse(response=result.final_output, session_id=session_id, delta=validated_delta, weather=weather)
 
 
 @app.get("/debug/last-run")

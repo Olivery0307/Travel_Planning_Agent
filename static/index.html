@@ -527,6 +527,16 @@
       letter-spacing: 0.07em;
     }
 
+    /* Weather badge on day card header */
+    .day-weather-badge {
+      font-size: 0.72rem;
+      color: var(--silk);
+      margin-left: auto;
+      margin-right: 0.5rem;
+      white-space: nowrap;
+      opacity: 0.85;
+    }
+
     /* Slot lock button */
     .slot-lock-btn {
       background: none;
@@ -1595,6 +1605,8 @@ async function sendMessage(text) {
       mdToHtml(escHtml(summary || (isItin ? 'Your itinerary is ready — see the panel on the right.' : response)));
     loadWrap.classList.remove('loading');
 
+    if (data.weather) currentWeather = data.weather;
+
     if (delta) {
       renderDelta(delta, previousItineraryText);
     } else if (isItin) {
@@ -1843,6 +1855,7 @@ function _renderItineraryData(data, fallbackText) {
         <div class="day-header" onclick="toggleDay(this)">
           <span class="day-num">Day ${day.number}</span>
           <span class="day-name">${escHtml(day.name)}</span>
+          ${_weatherBadge(i)}
           ${day.cost ? `<span class="day-cost">${escHtml(day.cost)}</span>` : ''}
           <span class="day-chev">▼</span>
         </div>
@@ -1961,6 +1974,17 @@ function toggleQr(btn) {
         .catch(() => { img.alt = 'QR unavailable'; });
     }
   }
+}
+
+// ─── Weather state ───────────────────────────────────────────────────
+let currentWeather = null;  // list of per-day weather dicts from backend
+
+function _weatherBadge(dayIndex) {
+  if (!currentWeather || !currentWeather[dayIndex]) return '';
+  const w = currentWeather[dayIndex];
+  const temp = w.temp_high_c != null ? ` ${w.temp_high_c}°C` : '';
+  const tag = w.is_forecast ? '' : ' ~';
+  return `<span class="day-weather-badge" title="${escHtml(w.condition)}">${w.icon}${tag}${escHtml(temp)}</span>`;
 }
 
 // ─── Diff / Delta rendering ──────────────────────────────────────────

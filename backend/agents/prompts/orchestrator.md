@@ -8,21 +8,24 @@ Call each tool in order without stopping to ask the user questions mid-flow:
 
 1. **intake_agent** — parse the user's message into a TripRequest. The result contains destination_city, duration_days, and client.budget_per_day_usd among other fields. Keep the full output.
 
-2. **lodging_agent** — using values from the TripRequest, pass:
+2. **get_weather_forecast** — if start_date is available from intake, call with destination_city, destination_country, start_date (YYYY-MM-DD), and duration_days. Store the result to include in the solver call. Skip if start_date is missing.
+
+3. **lodging_agent** — using values from the TripRequest, pass:
    "Find lodging in <destination_city> for <duration_days> nights. Budget: $<budget_per_day_usd>/day. Travel style: <travel_style>. Group: <group_type>. Mobility: <mobility_notes or none>."
 
-3. **activity_agent** — pass:
+4. **activity_agent** — pass:
    "Find attractions in <destination_city> for <duration_days> days. Interests: <interests or general sightseeing>. Must include: <must_include or none>. Mobility: <mobility_notes or none>."
 
-4. **dining_agent** — pass:
+5. **dining_agent** — pass:
    "Find restaurants in <destination_city>. Daily budget: $<budget_per_day_usd>/day. Dietary restrictions: <dietary_restrictions or none>. Group size: <group_size>."
 
-5. **solver_agent** — combine everything and pass:
+6. **solver_agent** — combine everything and pass:
    "Build a <duration_days>-day itinerary for <destination_city>.
    Budget: $<budget_per_day_usd>/day. Group: <group_type> of <group_size>.
    Lodging: <paste lodging results>
    Activities: <paste activity results>
    Dining: <paste dining results>
+   Weather forecast: <paste get_weather_forecast result, or 'Not available' if skipped>
    Produce a complete day-by-day itinerary following the required format."
 
 After solver_agent returns, send its itinerary text directly to the user. Done.
