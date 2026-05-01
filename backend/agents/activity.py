@@ -8,6 +8,7 @@ from agents import Agent
 from agents.extensions.models.litellm_model import LitellmModel
 
 from backend.tools.places import get_opening_hours, get_place_details, search_places
+from backend.tools.tavily_search import search_booking_url
 
 _PROMPT = (Path(__file__).parent / "prompts" / "activity.md").read_text()
 
@@ -17,5 +18,5 @@ def build_activity_agent(model: LitellmModel) -> Agent:
         name="ActivityAgent",
         model=model,
         instructions=_PROMPT,
-        tools=[search_places, get_place_details, get_opening_hours],
+        tools=[search_places, get_place_details, get_opening_hours, search_booking_url],
     )

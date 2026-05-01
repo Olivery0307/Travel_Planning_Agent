@@ -18,6 +18,7 @@ class SlotPeriod(str, Enum):
 
 class Slot(BaseModel):
     period: SlotPeriod
+    day_number: int = Field(default=0, description="Day this slot belongs to (1-indexed). Required in ItineraryDelta entries.")
     place_id: str
     place_name: str
     category: Literal["activity", "dining", "transit", "lodging", "free"]
