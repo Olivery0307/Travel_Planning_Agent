@@ -9,6 +9,7 @@ dependencies = [
     "googlemaps>=4.10.0",
     "httpx>=0.28.1",
     "litellm[google]>=1.83.12",
+    "matplotlib>=3.10.9",
     "openai-agents>=0.10.5",
     "pillow>=12.2.0",
     "pydantic>=2.12.5",
