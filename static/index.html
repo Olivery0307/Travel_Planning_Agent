@@ -1645,6 +1645,149 @@
 
     .new-trip-btn:hover { color: var(--silk); border-color: var(--border-strong); background: rgba(255,255,255,0.03); }
 
+    /* ── Batch edit queue strip ── */
+    #edit-queue-strip {
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--surface-2);
+    }
+
+    #edit-queue-strip.visible { display: flex; }
+
+    .queue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.42rem 1.1rem 0.32rem;
+    }
+
+    .queue-header-label {
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--amber);
+    }
+
+    .queue-clear-btn {
+      font-family: var(--font-body);
+      font-size: 0.55rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ash);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.1rem 0.25rem;
+      transition: color 0.12s;
+    }
+
+    .queue-clear-btn:hover { color: var(--terra); }
+
+    .queue-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.28rem;
+      padding: 0 1.1rem 0.52rem;
+    }
+
+    .queue-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      font-weight: 500;
+      padding: 0.2rem 0.45rem 0.2rem 0.52rem;
+      border-radius: 2px;
+      border: 1px solid transparent;
+      animation: chipPop 0.18s ease both;
+      max-width: 100%;
+    }
+
+    @keyframes chipPop {
+      from { opacity: 0; transform: scale(0.9); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .queue-chip.replace {
+      background: var(--amber-glow);
+      border-color: var(--amber-line);
+      color: var(--amber-lt);
+    }
+
+    .queue-chip.broken {
+      background: var(--terra-soft);
+      border-color: rgba(192,88,64,0.3);
+      color: var(--terra);
+    }
+
+    .queue-chip.note {
+      background: rgba(74,122,171,0.08);
+      border-color: rgba(74,122,171,0.25);
+      color: var(--cerulean);
+    }
+
+    .queue-chip-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+
+    .queue-chip-remove {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.7rem;
+      line-height: 1;
+      opacity: 0.55;
+      padding: 0;
+      flex-shrink: 0;
+      color: inherit;
+      transition: opacity 0.12s;
+    }
+
+    .queue-chip-remove:hover { opacity: 1; }
+
+    /* Queued slot visual states in the itinerary pane */
+    .slot.queued-replace {
+      border-left: 3px solid var(--amber);
+      background: linear-gradient(135deg, rgba(201,160,90,0.055) 0%, transparent 60%);
+    }
+
+    .slot.queued-broken {
+      border-left: 3px solid var(--terra);
+      background: linear-gradient(135deg, rgba(192,88,64,0.07) 0%, transparent 60%);
+      opacity: 0.82;
+    }
+
+    .slot.queued-note {
+      border-left: 3px solid var(--cerulean);
+      background: linear-gradient(135deg, rgba(74,122,171,0.06) 0%, transparent 60%);
+    }
+
+    .slot-queue-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+      margin-top: 0.22rem;
+      font-size: 0.56rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.06rem 0.38rem;
+      border-radius: 1px;
+      animation: chipPop 0.18s ease both;
+    }
+
+    .slot-queue-badge.replace { color: var(--amber); background: var(--amber-glow); }
+    .slot-queue-badge.broken  { color: var(--terra);  background: var(--terra-soft); }
+    .slot-queue-badge.note    { color: var(--cerulean); background: rgba(74,122,171,0.1); }
+
     /* Slot action menu — revealed on hover */
     .slot-actions {
       display: flex;
@@ -1780,9 +1923,9 @@
           I'll return a full day-by-day itinerary with real places, hours, routing, and costs.
         </div>
         <div class="example-list">
-          <button class="example-btn" onclick="usePrompt(this)">5-day Rome, couple, $200/day, ancient history — one partner uses a cane</button>
-          <button class="example-btn" onclick="usePrompt(this)">10-day country trip to Portugal, solo, $150/day, seafood and wine lover</button>
-          <button class="example-btn" onclick="usePrompt(this)">Day 2 afternoon: Borghese Gallery closed — please re-plan</button>
+          <button class="example-btn" onclick="usePrompt(this)">5-day Rome, couple, $200/day, ancient history, starting May 15 — one partner uses a cane</button>
+          <button class="example-btn" onclick="usePrompt(this)">10-day Portugal, solo, $150/day, seafood and wine, somewhere in August</button>
+          <button class="example-btn" onclick="usePrompt(this)">7-day Japan, family of 4, $300/day, mix of culture and food, late October</button>
         </div>
       </div>
 
@@ -1808,12 +1951,22 @@
           <strong>Re-plan mode detected</strong><br>
           Specify the day and slot affected — I'll re-optimize around locked commitments.
         </div>
-        <div class="quick-actions" id="quick-actions" style="display:none">
-          <button class="quick-btn" onclick="useDisruptionTemplate('venue_closed')">🏛 Venue closed</button>
-          <button class="quick-btn" onclick="useDisruptionTemplate('weather')">🌧 Bad weather</button>
-          <button class="quick-btn" onclick="useDisruptionTemplate('health')">🤒 Sick day</button>
-          <button class="quick-btn" onclick="useDisruptionTemplate('transit_delay')">✈️ Flight delayed</button>
+      </div><!-- /nl-mode -->
+
+      <!-- Batch edit queue strip — shared, sits between nl-mode and quick-actions -->
+      <div id="edit-queue-strip">
+        <div class="queue-header">
+          <span class="queue-header-label">✦ Pending changes</span>
+          <button class="queue-clear-btn" onclick="clearEditQueue()">Clear all</button>
         </div>
+        <div class="queue-chips" id="queue-chips"></div>
+      </div>
+
+      <div class="quick-actions" id="quick-actions" style="display:none;padding:0.45rem 1.1rem 0.55rem">
+        <button class="quick-btn" onclick="useDisruptionTemplate('venue_closed')">🏛 Venue closed</button>
+        <button class="quick-btn" onclick="useDisruptionTemplate('weather')">🌧 Bad weather</button>
+        <button class="quick-btn" onclick="useDisruptionTemplate('health')">🤒 Sick day</button>
+        <button class="quick-btn" onclick="useDisruptionTemplate('transit_delay')">✈️ Flight delayed</button>
       </div>
 
       <!-- Form mode -->
@@ -2251,6 +2404,16 @@ async function sendMessage(text) {
 }
 
 async function sendNL() {
+  // If there are queued batch edits, compose from queue (ignoring textarea unless it has extra context)
+  if (editQueue.size > 0) {
+    const queueMsg = _buildQueueMessage();
+    const extra = nlInput.value.trim();
+    const text = extra ? queueMsg + '\n\nAdditional context: ' + extra : queueMsg;
+    nlInput.value = '';
+    clearEditQueue();
+    await sendMessage(text);
+    return;
+  }
   const text = nlInput.value.trim();
   if (!text) return;
   nlInput.value = '';
@@ -2491,11 +2654,11 @@ function _slotHtml(sl, dayNumber) {
     ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : '<div></div>'}
     <div class="slot-actions">
       <button class="slot-action-btn"
-              title="Suggest a replacement for this slot"
-              onclick="slotActionReplace(${safeDay},'${safePeriod}','${safeName}')">↺ Replace</button>
+              title="Queue for replacement — combine with other changes before sending"
+              onclick="slotActionReplace(${safeDay},'${safePeriod}','${safeName}','${safeKey}')">↺ Replace</button>
       <button class="slot-action-btn danger"
-              title="Mark as unavailable and re-plan"
-              onclick="slotActionBroken(${safeDay},'${safePeriod}','${safeName}')">✕ Broken</button>
+              title="Mark as broken/unavailable — queue with other changes"
+              onclick="slotActionBroken(${safeDay},'${safePeriod}','${safeName}','${safeKey}')">✕ Broken</button>
       <button class="slot-action-btn"
               title="Add a note to include in your next message"
               onclick="slotActionNote('${safeKey}')">✎ Note</button>
@@ -2622,9 +2785,9 @@ function acceptReplan() {
   if (!currentDeltaData || !previousItineraryText) return;
   const merged = applyDelta(parseItinerary(previousItineraryText), currentDeltaData);
   _renderItineraryData(merged, '');
-  // Update state: the merged plan is now the current plan
   previousItineraryText = '';
   currentDeltaData = null;
+  clearEditQueue();
 }
 
 // ─── Day collapse/expand ─────────────────────────────────────────────
@@ -3280,30 +3443,135 @@ function toggleLock(btn, key) {
   }
 }
 
-// ─── Slot hover actions ──────────────────────────────────────────────
-function slotActionReplace(dayNum, period, name) {
-  const text = `Day ${dayNum} ${period}: please suggest a replacement for "${name}".`;
-  nlInput.value = text;
-  switchMode('nl');
-  nlInput.focus();
-  nlInput.setSelectionRange(text.length, text.length);
-  msgs.scrollTop = msgs.scrollHeight;
+// ─── Batch edit queue ────────────────────────────────────────────────
+// editQueue: Map<slotKey, { type: 'replace'|'broken'|'note', dayNum, period, name, note? }>
+const editQueue = new Map();
+
+function _queueStrip()  { return document.getElementById('edit-queue-strip'); }
+function _queueChips()  { return document.getElementById('queue-chips'); }
+
+function _refreshQueue() {
+  const strip  = _queueStrip();
+  const chips  = _queueChips();
+  const count  = editQueue.size;
+
+  // Show/hide strip
+  strip.classList.toggle('visible', count > 0);
+
+  // Rebuild chips
+  chips.innerHTML = '';
+  for (const [key, item] of editQueue) {
+    const icons = { replace: '↺', broken: '✕', note: '✎' };
+    const labels = {
+      replace: `Replace Day ${item.dayNum} ${item.period} — ${item.name}`,
+      broken:  `Broken Day ${item.dayNum} ${item.period} — ${item.name}`,
+      note:    `Note on Day ${item.dayNum} ${item.period} — ${item.name}`,
+    };
+    const chip = document.createElement('span');
+    chip.className = `queue-chip ${item.type}`;
+    chip.innerHTML = `
+      <span style="flex-shrink:0;opacity:0.8">${icons[item.type]}</span>
+      <span class="queue-chip-label">${escHtml(labels[item.type])}</span>
+      <button class="queue-chip-remove" title="Remove" onclick="removeFromQueue('${escHtml(key)}')">×</button>`;
+    chips.appendChild(chip);
+  }
+
+  // Update send button
+  const nlBtn = document.getElementById('nl-send-btn');
+  if (!nlBtn) return;
+  if (count > 0) {
+    nlBtn.innerHTML = `Apply ${count} change${count > 1 ? 's' : ''} <span class="btn-send-arrow">→</span>`;
+  } else if (_lastItineraryData) {
+    nlBtn.innerHTML = 'Update plan <span class="btn-send-arrow">→</span>';
+  } else {
+    nlBtn.innerHTML = 'Plan trip <span class="btn-send-arrow">→</span>';
+  }
 }
 
-function slotActionBroken(dayNum, period, name) {
-  const text = `Day ${dayNum} ${period}: "${name}" is closed / unavailable — please re-plan this slot.`;
-  nlInput.value = text;
+function _setSlotQueueState(key, type) {
+  // Remove any existing queue class on this slot
+  const slot = document.querySelector(`.slot[data-slot-key="${CSS.escape(key)}"]`);
+  if (!slot) return;
+  slot.classList.remove('queued-replace', 'queued-broken', 'queued-note');
+
+  // Remove old badge if any
+  slot.querySelector('.slot-queue-badge')?.remove();
+
+  if (!type) return; // just clearing
+
+  slot.classList.add(`queued-${type}`);
+
+  // Insert badge into slot-body after slot-name
+  const body = slot.querySelector('.slot-body');
+  if (body) {
+    const badge = document.createElement('div');
+    badge.className = `slot-queue-badge ${type}`;
+    const labels = { replace: '↺ queued for replacement', broken: '✕ marked broken', note: '✎ note queued' };
+    badge.textContent = labels[type] || type;
+    const nameEl = body.querySelector('.slot-name');
+    if (nameEl) nameEl.after(badge);
+    else body.prepend(badge);
+  }
+}
+
+function addToQueue(key, type, dayNum, period, name, note) {
+  // If already queued with same type, toggle off
+  if (editQueue.has(key) && editQueue.get(key).type === type) {
+    editQueue.delete(key);
+    _setSlotQueueState(key, null);
+  } else {
+    editQueue.set(key, { type, dayNum, period, name, note: note || '' });
+    _setSlotQueueState(key, type);
+  }
+  _refreshQueue();
+}
+
+function removeFromQueue(key) {
+  editQueue.delete(key);
+  _setSlotQueueState(key, null);
+  _refreshQueue();
+}
+
+function clearEditQueue() {
+  for (const key of editQueue.keys()) _setSlotQueueState(key, null);
+  editQueue.clear();
+  _refreshQueue();
+}
+
+function _buildQueueMessage() {
+  if (editQueue.size === 0) return null;
+  const parts = [];
+  for (const [, item] of editQueue) {
+    if (item.type === 'replace') {
+      parts.push(`Day ${item.dayNum} ${item.period}: replace "${item.name}" with a suitable alternative.`);
+    } else if (item.type === 'broken') {
+      parts.push(`Day ${item.dayNum} ${item.period}: "${item.name}" is unavailable/closed — please re-plan this slot.`);
+    } else if (item.type === 'note') {
+      parts.push(`Day ${item.dayNum} ${item.period} "${item.name}": ${item.note}`);
+    }
+  }
+  const hasDisruption = [...editQueue.values()].some(i => i.type === 'broken');
+  const prefix = hasDisruption
+    ? 'Please re-plan the following disruptions and changes in one pass:\n'
+    : 'Please apply all of the following changes to the itinerary:\n';
+  return prefix + parts.map((p, i) => `${i + 1}. ${p}`).join('\n');
+}
+
+// ─── Slot hover actions (now queue-aware) ────────────────────────────
+function slotActionReplace(dayNum, period, name, key) {
+  addToQueue(key, 'replace', dayNum, period, name);
   switchMode('nl');
-  nlInput.focus();
-  nlInput.setSelectionRange(text.length, text.length);
-  disruptionHint.classList.add('visible');
+}
+
+function slotActionBroken(dayNum, period, name, key) {
+  addToQueue(key, 'broken', dayNum, period, name);
+  switchMode('nl');
 }
 
 function slotActionNote(key) {
   const wrap = document.getElementById(`note-wrap-${key}`);
   if (!wrap) return;
   const isOpen = wrap.classList.contains('open');
-  // Close any other open note inputs first
   document.querySelectorAll('.slot-note-input-wrap.open').forEach(w => w.classList.remove('open'));
   if (!isOpen) {
     wrap.classList.add('open');
@@ -3321,17 +3589,16 @@ function submitSlotNote(key) {
   const inp = document.getElementById(`note-input-${key}`);
   if (!inp || !inp.value.trim()) { closeSlotNote(key); return; }
   const note = inp.value.trim();
-  // Find slot name from the DOM
-  const slot = document.querySelector(`.slot[data-slot-key="${key}"]`);
-  const slotName = slot ? slot.querySelector('.slot-name')?.textContent?.trim() : key;
-  // Append note to current input or set it
-  const existing = nlInput.value.trim();
-  const noteText = `[Note on "${slotName}": ${note}]`;
-  nlInput.value = existing ? existing + ' ' + noteText : noteText;
-  switchMode('nl');
-  nlInput.focus();
+  const slot = document.querySelector(`.slot[data-slot-key="${CSS.escape(key)}"]`);
+  const slotName = slot?.querySelector('.slot-name')?.textContent?.trim() || key;
+  // Parse dayNum and period back from key: "dayN_period"
+  const km = key.match(/^day(\d+)_(\w+)$/);
+  const dayNum = km ? +km[1] : 0;
+  const period = km ? km[2] : '';
+  addToQueue(key, 'note', dayNum, period, slotName, note);
   closeSlotNote(key);
   inp.value = '';
+  switchMode('nl');
 }
 
 // ─── Adaptive UI: called once itinerary renders ───────────────────────
@@ -3370,19 +3637,7 @@ function _enterPostItineraryMode(data) {
       <div class="plan-context-title">${escHtml(title)}</div>
       ${chips ? `<div class="plan-context-meta">${chips}</div>` : ''}
       <div class="plan-context-body">
-        ${dayCount} days${cities ? ` · ${escHtml(cities)}` : ''}. Ask me to refine any slot, adjust the budget,
-        or report a disruption — I'll optimize around your locked stops.
-      </div>
-      <div class="plan-context-actions">
-        <button class="plan-refine-btn" onclick="prefillRefine('swap')">
-          <span class="refine-icon">↺</span> Swap a slot or activity
-        </button>
-        <button class="plan-refine-btn" onclick="prefillRefine('budget')">
-          <span class="refine-icon">💰</span> Trim or adjust the budget
-        </button>
-        <button class="plan-refine-btn" onclick="prefillRefine('walk')">
-          <span class="refine-icon">🚶</span> Make a day less walking-heavy
-        </button>
+        ${dayCount} days${cities ? ` · ${escHtml(cities)}` : ''}. Hover any slot on the right to replace, mark broken, or add a note — queue multiple changes and apply in one pass.
       </div>
       <div class="new-trip-divider">
         <span>or start fresh</span>
@@ -3419,6 +3674,7 @@ function startNewTrip() {
   sessionId = null;
   _lastItineraryData = null;
   _formStartDate = null;
+  clearEditQueue();
   previousItineraryText = '';
   currentDeltaData = null;
   lockedSlots.clear();
