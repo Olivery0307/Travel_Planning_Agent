@@ -33,26 +33,27 @@ Grading axes this maps to: **business case strength** (advisor pays for re-plann
 
 - [x] `DisruptionEvent` Pydantic model — `day_number`, `period`, `description`, `reported_at`
 - [x] `ItineraryDelta` Pydantic model — `disruption`, `affected_days`, `changed_slots`, `removed_slots`, `reasoning`, `new_daily_costs`
-- [x] `RePlannerAgent` with `search_places`, `get_place_details`, `compute_route_matrix` tools
+- [x] `RePlannerAgent` with `search_places`, `get_place_details`, `compute_route_matrix`, `get_candidates_from_pool`, `store_delta` tools
 - [x] `replanner.md` system prompt — read locked slots, only touch affected days, explain changes
-- [x] Orchestrator routes disruption messages → `RePlannerAgent` (re-plan mode detected)
+- [x] Orchestrator routes disruption messages → `RePlannerAgent`; flow-selection guard prevents calling `intake_agent` on replan turns
+- [x] `store_delta` removed from orchestrator tool list — belongs only inside `replanner_agent` (was causing 3+ minute loop)
+- [x] `_parse_prose_to_delta()` fallback — if replanner returns prose instead of structured delta, backend parses it into a delta automatically
 - [x] `AppContext.itinerary_json` captured after solver run, fed to replanner on next turn
 - [x] Frontend hint: "Re-plan mode detected…" when user types disruption-style input
+- [x] Batch disruption UI — multiple disruptions can be queued and submitted together
 - [x] Session continuity: same `session_id` carries itinerary + locked slots across turns
 - [x] Input guardrails (`off_topic_guardrail`, `budget_sanity_guardrail`) protect the replanner endpoint too
 
 ---
 
-## Phase R2 — Locked-Slot Integrity  🚧 PARTIAL
-
-The replanner is told via prompt to never touch locked slots. It needs to be *enforced* in code, not trusted to the LLM.
+## Phase R2 — Locked-Slot Integrity  ✅ DONE
 
 - [x] Prompt rule: "Never change locked slots."
-- [ ] **Lock toggle in the frontend** — per-slot padlock icon on each `SlotCard`. Click to lock/unlock.
-- [ ] **Persist locked state** — `AppContext.locked_slots: set[SlotKey]` updated when user toggles in UI; sent on every `/chat` POST.
-- [ ] **Post-generation validator** — after `RePlannerAgent` returns an `ItineraryDelta`, drop any `changed_slots` whose `(day, period)` is in `locked_slots`. Re-prompt the agent once with a "you violated lock X, try again" message if a locked slot was touched.
-- [ ] **Visual lock state** — locked slots render with muted background + padlock icon; replanner output explicitly highlights "Day 3 morning is locked, kept as-is."
-- [ ] **Auto-lock heuristics** — slots with `booking_url` resolved (e.g., pre-paid Colosseum tickets) auto-suggest a lock; advisor confirms.
+- [x] **Lock toggle in the frontend** — per-slot 🔓/🔒 button rendered in each slot card. `toggleLock(btn, key)` adds/removes key from `lockedSlots` Set; visual state updates immediately.
+- [x] **Persist locked state** — `lockedSlots` Set sent as `locked_slots: [...lockedSlots]` on every `/chat/stream` POST; synced into `AppContext.locked_slots` on arrival.
+- [x] **Post-generation validator** — `_validate_delta()` in `main.py` drops any `changed_slots`/`removed_slots` whose `(day_period)` key is in `ctx.locked_slots`. Logs dropped count.
+- [x] **Visual lock state** — locked slots render with 🔒 icon; slot `.locked` CSS class applied.
+- [ ] **Auto-lock heuristics** — slots with resolved `booking_url` auto-suggest a lock. Not yet built.
 
 ---
 
@@ -91,32 +92,27 @@ A morning delay on Day 2 may bleed into the afternoon and possibly Day 3. Replan
 
 ---
 
-## Phase R5 — Diff UI  📋 TO DO
+## Phase R5 — Diff UI  🚧 PARTIAL
 
-Right now the frontend shows the full re-planned Markdown. Advisors need to *see what changed*.
-
-- [ ] **`ItineraryDelta` rendering pane** — replaces the full itinerary view in re-plan mode.
-  - Removed slots: red strikethrough card with "Why removed" hover.
-  - New slots: green-bordered card with "Why chosen" reasoning.
-  - Unchanged slots: collapsed/dimmed, click to expand.
-- [ ] **"Show diff" / "Show full plan" toggle** — advisor can switch between delta-only and full-itinerary views.
-- [ ] **Reasoning surfaced inline** — `ItineraryDelta.reasoning` shown as a banner above the diff, not buried in chat.
-- [ ] **Cost delta** — "+$28 today" or "−$15 today" badge per affected day, color-coded.
-- [ ] **Undo last re-plan** — keep the previous `Itinerary` version in `AppContext.itinerary_history: list[Itinerary]`. One-click revert.
-- [ ] **Re-plan history log** — sidebar showing all disruptions handled this session ("Day 2 afternoon: Borghese closed → swapped to Capitoline Museums").
+- [x] **`ItineraryDelta` rendering pane** — `renderDelta()` renders removed slots (red strikethrough `.diff-slot.removed`) and added slots (green-bordered `.diff-slot.added`) with period labels and cost badges.
+- [x] **Reasoning banner** — `ItineraryDelta.reasoning` shown above the diff as an amber left-border callout.
+- [x] **Cost delta badges** — `new_daily_costs` rendered per affected day with `+`/`−` color coding.
+- [x] **"View original plan" toggle** — `showFullPlan()` switches back to full itinerary view from diff view.
+- [x] **Undo last re-plan** — `undoReplan()` restores `previousItineraryText` to the full itinerary pane.
+- [x] **Cascade banner** — multi-day change shown as "Days 2-3 updated due to cascading changes."
+- [ ] **Unchanged slots collapsed/dimmed** — unchanged slots not shown in diff; no "click to expand" for context yet.
+- [ ] **Re-plan history log** — no sidebar log of past disruptions this session.
 
 ---
 
 ## Phase R6 — Candidate Pool Reuse  🚧 PARTIAL
 
-Re-planning should be ~50% cheaper than original planning by reusing already-fetched places. Verify and instrument.
-
 - [x] `CandidatePool` exists in `AppContext` and is populated during initial planning.
-- [ ] **Replanner prompt explicitly references pool** — "Before calling search_places, check the candidate_pool tool/context for already-fetched options matching the disruption."
-- [ ] **Pool surfaced as a tool** — `get_candidates_from_pool(category, near_lat_lng, exclude_place_ids)` → returns shortlist from `AppContext.candidate_pool`. No API cost.
-- [ ] **Cache hit metric** — log per-replan: `places_api_calls_saved`. Surface in `/debug/last-run` for the demo.
-- [ ] **Pool freshness check** — pool entries older than 24h re-fetch opening hours (cheap, just `get_opening_hours`).
-- [ ] **Pool expansion on miss** — if no pool candidate fits, fall back to `search_places` and add new results back to the pool.
+- [x] `backend/tools/pool.py` — `get_candidates_from_pool()` tool exists and is registered on replanner.
+- [x] Replanner prompt instructs: check pool before calling `search_places`.
+- [ ] **Cache hit metric** — no logging of `places_api_calls_saved`; not surfaced in `/debug/last-run`.
+- [ ] **Pool freshness check** — no 24h TTL on pool entries; opening hours not re-fetched.
+- [ ] **Pool expansion on miss** — not explicitly wired; replanner falls back to `search_places` but doesn't add results back to pool.
 
 ---
 

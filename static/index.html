@@ -2456,8 +2456,9 @@ function extractSummary(text) {
 
 // ─── Itinerary detection ─────────────────────────────────────────────
 function looksLikeItinerary(text) {
-  return /day\s+\d/i.test(text) &&
-    /(morning|afternoon|evening|itinerary)/i.test(text);
+  return text.length > 800 &&
+    /\*\*Day\s+\d/i.test(text) &&
+    /(morning|afternoon|evening)/i.test(text);
 }
 
 // ─── Itinerary parser ────────────────────────────────────────────────

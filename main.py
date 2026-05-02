@@ -142,13 +142,26 @@ class AppContext(BaseModel):
 
 # Itinerary capture ------------------------------------------------------------
 
+def _extract_itinerary_text(text: str) -> str:
+    """Strip markdown code fences and leading preamble so the parser sees raw itinerary."""
+    # Pull content out of ```...``` or ```text...``` blocks
+    fence_match = re.search(r"```(?:text|markdown)?\s*\n?([\s\S]+?)```", text)
+    if fence_match:
+        return fence_match.group(1).strip()
+    # No fence — strip any short preamble before the first **Day or **N-Day line
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if re.match(r"\*\*\d+-Day|\*\*Day\s+\d", line.strip()):
+            return "\n".join(lines[i:]).strip()
+    return text
+
+
 def _looks_like_itinerary(text: str) -> bool:
     """Return True if the response text contains a full itinerary (not just a re-plan description)."""
     return bool(
-        len(text) > 1500 and
+        len(text) > 800 and
         re.search(r"\*\*Day \d", text) and
-        re.search(r"(morning|afternoon|evening)", text, re.IGNORECASE) and
-        re.search(r"💰|Day total", text)
+        re.search(r"(morning|afternoon|evening)", text, re.IGNORECASE)
     )
 
 
@@ -498,7 +511,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             )
         raise
 
-    final_output = result.final_output
+    final_output = _extract_itinerary_text(result.final_output)
 
     # Post-process: add missing booking links via Tavily (non-blocking, 20s cap)
     if _looks_like_itinerary(final_output):
@@ -577,7 +590,7 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                 queue.put_nowait({"type": "error", "detail": str(exc), "session_id": session_id})
                 return
 
-            final_output = result.final_output
+            final_output = _extract_itinerary_text(result.final_output)
 
             # Post-process: add missing booking links via Tavily (non-blocking, 20s cap)
             if _looks_like_itinerary(final_output):
