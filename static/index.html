@@ -2611,7 +2611,13 @@ function parseItinerary(text) {
     // Day header: **Day N — Name** or ## Day N — Name
     const dm = line.match(/^(?:\*\*|#+\s*)?Day\s+(\d+)\s*[—–:\-]+\s*(.+?)(?:\*\*)?$/i);
     if (dm) {
-      cur = { number: +dm[1], name: dm[2].replace(/\*\*/g, '').trim(), slots: [], cost: '', mapsUrl: '', qrUrl: '', city: curCity };
+      const rawName = dm[2].replace(/\*\*/g, '').trim()
+        // Strip trailing weather icon + temperature that solver embeds in day headers
+        // e.g. "Vatican ☀️ 37°C" → "Vatican"
+        .replace(/\s+[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}☀⛅☁🌤🌦🌧🌨❄⛈🌫🌬]+[️⃣]?\s*~?\s*\d+°C$/u, '')
+        .replace(/\s+~?\s*\d+°C$/u, '')
+        .trim();
+      cur = { number: +dm[1], name: rawName, slots: [], cost: '', mapsUrl: '', qrUrl: '', city: curCity };
       result.days.push(cur);
       continue;
     }
