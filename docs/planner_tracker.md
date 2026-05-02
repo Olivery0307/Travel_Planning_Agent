@@ -55,7 +55,18 @@
 - [x] `cloudbuild.yaml`
 - [x] GCS cache sync (optional, env-gated)
 - [x] LiteLLM retries: 3 retries, 5s/10s/20s backoff
+- [x] `litellm.request_timeout = 90` — kills silent Vertex AI hangs
 - [x] `backend/tests/evals/golden_trips.json` + `run_eval.py`
+
+---
+
+## Phase 3.5 — Performance Optimizations  ✅ DONE
+
+- [x] **Parallel specialist calls** — orchestrator prompt updated to fire `lodging_agent`, `activity_agent`, `dining_agent` simultaneously (single-city and per-city-leg in multi-city). Saves ~30–40s.
+- [x] **Removed `get_place_details` from lodging** — lodging agent now returns `search_places` results directly; max 2 tool calls. Booking/website enrichment handled post-plan by Tavily.
+- [x] **Removed `get_place_details` + `search_booking_url` from activity** — activity agent now returns search results immediately; max 2 tool calls.
+- [x] **`_extract_itinerary_text()`** — strips Gemini's ` ```text ``` ` code fence + preamble from `final_output` before detection, storage, and SSE emit. Fixes itinerary not rendering in frontend.
+- [x] **`start_date` never blocks planning** — intake infers date from natural language ("May 15" → `2026-05-15`); never asks user. Orchestrator skips weather step silently if `start_date` is null.
 
 ---
 

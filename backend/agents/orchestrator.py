@@ -9,20 +9,20 @@ from agents import Agent, RunContextWrapper
 from agents.extensions.models.litellm_model import LitellmModel
 
 from backend.agents.activity import build_activity_agent
+from backend.agents.conversation import build_conversation_agent
 from backend.agents.dining import build_dining_agent
 from backend.agents.intake import build_intake_agent
 from backend.agents.lodging import build_lodging_agent
 from backend.agents.replanner import build_replanner_agent
 from backend.agents.solver import build_solver_agent
 from backend.agents.transport import build_transport_agent
-from backend.tools.context_tools import store_delta
 from backend.tools.weather import get_weather_forecast
 
 _BASE_PROMPT = (Path(__file__).parent / "prompts" / "orchestrator.md").read_text()
 
 
 def _make_instructions(ctx: RunContextWrapper, agent: Agent) -> str:
-    """Inject current itinerary and locked slots into the orchestrator system prompt each turn."""
+    """Inject current itinerary, weather, and locked slots into the orchestrator prompt each turn."""
     import json
     prompt = _BASE_PROMPT
 
@@ -37,6 +37,32 @@ def _make_instructions(ctx: RunContextWrapper, agent: Agent) -> str:
                 )
         except Exception:
             pass
+
+    # Inject weather so the orchestrator can answer weather questions without a tool call
+    if ctx.context and ctx.context.weather_data:
+        try:
+            weather = json.loads(ctx.context.weather_data)
+            if weather:
+                prompt += "\n\n## Weather Forecast (already fetched — use this to answer weather questions directly)\n"
+                for i, day in enumerate(weather, 1):
+                    cond = day.get("condition", "")
+                    temp = day.get("temp_high_c")
+                    icon = day.get("icon", "")
+                    temp_str = f", {temp}°C high" if temp is not None else ""
+                    prompt += f"- Day {i}: {icon} {cond}{temp_str}\n"
+        except Exception:
+            pass
+
+    # Inject trip summary so the orchestrator knows city/dates for follow-up questions
+    if ctx.context and ctx.context.last_city:
+        summary = f"\n\n## Current Trip Context\n- City: {ctx.context.last_city}"
+        if ctx.context.last_country_code:
+            summary += f" ({ctx.context.last_country_code})"
+        if ctx.context.last_checkin:
+            summary += f"\n- Start date: {ctx.context.last_checkin}"
+        if ctx.context.last_nights:
+            summary += f"\n- Duration: {ctx.context.last_nights} nights"
+        prompt += summary
 
     if ctx.context and ctx.context.locked_slots:
         locked_list = "\n".join(f"- {s}" for s in ctx.context.locked_slots)
@@ -60,6 +86,7 @@ def build_orchestrator(
     solver = build_solver_agent(specialist_model)
     replanner = build_replanner_agent(specialist_model)
     transport = build_transport_agent(specialist_model)
+    conversation = build_conversation_agent(specialist_model)
 
     return Agent(
         name="OrchestratorAgent",
@@ -67,8 +94,15 @@ def build_orchestrator(
         instructions=_make_instructions,
         input_guardrails=input_guardrails or [],
         tools=[
-            store_delta,
             get_weather_forecast,
+            conversation.as_tool(
+                tool_name="conversation_agent",
+                tool_description=(
+                    "Answer questions about the existing itinerary, analyse pacing/budget/weather conflicts, "
+                    "and propose targeted improvements. Call this when the user asks a question, wants analysis, "
+                    "or is confused — NOT when they are requesting a concrete change to the plan."
+                ),
+            ),
             intake.as_tool(
                 tool_name="intake_agent",
                 tool_description="Parse a free-text trip request into a structured TripRequest. Call first on any new planning request.",

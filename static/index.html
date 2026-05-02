@@ -1011,11 +1011,44 @@
     }
 
     .day-cost {
-      font-size: 0.68rem;
-      font-weight: 600;
-      color: var(--stone);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
       flex-shrink: 0;
+      gap: 3px;
     }
+
+    .day-cost-amount {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--amber);
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    .day-slot-count {
+      font-size: 0.52rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--ash);
+      white-space: nowrap;
+    }
+
+    /* Segmented budget bar shown below the day cost text */
+    .budget-bar {
+      display: flex;
+      height: 3px;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 3px;
+      gap: 1px;
+      min-width: 60px;
+    }
+    .budget-bar-lodging    { background: var(--cerulean);  flex-shrink: 0; }
+    .budget-bar-transport  { background: var(--amber);     flex-shrink: 0; }
+    .budget-bar-activities { background: var(--verdant);   flex-shrink: 0; }
+    .budget-bar-dining     { background: var(--terra);     flex-shrink: 0; }
 
     .day-chev {
       font-size: 0.52rem;
@@ -1048,6 +1081,7 @@
 
     .slot:last-child { border-bottom: none; }
     .slot:hover { background: rgba(255,255,255,0.018); }
+    .slot.carried { opacity: 0.5; }
 
     .slot-icon {
       font-size: 0.88rem;
@@ -2374,7 +2408,16 @@ async function sendMessage(text) {
           loadWrap.classList.remove('loading');
 
           if (delta) {
-            renderDelta(delta, previousItineraryText);
+            // Auto-apply the delta and re-render the updated itinerary directly.
+            // The chat message already summarises what changed — no diff view needed.
+            if (previousItineraryText) {
+              const merged = applyDelta(parseItinerary(previousItineraryText), delta);
+              _renderItineraryData(merged, '');
+              // Keep previousItineraryText as the pre-merge version so Undo still works
+              currentDeltaData = delta;
+            } else {
+              renderDelta(delta, previousItineraryText);
+            }
           } else if (isItin) {
             previousItineraryText = response;
             renderItinerary(response);
@@ -2456,8 +2499,9 @@ function extractSummary(text) {
 
 // ─── Itinerary detection ─────────────────────────────────────────────
 function looksLikeItinerary(text) {
-  return /day\s+\d/i.test(text) &&
-    /(morning|afternoon|evening|itinerary)/i.test(text);
+  return text.length > 800 &&
+    /\*\*Day\s+\d/i.test(text) &&
+    /(morning|afternoon|evening)/i.test(text);
 }
 
 // ─── Itinerary parser ────────────────────────────────────────────────
@@ -2483,9 +2527,16 @@ const NOTE_RE = /[—–]\s*([^\[]+?)(?:\s*\[|$)/;
 function parseLine(raw) {
   let s = raw.replace(/^[-•*]\s+/, '').trim();
 
-  // Skip cost lines
-  if (/💰/.test(s) || /^\*?day\s+total/i.test(s))
-    return { type: 'cost', text: s.replace(/💰\s*/, '').replace(/\*\*/g, '').trim() };
+  // Skip cost lines — strip markdown links, bold markers, and emoji before storing
+  if (/💰/.test(s) || /^\*?day\s+total/i.test(s)) {
+    const costText = s
+      .replace(/💰\s*/, '')
+      .replace(/\*\*/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '')  // strip [label](url)
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    return { type: 'cost', text: costText };
+  }
 
   // Skip maps navigation lines and QR markers — handled by parseItinerary
   if (/^\[🗺/.test(s) || /^\[QR_DAY_/i.test(s)) return null;
@@ -2569,7 +2620,10 @@ function parseItinerary(text) {
     }
 
     if (/^[\*\s]*budget\s*:/i.test(line)) {
-      result.meta = line.replace(/\*\*/g, '').split('|').map(s => s.trim()).filter(Boolean);
+      result.meta = line
+        .replace(/\*\*/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '')  // strip [label](url) from meta chips
+        .split('|').map(s => s.trim()).filter(Boolean);
       continue;
     }
 
@@ -2595,7 +2649,13 @@ function parseItinerary(text) {
     // Day header: **Day N — Name** or ## Day N — Name
     const dm = line.match(/^(?:\*\*|#+\s*)?Day\s+(\d+)\s*[—–:\-]+\s*(.+?)(?:\*\*)?$/i);
     if (dm) {
-      cur = { number: +dm[1], name: dm[2].replace(/\*\*/g, '').trim(), slots: [], cost: '', mapsUrl: '', qrUrl: '', city: curCity };
+      const rawName = dm[2].replace(/\*\*/g, '').trim()
+        // Strip trailing weather icon + temperature that solver embeds in day headers
+        // e.g. "Vatican ☀️ 37°C" → "Vatican"
+        .replace(/\s+[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}☀⛅☁🌤🌦🌧🌨❄⛈🌫🌬]+[️⃣]?\s*~?\s*\d+°C$/u, '')
+        .replace(/\s+~?\s*\d+°C$/u, '')
+        .trim();
+      cur = { number: +dm[1], name: rawName, slots: [], cost: '', mapsUrl: '', qrUrl: '', city: curCity };
       result.days.push(cur);
       continue;
     }
@@ -2633,15 +2693,16 @@ function _slotHtml(sl, dayNumber) {
   const key = `day${dayNumber}_${periodKey}`;
   const isLocked = lockedSlots.has(key);
   const safeKey  = escHtml(key);
-  const safeName = escHtml(sl.name);
-  const safeDay  = dayNumber;
-  const safePeriod = escHtml(sl.period);
   return `
-  <div class="slot${isLocked ? ' locked' : ''}" data-slot-key="${safeKey}">
+  <div class="slot${isLocked ? ' locked' : ''}${sl._carried ? ' carried' : ''}"
+       data-slot-key="${safeKey}"
+       data-slot-day="${dayNumber}"
+       data-slot-period="${escHtml(sl.period)}"
+       data-slot-name="${escHtml(sl.name)}">
     <div class="slot-icon">${sl.icon || '📍'}</div>
     <div class="slot-body">
       <div class="slot-period ${sl.period}">${sl.period}</div>
-      <div class="slot-name">${safeName}</div>
+      <div class="slot-name">${escHtml(sl.name)}</div>
       ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
       ${(sl.links || (sl.link ? [sl.link] : [])).map(l => `<a class="slot-link" href="${escHtml(l.url)}" target="_blank" rel="noopener">↗ ${escHtml(l.label)}</a>`).join('')}
       <div class="slot-note-input-wrap" id="note-wrap-${safeKey}">
@@ -2655,10 +2716,10 @@ function _slotHtml(sl, dayNumber) {
     <div class="slot-actions">
       <button class="slot-action-btn"
               title="Queue for replacement — combine with other changes before sending"
-              onclick="slotActionReplace(${safeDay},'${safePeriod}','${safeName}','${safeKey}')">↺ Replace</button>
+              onclick="slotActionReplace(this)">↺ Replace</button>
       <button class="slot-action-btn danger"
               title="Mark as broken/unavailable — queue with other changes"
-              onclick="slotActionBroken(${safeDay},'${safePeriod}','${safeName}','${safeKey}')">✕ Broken</button>
+              onclick="slotActionBroken(this)">✕ Broken</button>
       <button class="slot-action-btn"
               title="Add a note to include in your next message"
               onclick="slotActionNote('${safeKey}')">✎ Note</button>
@@ -2667,6 +2728,52 @@ function _slotHtml(sl, dayNumber) {
               onclick="toggleLock(this, '${safeKey}')">${isLocked ? '🔒' : '🔓'}</button>
     </div>
   </div>`;
+}
+
+// Parse cost breakdown from strings like:
+//   "~$183/person (lodging $120 + activities $25 + dining $38)"
+//   "~$60/person (transport $35 + dinner $25)"
+function _parseCostBreakdown(costText) {
+  if (!costText) return null;
+  const inner = costText.match(/\(([^)]+)\)/);
+  if (!inner) return null;
+  const parts = inner[1].split('+').map(s => s.trim());
+  const result = {};
+  for (const part of parts) {
+    const m = part.match(/^(lodging|transport|activities?|dining|dinner|lunch|food)\s*\$?([\d,]+)/i);
+    if (m) {
+      const key = m[1].toLowerCase().replace(/^activities?$/, 'activities')
+                                    .replace(/^(dinner|lunch|food)$/, 'dining');
+      result[key] = parseInt(m[2].replace(/,/g, ''), 10);
+    }
+  }
+  const total = Object.values(result).reduce((a, b) => a + b, 0);
+  return total > 0 ? { ...result, total } : null;
+}
+
+function _extractDayCostAmount(costText) {
+  // Pull out just the primary dollar figure: "~$146/person (...)" → "~$146/pp"
+  // Handles: "$146", "~$146", "$146/person", "$146/pp", "$1,200"
+  const m = costText.match(/~?\$[\d,]+(?:\/p(?:erson|p)?)?/);
+  if (!m) return null;
+  return m[0].replace('/person', '/pp');
+}
+
+function _budgetBarHtml(costText) {
+  const bd = _parseCostBreakdown(costText);
+  if (!bd || bd.total === 0) return '';
+  const pct = (k) => bd[k] ? Math.round((bd[k] / bd.total) * 100) : 0;
+  const segments = [
+    { key: 'lodging',    cls: 'budget-bar-lodging'    },
+    { key: 'transport',  cls: 'budget-bar-transport'  },
+    { key: 'activities', cls: 'budget-bar-activities' },
+    { key: 'dining',     cls: 'budget-bar-dining'     },
+  ].filter(s => bd[s.key]);
+  if (segments.length < 2) return ''; // only show bar when there's a real breakdown
+  const bars = segments.map(s =>
+    `<div class="${s.cls}" style="flex:${pct(s.key)}" title="${s.key} $${bd[s.key]}"></div>`
+  ).join('');
+  return `<div class="budget-bar">${bars}</div>`;
 }
 
 function _renderItineraryData(data, fallbackText) {
@@ -2680,8 +2787,27 @@ function _renderItineraryData(data, fallbackText) {
 
   const chips = data.meta.map(m => `<span class="itin-chip">${escHtml(m)}</span>`).join('');
 
+  // Find the last lodging slot seen so far — carry it forward to days without one
+  let _lastLodgingSlot = null;
+
   const cards = data.days.map((day, i) => {
-    const slots = day.slots.map(sl => _slotHtml(sl, day.number)).join('');
+    const hasLodging = day.slots.some(sl => sl.period === 'lodging');
+    if (hasLodging) {
+      _lastLodgingSlot = day.slots.find(sl => sl.period === 'lodging');
+    }
+
+    // For non-last days without lodging: inject a dimmed "continuing" lodging slot
+    const isLastDay = i === data.days.length - 1;
+    let slotsArr = [...day.slots];
+    if (!hasLodging && !isLastDay && _lastLodgingSlot) {
+      slotsArr = [...slotsArr, {
+        ..._lastLodgingSlot,
+        note: _lastLodgingSlot.note || 'continuing',
+        _carried: true,
+      }];
+    }
+
+    const slots = slotsArr.map(sl => _slotHtml(sl, day.number)).join('');
 
     const navBar = day.mapsUrl ? `
       <div class="day-nav-bar">
@@ -2700,13 +2826,22 @@ function _renderItineraryData(data, fallbackText) {
       ? `<div class="city-banner">🏙 ${escHtml(day.city)}</div>`
       : '';
 
+    const costAmount = day.cost ? _extractDayCostAmount(day.cost) : null;
+    const slotCount = day.slots.length;
+    const slotLabel = slotCount === 1 ? '1 stop' : `${slotCount} stops`;
+
     return cityBanner + `
       <div class="day-card" style="animation-delay:${i * 0.058}s" data-open="1">
         <div class="day-header" onclick="toggleDay(this)">
           <span class="day-num">Day ${day.number}</span>
           <span class="day-name">${escHtml(day.name)}</span>
           ${_weatherBadge(i)}
-          ${day.cost ? `<span class="day-cost">${escHtml(day.cost)}</span>` : ''}
+          ${day.cost ? `
+          <span class="day-cost" title="${escHtml(day.cost)}">
+            ${costAmount ? `<span class="day-cost-amount">${escHtml(costAmount)}</span>` : ''}
+            <span class="day-slot-count">${slotLabel}</span>
+            ${_budgetBarHtml(day.cost)}
+          </span>` : `<span class="day-cost"><span class="day-slot-count">${slotLabel}</span></span>`}
           <span class="day-chev">▼</span>
         </div>
         <div class="day-body">${slots}${navBar}</div>
@@ -3558,13 +3693,25 @@ function _buildQueueMessage() {
 }
 
 // ─── Slot hover actions (now queue-aware) ────────────────────────────
-function slotActionReplace(dayNum, period, name, key) {
-  addToQueue(key, 'replace', dayNum, period, name);
+function _slotDataFromBtn(btn) {
+  const slot = btn.closest('.slot');
+  return {
+    key:    slot.dataset.slotKey,
+    day:    +slot.dataset.slotDay,
+    period: slot.dataset.slotPeriod,
+    name:   slot.dataset.slotName,
+  };
+}
+
+function slotActionReplace(btn) {
+  const { key, day, period, name } = _slotDataFromBtn(btn);
+  addToQueue(key, 'replace', day, period, name);
   switchMode('nl');
 }
 
-function slotActionBroken(dayNum, period, name, key) {
-  addToQueue(key, 'broken', dayNum, period, name);
+function slotActionBroken(btn) {
+  const { key, day, period, name } = _slotDataFromBtn(btn);
+  addToQueue(key, 'broken', day, period, name);
   switchMode('nl');
 }
 
