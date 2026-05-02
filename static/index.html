@@ -1011,10 +1011,28 @@
     }
 
     .day-cost {
-      font-size: 0.68rem;
-      font-weight: 600;
-      color: var(--stone);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
       flex-shrink: 0;
+      gap: 3px;
+    }
+
+    .day-cost-amount {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--amber);
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    .day-slot-count {
+      font-size: 0.52rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--ash);
+      white-space: nowrap;
     }
 
     /* Segmented budget bar shown below the day cost text */
@@ -1063,6 +1081,7 @@
 
     .slot:last-child { border-bottom: none; }
     .slot:hover { background: rgba(255,255,255,0.018); }
+    .slot.carried { opacity: 0.5; }
 
     .slot-icon {
       font-size: 0.88rem;
@@ -2499,9 +2518,16 @@ const NOTE_RE = /[—–]\s*([^\[]+?)(?:\s*\[|$)/;
 function parseLine(raw) {
   let s = raw.replace(/^[-•*]\s+/, '').trim();
 
-  // Skip cost lines
-  if (/💰/.test(s) || /^\*?day\s+total/i.test(s))
-    return { type: 'cost', text: s.replace(/💰\s*/, '').replace(/\*\*/g, '').trim() };
+  // Skip cost lines — strip markdown links, bold markers, and emoji before storing
+  if (/💰/.test(s) || /^\*?day\s+total/i.test(s)) {
+    const costText = s
+      .replace(/💰\s*/, '')
+      .replace(/\*\*/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '')  // strip [label](url)
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    return { type: 'cost', text: costText };
+  }
 
   // Skip maps navigation lines and QR markers — handled by parseItinerary
   if (/^\[🗺/.test(s) || /^\[QR_DAY_/i.test(s)) return null;
@@ -2585,7 +2611,10 @@ function parseItinerary(text) {
     }
 
     if (/^[\*\s]*budget\s*:/i.test(line)) {
-      result.meta = line.replace(/\*\*/g, '').split('|').map(s => s.trim()).filter(Boolean);
+      result.meta = line
+        .replace(/\*\*/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '')  // strip [label](url) from meta chips
+        .split('|').map(s => s.trim()).filter(Boolean);
       continue;
     }
 
@@ -2656,7 +2685,7 @@ function _slotHtml(sl, dayNumber) {
   const isLocked = lockedSlots.has(key);
   const safeKey  = escHtml(key);
   return `
-  <div class="slot${isLocked ? ' locked' : ''}"
+  <div class="slot${isLocked ? ' locked' : ''}${sl._carried ? ' carried' : ''}"
        data-slot-key="${safeKey}"
        data-slot-day="${dayNumber}"
        data-slot-period="${escHtml(sl.period)}"
@@ -2713,6 +2742,14 @@ function _parseCostBreakdown(costText) {
   return total > 0 ? { ...result, total } : null;
 }
 
+function _extractDayCostAmount(costText) {
+  // Pull out just the primary dollar figure: "~$146/person (...)" → "~$146/pp"
+  // Handles: "$146", "~$146", "$146/person", "$146/pp", "$1,200"
+  const m = costText.match(/~?\$[\d,]+(?:\/p(?:erson|p)?)?/);
+  if (!m) return null;
+  return m[0].replace('/person', '/pp');
+}
+
 function _budgetBarHtml(costText) {
   const bd = _parseCostBreakdown(costText);
   if (!bd || bd.total === 0) return '';
@@ -2741,8 +2778,27 @@ function _renderItineraryData(data, fallbackText) {
 
   const chips = data.meta.map(m => `<span class="itin-chip">${escHtml(m)}</span>`).join('');
 
+  // Find the last lodging slot seen so far — carry it forward to days without one
+  let _lastLodgingSlot = null;
+
   const cards = data.days.map((day, i) => {
-    const slots = day.slots.map(sl => _slotHtml(sl, day.number)).join('');
+    const hasLodging = day.slots.some(sl => sl.period === 'lodging');
+    if (hasLodging) {
+      _lastLodgingSlot = day.slots.find(sl => sl.period === 'lodging');
+    }
+
+    // For non-last days without lodging: inject a dimmed "continuing" lodging slot
+    const isLastDay = i === data.days.length - 1;
+    let slotsArr = [...day.slots];
+    if (!hasLodging && !isLastDay && _lastLodgingSlot) {
+      slotsArr = [...slotsArr, {
+        ..._lastLodgingSlot,
+        note: _lastLodgingSlot.note || 'continuing',
+        _carried: true,
+      }];
+    }
+
+    const slots = slotsArr.map(sl => _slotHtml(sl, day.number)).join('');
 
     const navBar = day.mapsUrl ? `
       <div class="day-nav-bar">
@@ -2761,13 +2817,22 @@ function _renderItineraryData(data, fallbackText) {
       ? `<div class="city-banner">🏙 ${escHtml(day.city)}</div>`
       : '';
 
+    const costAmount = day.cost ? _extractDayCostAmount(day.cost) : null;
+    const slotCount = day.slots.length;
+    const slotLabel = slotCount === 1 ? '1 stop' : `${slotCount} stops`;
+
     return cityBanner + `
       <div class="day-card" style="animation-delay:${i * 0.058}s" data-open="1">
         <div class="day-header" onclick="toggleDay(this)">
           <span class="day-num">Day ${day.number}</span>
           <span class="day-name">${escHtml(day.name)}</span>
           ${_weatherBadge(i)}
-          ${day.cost ? `<span class="day-cost">${escHtml(day.cost)}${_budgetBarHtml(day.cost)}</span>` : ''}
+          ${day.cost ? `
+          <span class="day-cost" title="${escHtml(day.cost)}">
+            ${costAmount ? `<span class="day-cost-amount">${escHtml(costAmount)}</span>` : ''}
+            <span class="day-slot-count">${slotLabel}</span>
+            ${_budgetBarHtml(day.cost)}
+          </span>` : `<span class="day-cost"><span class="day-slot-count">${slotLabel}</span></span>`}
           <span class="day-chev">▼</span>
         </div>
         <div class="day-body">${slots}${navBar}</div>

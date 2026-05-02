@@ -21,7 +21,7 @@ _BASE_PROMPT = (Path(__file__).parent / "prompts" / "orchestrator.md").read_text
 
 
 def _make_instructions(ctx: RunContextWrapper, agent: Agent) -> str:
-    """Inject current itinerary and locked slots into the orchestrator system prompt each turn."""
+    """Inject current itinerary, weather, and locked slots into the orchestrator prompt each turn."""
     import json
     prompt = _BASE_PROMPT
 
@@ -36,6 +36,32 @@ def _make_instructions(ctx: RunContextWrapper, agent: Agent) -> str:
                 )
         except Exception:
             pass
+
+    # Inject weather so the orchestrator can answer weather questions without a tool call
+    if ctx.context and ctx.context.weather_data:
+        try:
+            weather = json.loads(ctx.context.weather_data)
+            if weather:
+                prompt += "\n\n## Weather Forecast (already fetched — use this to answer weather questions directly)\n"
+                for i, day in enumerate(weather, 1):
+                    cond = day.get("condition", "")
+                    temp = day.get("temp_high_c")
+                    icon = day.get("icon", "")
+                    temp_str = f", {temp}°C high" if temp is not None else ""
+                    prompt += f"- Day {i}: {icon} {cond}{temp_str}\n"
+        except Exception:
+            pass
+
+    # Inject trip summary so the orchestrator knows city/dates for follow-up questions
+    if ctx.context and ctx.context.last_city:
+        summary = f"\n\n## Current Trip Context\n- City: {ctx.context.last_city}"
+        if ctx.context.last_country_code:
+            summary += f" ({ctx.context.last_country_code})"
+        if ctx.context.last_checkin:
+            summary += f"\n- Start date: {ctx.context.last_checkin}"
+        if ctx.context.last_nights:
+            summary += f"\n- Duration: {ctx.context.last_nights} nights"
+        prompt += summary
 
     if ctx.context and ctx.context.locked_slots:
         locked_list = "\n".join(f"- {s}" for s in ctx.context.locked_slots)

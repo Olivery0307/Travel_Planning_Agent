@@ -337,7 +337,9 @@ async def _enrich_itinerary_links(text: str, city: str) -> str:
         )
         if has_booking_link:
             continue
-        # Skip non-slot lines (no period keyword)
+        # Skip non-slot lines — must be a bullet and contain a period keyword
+        if not line.strip().startswith(('-', '•', '*')):
+            continue
         if not re.search(r'\b(morning|afternoon|evening|lunch|dinner|lodging)\b', line, re.IGNORECASE):
             continue
         nm = slot_re.search(line)
@@ -430,7 +432,10 @@ async def _enrich_lodging_rates(
 def _looks_like_replan(text: str) -> bool:
     """Return True if the response describes a re-plan rather than a full itinerary."""
     return bool(
-        re.search(r"\b(replac|remov|adjust|sick day|disruption|re.?plan|changed|closed)\b", text, re.IGNORECASE) and
+        re.search(
+            r"\b(replac|remov|adjust|swap|updat|substitut|sick day|disruption|re.?plan|changed|closed|itinerary has been)\b",
+            text, re.IGNORECASE
+        ) and
         re.search(r"\bDay\s+\d+\b", text, re.IGNORECASE) and
         not _looks_like_itinerary(text)
     )
@@ -688,6 +693,32 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
             if request.locked_slots is not None:
                 ctx.locked_slots = request.locked_slots
             ctx.pending_delta = ""   # clear any previous delta before this run
+
+            # Short-circuit: answer weather questions directly from cached ctx.weather_data
+            # so the orchestrator never needs to call get_weather_forecast again.
+            if (ctx.weather_data and ctx.itinerary_json and
+                    re.search(r'\bweather\b|\bforecast\b|\brain\b|\bsunny\b|\btemperature\b|\bhot\b|\bcold\b',
+                               request.message, re.IGNORECASE)):
+                try:
+                    weather = json.loads(ctx.weather_data)
+                    city = ctx.last_city or "your destination"
+                    lines = [f"Here's the weather forecast for {city}:"]
+                    for idx, w in enumerate(weather, 1):
+                        icon = w.get("icon", "")
+                        cond = w.get("condition", "")
+                        temp = w.get("temp_high_c")
+                        temp_str = f", {temp}°C high" if temp is not None else ""
+                        lines.append(f"Day {idx}: {icon} {cond}{temp_str}")
+                    queue.put_nowait({
+                        "type": "done",
+                        "response": "\n".join(lines),
+                        "session_id": session_id,
+                        "delta": None,
+                        "weather": weather,
+                    })
+                    return
+                except Exception:
+                    pass  # fall through to agent if parsing fails
 
             logger.info("chat/stream session=%s message=%r locked=%s", session_id, request.message[:80], ctx.locked_slots)
             try:
