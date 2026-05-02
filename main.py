@@ -42,13 +42,14 @@ _progress_queues: dict[str, asyncio.Queue] = defaultdict(asyncio.Queue)
 
 # Human-readable labels for each sub-agent tool call
 _TOOL_LABELS: dict[str, str] = {
-    "intake_agent":    "Understanding your trip request…",
-    "lodging_agent":   "Searching for hotels & lodging…",
-    "activity_agent":  "Finding attractions & activities…",
-    "dining_agent":    "Discovering restaurants & dining…",
-    "transport_agent": "Planning transportation routes…",
-    "solver_agent":    "Assembling your day-by-day itinerary…",
-    "replanner_agent": "Re-optimizing after disruption…",
+    "intake_agent":        "Understanding your trip request…",
+    "lodging_agent":       "Searching for hotels & lodging…",
+    "activity_agent":      "Finding attractions & activities…",
+    "dining_agent":        "Discovering restaurants & dining…",
+    "transport_agent":     "Planning transportation routes…",
+    "solver_agent":        "Assembling your day-by-day itinerary…",
+    "replanner_agent":     "Re-optimizing after disruption…",
+    "conversation_agent":  "Analysing your itinerary…",
 }
 
 
@@ -565,6 +566,98 @@ def _validate_delta(ctx: "AppContext") -> dict | None:
     return delta.model_dump()
 
 
+def _apply_delta_to_stored_itinerary(ctx: "AppContext", delta: dict) -> None:
+    """Patch ctx.itinerary_json with the validated delta so the next orchestrator turn
+    sees the updated itinerary text rather than the stale pre-replan version."""
+    if not ctx.itinerary_json or not delta:
+        return
+    try:
+        itin = json.loads(ctx.itinerary_json)
+        text: str = itin.get("text", "")
+        if not text:
+            return
+
+        removed_keys: set[str] = set()
+        for s in delta.get("removed_slots", []):
+            name = (s.get("place_name") or "").strip().lower()
+            day = s.get("day_number", 0)
+            period = (s.get("period") or "").lower()
+            if name:
+                removed_keys.add(f"{day}:{period}:{name}")
+
+        changed_by_day_period: dict[str, dict] = {}
+        for s in delta.get("changed_slots", []):
+            day = s.get("day_number", 0)
+            period = (s.get("period") or "").lower()
+            changed_by_day_period[f"{day}:{period}"] = s
+
+        lines = text.splitlines()
+        current_day = 0
+        current_period = ""
+        new_lines = []
+        skip_next_slot = False
+
+        for line in lines:
+            # Detect day header
+            day_m = re.match(r"\*\*Day\s+(\d+)", line)
+            if day_m:
+                current_day = int(day_m.group(1))
+                current_period = ""
+                new_lines.append(line)
+                continue
+
+            # Detect period
+            period_m = re.match(r"\s*[-•*]?\s*\*\*(Morning|Afternoon|Evening)\*\*", line, re.IGNORECASE)
+            if period_m:
+                current_period = period_m.group(1).lower()
+                new_lines.append(line)
+                continue
+
+            # Check if this is a slot line to remove
+            if current_day and line.strip().startswith(("- ", "• ", "* ")):
+                # Extract name: first bold text or first meaningful words
+                name_m = re.search(r"\*\*([^*]+)\*\*", line)
+                slot_name = name_m.group(1).strip().lower() if name_m else ""
+                if not slot_name:
+                    # Try plain text after bullet
+                    plain = re.sub(r"^[-•*]\s*", "", line.strip())
+                    slot_name = plain.split("|")[0].split("~$")[0].strip().lower()[:60]
+
+                key = f"{current_day}:{current_period}:{slot_name}"
+                # Also try exact name match without period
+                if any(slot_name and slot_name in k.split(":")[2] for k in removed_keys if k.startswith(f"{current_day}:")):
+                    continue  # drop this line
+
+                # Check changed slots for this day/period
+                ck = f"{current_day}:{current_period}"
+                if ck in changed_by_day_period:
+                    cs = changed_by_day_period.pop(ck)
+                    cost_str = f" ~${cs['cost_usd']:.0f}/pp" if cs.get("cost_usd") else ""
+                    note_str = f" | {cs['notes']}" if cs.get("notes") else ""
+                    new_lines.append(f"- **{cs['place_name']}**{cost_str}{note_str}")
+                    continue
+
+            new_lines.append(line)
+
+        # Append any changed slots that weren't matched (new insertions)
+        for ck, cs in changed_by_day_period.items():
+            day_n = int(ck.split(":")[0])
+            period_n = ck.split(":")[1]
+            cost_str = f" ~${cs['cost_usd']:.0f}/pp" if cs.get("cost_usd") else ""
+            note_str = f" | {cs['notes']}" if cs.get("notes") else ""
+            new_lines.append(f"  - **{cs['place_name']}**{cost_str}{note_str}  ← inserted Day {day_n} {period_n}")
+
+        updated_text = "\n".join(new_lines)
+        ctx.itinerary_json = json.dumps({
+            "text": updated_text,
+            "version": itin.get("version", 1) + 1,
+        })
+        logger.info("itinerary text patched with delta (%d removed, %d changed)",
+                    len(delta.get("removed_slots", [])), len(delta.get("changed_slots", [])))
+    except Exception as e:
+        logger.warning("delta patch failed — keeping original itinerary text: %s", e)
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     session_id = request.session_id or str(uuid.uuid4())
@@ -653,6 +746,8 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         ctx.pending_delta = _parse_prose_to_delta(final_output) or ""
 
     validated_delta = _validate_delta(ctx)
+    if validated_delta:
+        _apply_delta_to_stored_itinerary(ctx, validated_delta)
     ctx.pending_delta = ""   # consumed
     ctx.save()
     weather = None
@@ -693,32 +788,6 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
             if request.locked_slots is not None:
                 ctx.locked_slots = request.locked_slots
             ctx.pending_delta = ""   # clear any previous delta before this run
-
-            # Short-circuit: answer weather questions directly from cached ctx.weather_data
-            # so the orchestrator never needs to call get_weather_forecast again.
-            if (ctx.weather_data and ctx.itinerary_json and
-                    re.search(r'\bweather\b|\bforecast\b|\brain\b|\bsunny\b|\btemperature\b|\bhot\b|\bcold\b',
-                               request.message, re.IGNORECASE)):
-                try:
-                    weather = json.loads(ctx.weather_data)
-                    city = ctx.last_city or "your destination"
-                    lines = [f"Here's the weather forecast for {city}:"]
-                    for idx, w in enumerate(weather, 1):
-                        icon = w.get("icon", "")
-                        cond = w.get("condition", "")
-                        temp = w.get("temp_high_c")
-                        temp_str = f", {temp}°C high" if temp is not None else ""
-                        lines.append(f"Day {idx}: {icon} {cond}{temp_str}")
-                    queue.put_nowait({
-                        "type": "done",
-                        "response": "\n".join(lines),
-                        "session_id": session_id,
-                        "delta": None,
-                        "weather": weather,
-                    })
-                    return
-                except Exception:
-                    pass  # fall through to agent if parsing fails
 
             logger.info("chat/stream session=%s message=%r locked=%s", session_id, request.message[:80], ctx.locked_slots)
             try:
@@ -780,6 +849,8 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                 ctx.pending_delta = _parse_prose_to_delta(final_output) or ""
 
             validated_delta = _validate_delta(ctx)
+            if validated_delta:
+                _apply_delta_to_stored_itinerary(ctx, validated_delta)
             ctx.pending_delta = ""   # consumed
             ctx.save()
 

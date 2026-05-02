@@ -2408,7 +2408,16 @@ async function sendMessage(text) {
           loadWrap.classList.remove('loading');
 
           if (delta) {
-            renderDelta(delta, previousItineraryText);
+            // Auto-apply the delta and re-render the updated itinerary directly.
+            // The chat message already summarises what changed — no diff view needed.
+            if (previousItineraryText) {
+              const merged = applyDelta(parseItinerary(previousItineraryText), delta);
+              _renderItineraryData(merged, '');
+              // Keep previousItineraryText as the pre-merge version so Undo still works
+              currentDeltaData = delta;
+            } else {
+              renderDelta(delta, previousItineraryText);
+            }
           } else if (isItin) {
             previousItineraryText = response;
             renderItinerary(response);

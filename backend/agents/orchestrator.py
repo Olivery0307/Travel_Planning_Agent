@@ -9,6 +9,7 @@ from agents import Agent, RunContextWrapper
 from agents.extensions.models.litellm_model import LitellmModel
 
 from backend.agents.activity import build_activity_agent
+from backend.agents.conversation import build_conversation_agent
 from backend.agents.dining import build_dining_agent
 from backend.agents.intake import build_intake_agent
 from backend.agents.lodging import build_lodging_agent
@@ -85,6 +86,7 @@ def build_orchestrator(
     solver = build_solver_agent(specialist_model)
     replanner = build_replanner_agent(specialist_model)
     transport = build_transport_agent(specialist_model)
+    conversation = build_conversation_agent(specialist_model)
 
     return Agent(
         name="OrchestratorAgent",
@@ -93,6 +95,14 @@ def build_orchestrator(
         input_guardrails=input_guardrails or [],
         tools=[
             get_weather_forecast,
+            conversation.as_tool(
+                tool_name="conversation_agent",
+                tool_description=(
+                    "Answer questions about the existing itinerary, analyse pacing/budget/weather conflicts, "
+                    "and propose targeted improvements. Call this when the user asks a question, wants analysis, "
+                    "or is confused — NOT when they are requesting a concrete change to the plan."
+                ),
+            ),
             intake.as_tool(
                 tool_name="intake_agent",
                 tool_description="Parse a free-text trip request into a structured TripRequest. Call first on any new planning request.",
