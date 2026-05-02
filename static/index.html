@@ -595,22 +595,22 @@
       opacity: 0.85;
     }
 
-    /* Slot lock button */
+    /* Slot lock button — lives inside .slot-actions */
     .slot-lock-btn {
       background: none;
-      border: none;
+      border: 1px solid transparent;
       cursor: pointer;
-      font-size: 0.85rem;
-      opacity: 0.35;
-      padding: 0.15rem 0.25rem;
+      font-size: 0.8rem;
+      opacity: 0.45;
+      padding: 0.18rem 0.28rem;
       border-radius: 2px;
-      transition: opacity 0.15s, background 0.15s;
+      transition: opacity 0.15s, background 0.15s, border-color 0.15s;
       flex-shrink: 0;
-      align-self: flex-start;
+      line-height: 1;
     }
 
-    .slot-lock-btn:hover { opacity: 0.8; background: var(--amber-glow); }
-    .slot-lock-btn.locked { opacity: 1; color: var(--amber); }
+    .slot-lock-btn:hover { opacity: 0.9; background: var(--amber-glow); border-color: var(--amber-line); }
+    .slot-lock-btn.locked { opacity: 1; color: var(--amber); border-color: var(--amber-line); background: var(--amber-glow); }
 
     .slot.locked {
       border-color: var(--amber-line);
@@ -1037,12 +1037,13 @@
     /* Slot rows */
     .slot {
       display: grid;
-      grid-template-columns: 26px 1fr auto;
+      grid-template-columns: 26px 1fr auto auto;
       align-items: start;
       gap: 0.8rem;
       padding: 0.72rem 1.35rem;
       border-bottom: 1px solid rgba(255,255,255,0.028);
       transition: background 0.1s;
+      position: relative;
     }
 
     .slot:last-child { border-bottom: none; }
@@ -1507,6 +1508,232 @@
       color: var(--cerulean);
     }
 
+    /* ── Plan-context card (replaces welcome block after itinerary exists) ── */
+    .plan-context-card {
+      padding-bottom: 1.1rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .plan-context-eyebrow {
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--verdant);
+      margin-bottom: 0.55rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .plan-context-eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--verdant);
+      box-shadow: 0 0 5px var(--verdant);
+      animation: pulse-live 2s ease-in-out infinite;
+    }
+
+    .plan-context-title {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--silk);
+      line-height: 1.3;
+      margin-bottom: 0.45rem;
+    }
+
+    .plan-context-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .plan-context-chip {
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ash);
+      border: 1px solid var(--border-subtle);
+      padding: 0.12rem 0.42rem;
+      border-radius: 1px;
+    }
+
+    .plan-context-body {
+      font-size: 0.68rem;
+      color: var(--stone);
+      line-height: 1.6;
+      font-weight: 300;
+      margin-bottom: 0.75rem;
+    }
+
+    .plan-context-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.28rem;
+    }
+
+    .plan-refine-btn {
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-body);
+      font-size: 0.67rem;
+      color: var(--ash);
+      padding: 0.38rem 0.6rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px;
+      background: transparent;
+      cursor: pointer;
+      line-height: 1.4;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .plan-refine-btn:hover {
+      border-color: var(--amber-line);
+      color: var(--silk);
+      background: var(--amber-glow);
+    }
+
+    .plan-refine-btn .refine-icon {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+
+    .new-trip-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-top: 0.8rem;
+      padding-top: 0.8rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .new-trip-divider span {
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--ash);
+      white-space: nowrap;
+    }
+
+    .new-trip-btn {
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone);
+      background: none;
+      border: 1px solid var(--border-mid);
+      padding: 0.28rem 0.65rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .new-trip-btn:hover { color: var(--silk); border-color: var(--border-strong); background: rgba(255,255,255,0.03); }
+
+    /* Slot action menu — revealed on hover */
+    .slot-actions {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.22rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+
+    .slot:hover .slot-actions {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .slot-action-btn {
+      background: none;
+      border: 1px solid var(--border-mid);
+      color: var(--stone);
+      font-family: var(--font-body);
+      font-size: 0.56rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 0.18rem 0.42rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.12s;
+      white-space: nowrap;
+      line-height: 1.3;
+    }
+
+    .slot-action-btn:hover {
+      border-color: var(--amber-line);
+      color: var(--amber-lt);
+      background: var(--amber-glow);
+    }
+
+    .slot-action-btn.danger:hover {
+      border-color: rgba(192,88,64,0.4);
+      color: var(--terra);
+      background: var(--terra-soft);
+    }
+
+    /* Note inline input */
+    .slot-note-input-wrap {
+      display: none;
+      margin-top: 0.4rem;
+      gap: 0.3rem;
+      align-items: center;
+    }
+
+    .slot-note-input-wrap.open {
+      display: flex;
+    }
+
+    .slot-note-input {
+      flex: 1;
+      background: var(--surface-3);
+      border: 1px solid var(--amber-line);
+      border-radius: 2px;
+      font-family: var(--font-body);
+      font-size: 0.69rem;
+      color: var(--ivory);
+      padding: 0.28rem 0.5rem;
+      outline: none;
+    }
+
+    .slot-note-input::placeholder { color: var(--ash); }
+
+    .slot-note-submit {
+      font-family: var(--font-body);
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--void);
+      background: var(--amber);
+      border: none;
+      border-radius: 2px;
+      padding: 0.28rem 0.6rem;
+      cursor: pointer;
+      transition: background 0.12s;
+      white-space: nowrap;
+    }
+
+    .slot-note-submit:hover { background: var(--amber-lt); }
+
     /* Raw response fallback */
     .raw-response {
       white-space: pre-wrap;
@@ -1581,7 +1808,7 @@
           <strong>Re-plan mode detected</strong><br>
           Specify the day and slot affected — I'll re-optimize around locked commitments.
         </div>
-        <div class="quick-actions">
+        <div class="quick-actions" id="quick-actions" style="display:none">
           <button class="quick-btn" onclick="useDisruptionTemplate('venue_closed')">🏛 Venue closed</button>
           <button class="quick-btn" onclick="useDisruptionTemplate('weather')">🌧 Bad weather</button>
           <button class="quick-btn" onclick="useDisruptionTemplate('health')">🤒 Sick day</button>
@@ -1612,10 +1839,19 @@
         </div>
 
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Start date
+              <span style="color:var(--ash);font-weight:300;text-transform:none;letter-spacing:0"> — for weather</span>
+            </label>
+            <input class="form-input" id="f-start-date" type="date" style="color-scheme:dark" />
+          </div>
+          <div class="form-group" style="flex:1">
             <label class="form-label">Budget / day (USD)</label>
             <input class="form-input" id="f-budget" type="number" min="20" placeholder="200" />
           </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label class="form-label">Group</label>
             <select class="form-select" id="f-group">
@@ -1723,6 +1959,7 @@
 let sessionId         = null;
 let interestPills     = [];
 let _lastItineraryData = null;  // populated by renderItinerary for export functions
+let _formStartDate    = null;   // YYYY-MM-DD from Trip Builder, skips calendar modal
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const msgs           = document.getElementById('messages');
@@ -1750,6 +1987,7 @@ function switchMode(mode) {
 
 // ─── Disruption detection ───────────────────────────────────────────
 nlInput.addEventListener('input', () => {
+  if (!_lastItineraryData) return; // only relevant when a plan exists
   const val = nlInput.value.toLowerCase();
   const isDisruption = val.length > 10 &&
     /\b(re.?plan|disruption|closed|cancel|sick|delay|day\s+\d.*(close|cancel|change))\b/.test(val);
@@ -1816,15 +2054,16 @@ function setTripType(type) {
 
 // ─── Form → NL message ──────────────────────────────────────────────
 function formToMessage() {
-  const dest    = document.getElementById('f-dest').value.trim();
-  const days    = document.getElementById('f-days').value.trim();
-  const budget  = document.getElementById('f-budget').value.trim();
-  const group   = document.getElementById('f-group').value;
-  const style   = document.getElementById('f-style').value;
-  const diet    = document.getElementById('f-diet').value.trim();
-  const lodging = document.getElementById('f-lodging').value;
-  const must    = document.getElementById('f-must').value.trim();
-  const mob     = document.getElementById('f-mobility').value.trim();
+  const dest      = document.getElementById('f-dest').value.trim();
+  const days      = document.getElementById('f-days').value.trim();
+  const budget    = document.getElementById('f-budget').value.trim();
+  const group     = document.getElementById('f-group').value;
+  const style     = document.getElementById('f-style').value;
+  const diet      = document.getElementById('f-diet').value.trim();
+  const lodging   = document.getElementById('f-lodging').value;
+  const must      = document.getElementById('f-must').value.trim();
+  const mob       = document.getElementById('f-mobility').value.trim();
+  const startDate = document.getElementById('f-start-date').value; // YYYY-MM-DD or ''
 
   if (!dest)   { document.getElementById('f-dest').focus(); return null; }
   if (!days)   { document.getElementById('f-days').focus(); return null; }
@@ -1838,6 +2077,15 @@ function formToMessage() {
     ? `${days}-day country trip to ${dest} for a ${group}, $${budget}/day budget`
     : `${days}-day trip to ${dest} for a ${group}, $${budget}/day budget`;
   let msg = tripPhrase;
+  if (startDate) {
+    const d = new Date(startDate + 'T00:00:00');
+    const fmt = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    msg += `, starting ${fmt}`;
+    // Store so calendar export skips the date-picker modal
+    _formStartDate = startDate;
+  } else {
+    _formStartDate = null;
+  }
   if (style !== 'mid-range') msg += `, ${style} travel style`;
   if (interests.length)      msg += `, interested in ${interests.join(', ')}`;
   if (diet)                  msg += `, dietary restrictions: ${diet}`;
@@ -2221,19 +2469,40 @@ function _slotHtml(sl, dayNumber) {
                   : sl.period;
   const key = `day${dayNumber}_${periodKey}`;
   const isLocked = lockedSlots.has(key);
+  const safeKey  = escHtml(key);
+  const safeName = escHtml(sl.name);
+  const safeDay  = dayNumber;
+  const safePeriod = escHtml(sl.period);
   return `
-  <div class="slot${isLocked ? ' locked' : ''}" data-slot-key="${escHtml(key)}">
+  <div class="slot${isLocked ? ' locked' : ''}" data-slot-key="${safeKey}">
     <div class="slot-icon">${sl.icon || '📍'}</div>
     <div class="slot-body">
       <div class="slot-period ${sl.period}">${sl.period}</div>
-      <div class="slot-name">${escHtml(sl.name)}</div>
+      <div class="slot-name">${safeName}</div>
       ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
       ${(sl.links || (sl.link ? [sl.link] : [])).map(l => `<a class="slot-link" href="${escHtml(l.url)}" target="_blank" rel="noopener">↗ ${escHtml(l.label)}</a>`).join('')}
+      <div class="slot-note-input-wrap" id="note-wrap-${safeKey}">
+        <input class="slot-note-input" id="note-input-${safeKey}"
+               placeholder="Add a note about this slot…"
+               onkeydown="if(event.key==='Enter'){submitSlotNote('${safeKey}');}else if(event.key==='Escape'){closeSlotNote('${safeKey}');}"/>
+        <button class="slot-note-submit" onclick="submitSlotNote('${safeKey}')">Send</button>
+      </div>
     </div>
-    ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : ''}
-    <button class="slot-lock-btn${isLocked ? ' locked' : ''}"
-            title="${isLocked ? 'Locked — click to unlock' : 'Click to lock this slot'}"
-            onclick="toggleLock(this, '${escHtml(key)}')">${isLocked ? '🔒' : '🔓'}</button>
+    ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : '<div></div>'}
+    <div class="slot-actions">
+      <button class="slot-action-btn"
+              title="Suggest a replacement for this slot"
+              onclick="slotActionReplace(${safeDay},'${safePeriod}','${safeName}')">↺ Replace</button>
+      <button class="slot-action-btn danger"
+              title="Mark as unavailable and re-plan"
+              onclick="slotActionBroken(${safeDay},'${safePeriod}','${safeName}')">✕ Broken</button>
+      <button class="slot-action-btn"
+              title="Add a note to include in your next message"
+              onclick="slotActionNote('${safeKey}')">✎ Note</button>
+      <button class="slot-lock-btn${isLocked ? ' locked' : ''}"
+              title="${isLocked ? 'Locked — click to unlock' : 'Click to lock this slot'}"
+              onclick="toggleLock(this, '${safeKey}')">${isLocked ? '🔒' : '🔓'}</button>
+    </div>
   </div>`;
 }
 
@@ -2302,6 +2571,7 @@ function _renderItineraryData(data, fallbackText) {
 
   _lastItineraryData = data;
   document.getElementById('export-toolbar').classList.remove('hidden');
+  _enterPostItineraryMode(data);
 }
 
 function renderItinerary(text) {
@@ -2761,7 +3031,13 @@ function exportCalendar() {
   const data = _lastItineraryData;
   if (!data || !data.days.length) return;
 
-  // If the itinerary already has a start_date from the parsed data, use it directly
+  // Prefer: date from Trip Builder form, then parsed itinerary date, then modal
+  if (_formStartDate) {
+    const base = new Date(_formStartDate + 'T00:00:00');
+    _generateAndDownloadIcs(base);
+    return;
+  }
+
   if (data.startDate) {
     const base = new Date(data.startDate);
     base.setHours(0, 0, 0, 0);
@@ -3002,6 +3278,173 @@ function toggleLock(btn, key) {
     btn.title = 'Locked — click to unlock';
     slot.classList.add('locked');
   }
+}
+
+// ─── Slot hover actions ──────────────────────────────────────────────
+function slotActionReplace(dayNum, period, name) {
+  const text = `Day ${dayNum} ${period}: please suggest a replacement for "${name}".`;
+  nlInput.value = text;
+  switchMode('nl');
+  nlInput.focus();
+  nlInput.setSelectionRange(text.length, text.length);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function slotActionBroken(dayNum, period, name) {
+  const text = `Day ${dayNum} ${period}: "${name}" is closed / unavailable — please re-plan this slot.`;
+  nlInput.value = text;
+  switchMode('nl');
+  nlInput.focus();
+  nlInput.setSelectionRange(text.length, text.length);
+  disruptionHint.classList.add('visible');
+}
+
+function slotActionNote(key) {
+  const wrap = document.getElementById(`note-wrap-${key}`);
+  if (!wrap) return;
+  const isOpen = wrap.classList.contains('open');
+  // Close any other open note inputs first
+  document.querySelectorAll('.slot-note-input-wrap.open').forEach(w => w.classList.remove('open'));
+  if (!isOpen) {
+    wrap.classList.add('open');
+    const inp = document.getElementById(`note-input-${key}`);
+    if (inp) inp.focus();
+  }
+}
+
+function closeSlotNote(key) {
+  const wrap = document.getElementById(`note-wrap-${key}`);
+  if (wrap) wrap.classList.remove('open');
+}
+
+function submitSlotNote(key) {
+  const inp = document.getElementById(`note-input-${key}`);
+  if (!inp || !inp.value.trim()) { closeSlotNote(key); return; }
+  const note = inp.value.trim();
+  // Find slot name from the DOM
+  const slot = document.querySelector(`.slot[data-slot-key="${key}"]`);
+  const slotName = slot ? slot.querySelector('.slot-name')?.textContent?.trim() : key;
+  // Append note to current input or set it
+  const existing = nlInput.value.trim();
+  const noteText = `[Note on "${slotName}": ${note}]`;
+  nlInput.value = existing ? existing + ' ' + noteText : noteText;
+  switchMode('nl');
+  nlInput.focus();
+  closeSlotNote(key);
+  inp.value = '';
+}
+
+// ─── Adaptive UI: called once itinerary renders ───────────────────────
+function _enterPostItineraryMode(data) {
+  // 1. Reveal quick-actions disruption buttons
+  document.getElementById('quick-actions').style.display = 'flex';
+
+  // 2. Update send button label
+  const nlBtn = document.getElementById('nl-send-btn');
+  if (nlBtn) nlBtn.innerHTML = 'Update plan <span class="btn-send-arrow">→</span>';
+
+  // 3. Update textarea placeholder
+  nlInput.placeholder = 'Re-plan a slot, adjust the budget, or describe a disruption…\ne.g. "Day 2 afternoon Borghese is closed — re-plan"';
+
+  // 4. Hide Trip Builder tab
+  const tabForm = document.getElementById('tab-form');
+  if (tabForm) tabForm.style.display = 'none';
+
+  // 5. Replace welcome block with plan-context card (only first time)
+  const welcome = document.querySelector('.welcome-block');
+  if (!welcome || welcome.classList.contains('plan-context-replaced')) return;
+  welcome.classList.add('plan-context-replaced');
+
+  const title = data.title || 'Your Itinerary';
+  const dayCount = data.days.length;
+  const cities = data.cities.length
+    ? data.cities.join(' → ')
+    : (title.match(/\b([A-Z][a-z]+)\b/)?.[1] || '');
+  const chips = data.meta.slice(0, 3).map(m =>
+    `<span class="plan-context-chip">${escHtml(m.replace(/^budget:\s*/i,'').trim().slice(0,28))}</span>`
+  ).join('');
+
+  welcome.innerHTML = `
+    <div class="plan-context-card">
+      <div class="plan-context-eyebrow">Active plan</div>
+      <div class="plan-context-title">${escHtml(title)}</div>
+      ${chips ? `<div class="plan-context-meta">${chips}</div>` : ''}
+      <div class="plan-context-body">
+        ${dayCount} days${cities ? ` · ${escHtml(cities)}` : ''}. Ask me to refine any slot, adjust the budget,
+        or report a disruption — I'll optimize around your locked stops.
+      </div>
+      <div class="plan-context-actions">
+        <button class="plan-refine-btn" onclick="prefillRefine('swap')">
+          <span class="refine-icon">↺</span> Swap a slot or activity
+        </button>
+        <button class="plan-refine-btn" onclick="prefillRefine('budget')">
+          <span class="refine-icon">💰</span> Trim or adjust the budget
+        </button>
+        <button class="plan-refine-btn" onclick="prefillRefine('walk')">
+          <span class="refine-icon">🚶</span> Make a day less walking-heavy
+        </button>
+      </div>
+      <div class="new-trip-divider">
+        <span>or start fresh</span>
+        <button class="new-trip-btn" onclick="startNewTrip()">New trip →</button>
+      </div>
+    </div>`;
+}
+
+function prefillRefine(type) {
+  const templates = {
+    swap:   'Swap Day [N] [period] — replace [current place] with something [different/better/cheaper].',
+    budget: 'Please trim the overall budget to $[X]/day — reduce costs on Day [N] first.',
+    walk:   'Day [N] has too much walking — please find lower-effort alternatives.',
+  };
+  const tmpl = templates[type] || '';
+  nlInput.value = tmpl;
+  switchMode('nl');
+  nlInput.focus();
+  const start = tmpl.indexOf('[');
+  if (start >= 0) nlInput.setSelectionRange(start, tmpl.indexOf(']') + 1);
+}
+
+function startNewTrip() {
+  // Reset to blank-slate planning mode
+  nlInput.value = '';
+  nlInput.placeholder = 'Describe a trip or report a disruption…\ne.g. "5-day Rome, couple, $200/day, ancient history"';
+  const nlBtn = document.getElementById('nl-send-btn');
+  if (nlBtn) nlBtn.innerHTML = 'Plan trip <span class="btn-send-arrow">→</span>';
+  const tabForm = document.getElementById('tab-form');
+  if (tabForm) tabForm.style.display = '';
+  document.getElementById('quick-actions').style.display = 'none';
+  disruptionHint.classList.remove('visible');
+  // Clear session so the next message starts fresh
+  sessionId = null;
+  _lastItineraryData = null;
+  _formStartDate = null;
+  previousItineraryText = '';
+  currentDeltaData = null;
+  lockedSlots.clear();
+  // Restore empty state in itinerary pane
+  emptyState.style.display = '';
+  itinPane.classList.remove('visible');
+  itinPane.innerHTML = '';
+  document.getElementById('export-toolbar').classList.add('hidden');
+  // Restore welcome block
+  const welcome = document.querySelector('.welcome-block');
+  if (welcome) {
+    welcome.classList.remove('plan-context-replaced');
+    welcome.innerHTML = `
+      <div class="welcome-heading">Good to have you,<br><em>where to next?</em></div>
+      <div class="welcome-body">
+        Describe a trip in plain language — destination, duration, budget, interests, any constraints.
+        I'll return a full day-by-day itinerary with real places, hours, routing, and costs.
+      </div>
+      <div class="example-list">
+        <button class="example-btn" onclick="usePrompt(this)">5-day Rome, couple, $200/day, ancient history — one partner uses a cane</button>
+        <button class="example-btn" onclick="usePrompt(this)">10-day country trip to Portugal, solo, $150/day, seafood and wine lover</button>
+        <button class="example-btn" onclick="usePrompt(this)">Day 2 afternoon: Borghese Gallery closed — please re-plan</button>
+      </div>`;
+  }
+  switchMode('nl');
+  nlInput.focus();
 }
 
 // ─── Boot ────────────────────────────────────────────────────────────
