@@ -27,6 +27,9 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
+# Playwright MCP artifacts
+.playwright-mcp/
+
 # OS
 .DS_Store
 Thumbs.db

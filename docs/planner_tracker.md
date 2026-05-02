@@ -81,13 +81,16 @@
 - [x] Solver prompt: no restaurant may repeat across the itinerary; dining agent returns 3× days worth of options
 - [x] Frontend link labels normalized: "Maps", "Book Tickets", "Book" — consistent across all slots
 
-### 4D — Convenience Ideas (future checkpoints)
-- [ ] **Dedicated BookingAgent** — separate agent to find real booking URLs for hotels (Booking.com/Airbnb deep links) and activity tickets (Viator/GetYourGuide). Needs affiliate API keys. Currently website field from Google Places covers ~85% of cases. Add to Phase 5 or post-capstone.
+### 4D — Export Features ✅
+- [x] **Export PDF** — `exportPDF()`: expands all collapsed day cards, calls `window.print()`; `@media print` CSS hides chat pane and renders clean white printable layout. Works natively in all browsers via Save as PDF.
+- [x] **Add to Calendar (.ics)** — `exportCalendar()`: RFC 5545 VCALENDAR with one VEVENT per slot; morning 9am/3h, afternoon 1pm/3h, evening 7pm/2.5h, travel 10am/4h; base date = next Monday; includes cost, notes, booking link in DESCRIPTION; downloads as `<title>.ics`. Compatible with Apple Calendar, Google Calendar, Outlook.
+- [x] Export toolbar appears in itinerary pane once itinerary renders; hidden on empty state.
+
+### 4E — Convenience Ideas (future checkpoints)
+- [ ] **Dedicated BookingAgent** — separate agent to find real booking URLs for hotels (Booking.com/Airbnb deep links) and activity tickets (Viator/GetYourGuide). Needs affiliate API keys. Currently website field from Google Places covers ~85% of cases.
 - [ ] **Viator/GetYourGuide deep links** — ticket booking for activities: `https://www.viator.com/search/CITY+ATTRACTION` (no API key for basic search links).
 - [ ] **TripAdvisor review links** — `https://www.tripadvisor.com/Search?q=PLACE_NAME` per slot.
-- [ ] **Export to `.ics` calendar** — one calendar event per slot with location and notes; downloadable from itinerary pane.
 - [ ] **Copy itinerary as Markdown** — "Copy to clipboard" button; wire it up.
-- [ ] **Share link / PDF export** — generate a shareable snapshot URL or PDF of the itinerary.
 - [ ] **Weather forecast widget** — embed Open-Meteo (free, no key) forecast for destination dates on each day card.
 
 ---

@@ -366,16 +366,22 @@
 
     .msg-wrap.assistant.loading .bubble { color: var(--stone); }
 
-    /* Typing indicator */
-    .typing {
+    /* ── Thinking / status indicator ── */
+    .thinking-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0.52rem;
+    }
+
+    .thinking-dots {
       display: flex;
       align-items: center;
       gap: 5px;
-      height: 20px;
+      height: 16px;
       padding: 0 0.1rem;
     }
 
-    .typing span {
+    .thinking-dots span {
       width: 4px;
       height: 4px;
       border-radius: 50%;
@@ -383,12 +389,64 @@
       animation: typePulse 1.4s ease-in-out infinite;
     }
 
-    .typing span:nth-child(2) { animation-delay: 0.22s; }
-    .typing span:nth-child(3) { animation-delay: 0.44s; }
+    .thinking-dots span:nth-child(2) { animation-delay: 0.22s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.44s; }
 
     @keyframes typePulse {
       0%, 80%, 100% { opacity: 0.2; transform: scale(0.65); }
       40%            { opacity: 1;   transform: scale(1);    }
+    }
+
+    /* Live status ticker */
+    .status-ticker {
+      display: flex;
+      flex-direction: column;
+      gap: 0.22rem;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.66rem;
+      color: var(--stone);
+      animation: statusReveal 0.25s ease both;
+      line-height: 1.35;
+    }
+
+    .status-line.active {
+      color: var(--amber-lt);
+    }
+
+    .status-line.done {
+      color: var(--ash);
+      opacity: 0.6;
+    }
+
+    @keyframes statusReveal {
+      from { opacity: 0; transform: translateX(-4px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-line.active .status-dot {
+      background: var(--amber);
+      box-shadow: 0 0 5px var(--amber);
+      animation: pulse-live 1.4s ease-in-out infinite;
+    }
+
+    .status-line.done .status-dot {
+      background: var(--verdant);
+    }
+
+    .status-line:not(.active):not(.done) .status-dot {
+      background: var(--graphite);
     }
 
     /* ── Input Area ── */
@@ -525,6 +583,68 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.07em;
+    }
+
+    /* Weather badge on day card header */
+    .day-weather-badge {
+      font-size: 0.72rem;
+      color: var(--silk);
+      margin-left: auto;
+      margin-right: 0.5rem;
+      white-space: nowrap;
+      opacity: 0.85;
+    }
+
+    /* Slot lock button — lives inside .slot-actions */
+    .slot-lock-btn {
+      background: none;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-size: 0.8rem;
+      opacity: 0.45;
+      padding: 0.18rem 0.28rem;
+      border-radius: 2px;
+      transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .slot-lock-btn:hover { opacity: 0.9; background: var(--amber-glow); border-color: var(--amber-line); }
+    .slot-lock-btn.locked { opacity: 1; color: var(--amber); border-color: var(--amber-line); background: var(--amber-glow); }
+
+    .slot.locked {
+      border-color: var(--amber-line);
+      background: linear-gradient(135deg, rgba(201,160,90,0.06) 0%, transparent 100%);
+    }
+
+    .slot.locked .slot-period { color: var(--amber); }
+
+    /* Quick-action disruption buttons */
+    .quick-actions {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-top: 0.4rem;
+    }
+
+    .quick-btn {
+      background: none;
+      border: 1px solid var(--border-mid);
+      color: var(--stone);
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      letter-spacing: 0.04em;
+      padding: 0.28rem 0.55rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+
+    .quick-btn:hover {
+      border-color: var(--amber-line);
+      color: var(--amber);
+      background: var(--amber-glow);
     }
 
     /* Form panel */
@@ -917,12 +1037,13 @@
     /* Slot rows */
     .slot {
       display: grid;
-      grid-template-columns: 26px 1fr auto;
+      grid-template-columns: 26px 1fr auto auto;
       align-items: start;
       gap: 0.8rem;
       padding: 0.72rem 1.35rem;
       border-bottom: 1px solid rgba(255,255,255,0.028);
       transition: background 0.1s;
+      position: relative;
     }
 
     .slot:last-child { border-bottom: none; }
@@ -1116,6 +1237,646 @@
       color: var(--amber-lt);
     }
 
+    /* Export toolbar */
+    .export-toolbar {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.7rem 1.35rem;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--surface-1);
+      flex-shrink: 0;
+    }
+    .export-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-body);
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone);
+      background: none;
+      border: 1px solid var(--border-mid);
+      padding: 0.3rem 0.7rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .export-btn:hover { background: rgba(255,255,255,0.04); color: var(--silk); border-color: var(--border-strong); }
+    .export-btn:active { transform: scale(0.97); }
+    .export-toolbar.hidden { display: none; }
+
+    /* ── Date picker modal ── */
+    .cal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(13,12,10,0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 9000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+    .cal-backdrop.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .cal-modal {
+      background: var(--charcoal);
+      border: 1px solid var(--border-mid);
+      border-top: 2px solid var(--amber);
+      border-radius: 8px;
+      padding: 2rem 2.2rem 1.6rem;
+      width: 320px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,160,90,0.06);
+      transform: translateY(12px) scale(0.98);
+      transition: transform 0.22s ease;
+      position: relative;
+    }
+    .cal-backdrop.open .cal-modal {
+      transform: translateY(0) scale(1);
+    }
+    .cal-modal-ornament {
+      font-size: 0.55rem;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 0.6rem;
+    }
+    .cal-modal-title {
+      font-family: var(--font-display);
+      font-size: 1.45rem;
+      font-weight: 300;
+      color: var(--parchment);
+      line-height: 1.2;
+      margin-bottom: 0.35rem;
+    }
+    .cal-modal-sub {
+      font-size: 0.62rem;
+      color: var(--stone);
+      line-height: 1.55;
+      margin-bottom: 1.4rem;
+    }
+    .cal-date-label {
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--stone);
+      margin-bottom: 0.4rem;
+    }
+    .cal-date-input {
+      width: 100%;
+      background: var(--graphite);
+      border: 1px solid var(--border-mid);
+      border-radius: 4px;
+      color: var(--silk);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      padding: 0.55rem 0.75rem;
+      outline: none;
+      transition: border-color 0.15s;
+      color-scheme: dark;
+    }
+    .cal-date-input:focus { border-color: var(--amber-line); }
+    .cal-date-range {
+      margin-top: 0.6rem;
+      font-size: 0.58rem;
+      color: var(--ash);
+      letter-spacing: 0.04em;
+      min-height: 1.1rem;
+    }
+    .cal-date-range span { color: var(--amber); font-weight: 600; }
+    .cal-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1.4rem;
+    }
+    .cal-btn-cancel {
+      flex: 1;
+      font-family: var(--font-body);
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone);
+      background: none;
+      border: 1px solid var(--border-mid);
+      border-radius: 3px;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .cal-btn-cancel:hover { background: rgba(255,255,255,0.04); color: var(--silk); }
+    .cal-btn-confirm {
+      flex: 2;
+      font-family: var(--font-body);
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--void);
+      background: var(--amber);
+      border: none;
+      border-radius: 3px;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .cal-btn-confirm:hover { background: var(--amber-lt); }
+    .cal-btn-confirm:disabled { opacity: 0.35; cursor: not-allowed; }
+    .cal-close {
+      position: absolute;
+      top: 0.9rem; right: 1rem;
+      background: none; border: none;
+      color: var(--ash); font-size: 1rem;
+      cursor: pointer; line-height: 1;
+      transition: color 0.15s;
+    }
+    .cal-close:hover { color: var(--silk); }
+
+    /* Diff UI */
+    .diff-header {
+      padding: 1.1rem 1.35rem 0.8rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .diff-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 300;
+      color: var(--amber-lt);
+      flex: 1;
+    }
+
+    .diff-toggle {
+      background: none;
+      border: 1px solid var(--border-mid);
+      color: var(--stone);
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      letter-spacing: 0.06em;
+      padding: 0.3rem 0.7rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .diff-toggle:hover { border-color: var(--amber-line); color: var(--amber); }
+
+    .diff-reasoning {
+      margin: 0.9rem 1.35rem;
+      padding: 0.75rem 1rem;
+      border-left: 3px solid var(--amber);
+      background: var(--amber-glow);
+      font-size: 0.75rem;
+      color: var(--silk);
+      line-height: 1.6;
+    }
+
+    .diff-days { padding: 0 1.35rem 1.35rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .diff-day-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--stone);
+      margin-bottom: 0.35rem;
+      font-weight: 600;
+    }
+
+    .diff-slot {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 2px;
+      border: 1px solid transparent;
+      margin-bottom: 0.3rem;
+    }
+
+    .diff-slot.removed {
+      border-color: rgba(192,88,64,0.3);
+      background: rgba(192,88,64,0.06);
+      text-decoration: line-through;
+      opacity: 0.7;
+    }
+
+    .diff-slot.added {
+      border-color: rgba(90,140,100,0.35);
+      background: rgba(90,140,100,0.07);
+    }
+
+    .diff-slot-period {
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone);
+      padding-top: 0.1rem;
+      min-width: 52px;
+    }
+
+    .diff-slot-name { font-size: 0.78rem; color: var(--ivory); flex: 1; }
+
+    .diff-cost-badge {
+      font-size: 0.6rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 2px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .diff-cost-badge.positive { background: rgba(192,88,64,0.15); color: var(--terra); }
+    .diff-cost-badge.negative { background: rgba(90,140,100,0.15); color: var(--verdant); }
+
+    .diff-cascade-banner {
+      margin: 0.5rem 1.35rem 0;
+      padding: 0.5rem 0.75rem;
+      background: rgba(74,122,171,0.1);
+      border: 1px solid rgba(74,122,171,0.25);
+      border-radius: 2px;
+      font-size: 0.65rem;
+      color: var(--cerulean);
+    }
+
+    /* ── Plan-context card (replaces welcome block after itinerary exists) ── */
+    .plan-context-card {
+      padding-bottom: 1.1rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .plan-context-eyebrow {
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--verdant);
+      margin-bottom: 0.55rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .plan-context-eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--verdant);
+      box-shadow: 0 0 5px var(--verdant);
+      animation: pulse-live 2s ease-in-out infinite;
+    }
+
+    .plan-context-title {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--silk);
+      line-height: 1.3;
+      margin-bottom: 0.45rem;
+    }
+
+    .plan-context-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .plan-context-chip {
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ash);
+      border: 1px solid var(--border-subtle);
+      padding: 0.12rem 0.42rem;
+      border-radius: 1px;
+    }
+
+    .plan-context-body {
+      font-size: 0.68rem;
+      color: var(--stone);
+      line-height: 1.6;
+      font-weight: 300;
+      margin-bottom: 0.75rem;
+    }
+
+    .plan-context-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.28rem;
+    }
+
+    .plan-refine-btn {
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-body);
+      font-size: 0.67rem;
+      color: var(--ash);
+      padding: 0.38rem 0.6rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px;
+      background: transparent;
+      cursor: pointer;
+      line-height: 1.4;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .plan-refine-btn:hover {
+      border-color: var(--amber-line);
+      color: var(--silk);
+      background: var(--amber-glow);
+    }
+
+    .plan-refine-btn .refine-icon {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+
+    .new-trip-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-top: 0.8rem;
+      padding-top: 0.8rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .new-trip-divider span {
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--ash);
+      white-space: nowrap;
+    }
+
+    .new-trip-btn {
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone);
+      background: none;
+      border: 1px solid var(--border-mid);
+      padding: 0.28rem 0.65rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .new-trip-btn:hover { color: var(--silk); border-color: var(--border-strong); background: rgba(255,255,255,0.03); }
+
+    /* ── Batch edit queue strip ── */
+    #edit-queue-strip {
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--surface-2);
+    }
+
+    #edit-queue-strip.visible { display: flex; }
+
+    .queue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.42rem 1.1rem 0.32rem;
+    }
+
+    .queue-header-label {
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--amber);
+    }
+
+    .queue-clear-btn {
+      font-family: var(--font-body);
+      font-size: 0.55rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ash);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.1rem 0.25rem;
+      transition: color 0.12s;
+    }
+
+    .queue-clear-btn:hover { color: var(--terra); }
+
+    .queue-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.28rem;
+      padding: 0 1.1rem 0.52rem;
+    }
+
+    .queue-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      font-weight: 500;
+      padding: 0.2rem 0.45rem 0.2rem 0.52rem;
+      border-radius: 2px;
+      border: 1px solid transparent;
+      animation: chipPop 0.18s ease both;
+      max-width: 100%;
+    }
+
+    @keyframes chipPop {
+      from { opacity: 0; transform: scale(0.9); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .queue-chip.replace {
+      background: var(--amber-glow);
+      border-color: var(--amber-line);
+      color: var(--amber-lt);
+    }
+
+    .queue-chip.broken {
+      background: var(--terra-soft);
+      border-color: rgba(192,88,64,0.3);
+      color: var(--terra);
+    }
+
+    .queue-chip.note {
+      background: rgba(74,122,171,0.08);
+      border-color: rgba(74,122,171,0.25);
+      color: var(--cerulean);
+    }
+
+    .queue-chip-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+
+    .queue-chip-remove {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.7rem;
+      line-height: 1;
+      opacity: 0.55;
+      padding: 0;
+      flex-shrink: 0;
+      color: inherit;
+      transition: opacity 0.12s;
+    }
+
+    .queue-chip-remove:hover { opacity: 1; }
+
+    /* Queued slot visual states in the itinerary pane */
+    .slot.queued-replace {
+      border-left: 3px solid var(--amber);
+      background: linear-gradient(135deg, rgba(201,160,90,0.055) 0%, transparent 60%);
+    }
+
+    .slot.queued-broken {
+      border-left: 3px solid var(--terra);
+      background: linear-gradient(135deg, rgba(192,88,64,0.07) 0%, transparent 60%);
+      opacity: 0.82;
+    }
+
+    .slot.queued-note {
+      border-left: 3px solid var(--cerulean);
+      background: linear-gradient(135deg, rgba(74,122,171,0.06) 0%, transparent 60%);
+    }
+
+    .slot-queue-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+      margin-top: 0.22rem;
+      font-size: 0.56rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.06rem 0.38rem;
+      border-radius: 1px;
+      animation: chipPop 0.18s ease both;
+    }
+
+    .slot-queue-badge.replace { color: var(--amber); background: var(--amber-glow); }
+    .slot-queue-badge.broken  { color: var(--terra);  background: var(--terra-soft); }
+    .slot-queue-badge.note    { color: var(--cerulean); background: rgba(74,122,171,0.1); }
+
+    /* Slot action menu — revealed on hover */
+    .slot-actions {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.22rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+
+    .slot:hover .slot-actions {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .slot-action-btn {
+      background: none;
+      border: 1px solid var(--border-mid);
+      color: var(--stone);
+      font-family: var(--font-body);
+      font-size: 0.56rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 0.18rem 0.42rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.12s;
+      white-space: nowrap;
+      line-height: 1.3;
+    }
+
+    .slot-action-btn:hover {
+      border-color: var(--amber-line);
+      color: var(--amber-lt);
+      background: var(--amber-glow);
+    }
+
+    .slot-action-btn.danger:hover {
+      border-color: rgba(192,88,64,0.4);
+      color: var(--terra);
+      background: var(--terra-soft);
+    }
+
+    /* Note inline input */
+    .slot-note-input-wrap {
+      display: none;
+      margin-top: 0.4rem;
+      gap: 0.3rem;
+      align-items: center;
+    }
+
+    .slot-note-input-wrap.open {
+      display: flex;
+    }
+
+    .slot-note-input {
+      flex: 1;
+      background: var(--surface-3);
+      border: 1px solid var(--amber-line);
+      border-radius: 2px;
+      font-family: var(--font-body);
+      font-size: 0.69rem;
+      color: var(--ivory);
+      padding: 0.28rem 0.5rem;
+      outline: none;
+    }
+
+    .slot-note-input::placeholder { color: var(--ash); }
+
+    .slot-note-submit {
+      font-family: var(--font-body);
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--void);
+      background: var(--amber);
+      border: none;
+      border-radius: 2px;
+      padding: 0.28rem 0.6rem;
+      cursor: pointer;
+      transition: background 0.12s;
+      white-space: nowrap;
+    }
+
+    .slot-note-submit:hover { background: var(--amber-lt); }
+
     /* Raw response fallback */
     .raw-response {
       white-space: pre-wrap;
@@ -1162,9 +1923,9 @@
           I'll return a full day-by-day itinerary with real places, hours, routing, and costs.
         </div>
         <div class="example-list">
-          <button class="example-btn" onclick="usePrompt(this)">5-day Rome, couple, $200/day, ancient history — one partner uses a cane</button>
-          <button class="example-btn" onclick="usePrompt(this)">10-day country trip to Portugal, solo, $150/day, seafood and wine lover</button>
-          <button class="example-btn" onclick="usePrompt(this)">Day 2 afternoon: Borghese Gallery closed — please re-plan</button>
+          <button class="example-btn" onclick="usePrompt(this)">5-day Rome, couple, $200/day, ancient history, starting May 15 — one partner uses a cane</button>
+          <button class="example-btn" onclick="usePrompt(this)">10-day Portugal, solo, $150/day, seafood and wine, somewhere in August</button>
+          <button class="example-btn" onclick="usePrompt(this)">7-day Japan, family of 4, $300/day, mix of culture and food, late October</button>
         </div>
       </div>
 
@@ -1190,6 +1951,22 @@
           <strong>Re-plan mode detected</strong><br>
           Specify the day and slot affected — I'll re-optimize around locked commitments.
         </div>
+      </div><!-- /nl-mode -->
+
+      <!-- Batch edit queue strip — shared, sits between nl-mode and quick-actions -->
+      <div id="edit-queue-strip">
+        <div class="queue-header">
+          <span class="queue-header-label">✦ Pending changes</span>
+          <button class="queue-clear-btn" onclick="clearEditQueue()">Clear all</button>
+        </div>
+        <div class="queue-chips" id="queue-chips"></div>
+      </div>
+
+      <div class="quick-actions" id="quick-actions" style="display:none;padding:0.45rem 1.1rem 0.55rem">
+        <button class="quick-btn" onclick="useDisruptionTemplate('venue_closed')">🏛 Venue closed</button>
+        <button class="quick-btn" onclick="useDisruptionTemplate('weather')">🌧 Bad weather</button>
+        <button class="quick-btn" onclick="useDisruptionTemplate('health')">🤒 Sick day</button>
+        <button class="quick-btn" onclick="useDisruptionTemplate('transit_delay')">✈️ Flight delayed</button>
       </div>
 
       <!-- Form mode -->
@@ -1215,10 +1992,19 @@
         </div>
 
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Start date
+              <span style="color:var(--ash);font-weight:300;text-transform:none;letter-spacing:0"> — for weather</span>
+            </label>
+            <input class="form-input" id="f-start-date" type="date" style="color-scheme:dark" />
+          </div>
+          <div class="form-group" style="flex:1">
             <label class="form-label">Budget / day (USD)</label>
             <input class="form-input" id="f-budget" type="number" min="20" placeholder="200" />
           </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label class="form-label">Group</label>
             <select class="form-select" id="f-group">
@@ -1296,14 +2082,37 @@
       <div class="empty-sub">Use Quick Chat or Trip Builder to generate a precision-crafted day-by-day plan</div>
     </div>
     <div id="itinerary-content"></div>
+    <div id="export-toolbar" class="export-toolbar hidden">
+      <button class="export-btn" onclick="exportPDF()">⬇ Export PDF</button>
+      <button class="export-btn" onclick="exportCalendar()">📅 Add to Calendar</button>
+    </div>
   </div>
 
 </div><!-- /main -->
 
+<!-- ── Calendar date picker modal ── -->
+<div class="cal-backdrop" id="cal-backdrop" role="dialog" aria-modal="true" aria-labelledby="cal-modal-title">
+  <div class="cal-modal">
+    <button class="cal-close" onclick="closeCalModal()" aria-label="Close">✕</button>
+    <div class="cal-modal-ornament">✦ &nbsp;Voyager</div>
+    <div class="cal-modal-title" id="cal-modal-title">When does<br>your trip begin?</div>
+    <div class="cal-modal-sub">Choose a start date and we'll schedule every activity in your calendar.</div>
+    <div class="cal-date-label">Trip start date</div>
+    <input class="cal-date-input" type="date" id="cal-date-input" oninput="onCalDateChange()" />
+    <div class="cal-date-range" id="cal-date-range">&nbsp;</div>
+    <div class="cal-actions">
+      <button class="cal-btn-cancel" onclick="closeCalModal()">Cancel</button>
+      <button class="cal-btn-confirm" id="cal-btn-confirm" onclick="confirmCalDate()" disabled>Add to Calendar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─── State ──────────────────────────────────────────────────────────
-let sessionId     = null;
-let interestPills = [];
+let sessionId         = null;
+let interestPills     = [];
+let _lastItineraryData = null;  // populated by renderItinerary for export functions
+let _formStartDate    = null;   // YYYY-MM-DD from Trip Builder, skips calendar modal
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const msgs           = document.getElementById('messages');
@@ -1331,6 +2140,7 @@ function switchMode(mode) {
 
 // ─── Disruption detection ───────────────────────────────────────────
 nlInput.addEventListener('input', () => {
+  if (!_lastItineraryData) return; // only relevant when a plan exists
   const val = nlInput.value.toLowerCase();
   const isDisruption = val.length > 10 &&
     /\b(re.?plan|disruption|closed|cancel|sick|delay|day\s+\d.*(close|cancel|change))\b/.test(val);
@@ -1397,15 +2207,16 @@ function setTripType(type) {
 
 // ─── Form → NL message ──────────────────────────────────────────────
 function formToMessage() {
-  const dest    = document.getElementById('f-dest').value.trim();
-  const days    = document.getElementById('f-days').value.trim();
-  const budget  = document.getElementById('f-budget').value.trim();
-  const group   = document.getElementById('f-group').value;
-  const style   = document.getElementById('f-style').value;
-  const diet    = document.getElementById('f-diet').value.trim();
-  const lodging = document.getElementById('f-lodging').value;
-  const must    = document.getElementById('f-must').value.trim();
-  const mob     = document.getElementById('f-mobility').value.trim();
+  const dest      = document.getElementById('f-dest').value.trim();
+  const days      = document.getElementById('f-days').value.trim();
+  const budget    = document.getElementById('f-budget').value.trim();
+  const group     = document.getElementById('f-group').value;
+  const style     = document.getElementById('f-style').value;
+  const diet      = document.getElementById('f-diet').value.trim();
+  const lodging   = document.getElementById('f-lodging').value;
+  const must      = document.getElementById('f-must').value.trim();
+  const mob       = document.getElementById('f-mobility').value.trim();
+  const startDate = document.getElementById('f-start-date').value; // YYYY-MM-DD or ''
 
   if (!dest)   { document.getElementById('f-dest').focus(); return null; }
   if (!days)   { document.getElementById('f-days').focus(); return null; }
@@ -1419,6 +2230,15 @@ function formToMessage() {
     ? `${days}-day country trip to ${dest} for a ${group}, $${budget}/day budget`
     : `${days}-day trip to ${dest} for a ${group}, $${budget}/day budget`;
   let msg = tripPhrase;
+  if (startDate) {
+    const d = new Date(startDate + 'T00:00:00');
+    const fmt = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    msg += `, starting ${fmt}`;
+    // Store so calendar export skips the date-picker modal
+    _formStartDate = startDate;
+  } else {
+    _formStartDate = null;
+  }
   if (style !== 'mid-range') msg += `, ${style} travel style`;
   if (interests.length)      msg += `, interested in ${interests.join(', ')}`;
   if (diet)                  msg += `, dietary restrictions: ${diet}`;
@@ -1439,6 +2259,38 @@ function addMsg(role, html, loading = false) {
   msgs.appendChild(wrap);
   msgs.scrollTop = msgs.scrollHeight;
   return wrap;
+}
+
+// ─── Status ticker helpers ───────────────────────────────────────────
+function makeThinkingBubble() {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap assistant loading';
+  wrap.innerHTML = `
+    <div class="msg-label">Voyager AI</div>
+    <div class="bubble">
+      <div class="thinking-wrap">
+        <div class="thinking-dots"><span></span><span></span><span></span></div>
+        <div class="status-ticker"></div>
+      </div>
+    </div>`;
+  msgs.appendChild(wrap);
+  msgs.scrollTop = msgs.scrollHeight;
+  return wrap;
+}
+
+function pushStatus(wrap, text) {
+  const ticker = wrap.querySelector('.status-ticker');
+  if (!ticker) return;
+
+  // Mark previous active line as done
+  const prev = ticker.querySelector('.status-line.active');
+  if (prev) prev.classList.replace('active', 'done');
+
+  const line = document.createElement('div');
+  line.className = 'status-line active';
+  line.innerHTML = `<span class="status-dot"></span><span>${escHtml(text)}</span>`;
+  ticker.appendChild(line);
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 function escHtml(s) {
@@ -1466,18 +2318,17 @@ async function sendMessage(text) {
   disruptionHint.classList.remove('visible');
 
   addMsg('user', escHtml(text));
-  const loadWrap = addMsg('assistant',
-    '<div class="typing"><span></span><span></span><span></span></div>', true);
+  const loadWrap = makeThinkingBubble();
 
   try {
-    const res = await fetch('/chat', {
+    const res = await fetch('/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, session_id: sessionId }),
+      body: JSON.stringify({ message: text, session_id: sessionId, locked_slots: [...lockedSlots] }),
     });
-    const raw = await res.text();
 
     if (!res.ok) {
+      const raw = await res.text();
       let detail = raw;
       try { detail = JSON.parse(raw).detail ?? raw; } catch(_) {}
       loadWrap.querySelector('.bubble').innerHTML =
@@ -1487,18 +2338,59 @@ async function sendMessage(text) {
       return;
     }
 
-    const data     = JSON.parse(raw);
-    sessionId      = data.session_id;
-    const response = data.response;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-    const isItin = looksLikeItinerary(response);
-    const summary = extractSummary(response);
-    loadWrap.querySelector('.bubble').innerHTML =
-      mdToHtml(escHtml(summary || (isItin ? 'Your itinerary is ready — see the panel on the right.' : response)));
-    loadWrap.classList.remove('loading');
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    if (isItin) {
-      renderItinerary(response);
+      // Process complete SSE lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep incomplete last chunk
+
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (!payload) continue;
+
+        let msg;
+        try { msg = JSON.parse(payload); } catch(_) { continue; }
+
+        if (msg.type === 'status') {
+          pushStatus(loadWrap, msg.text);
+
+        } else if (msg.type === 'done') {
+          sessionId = msg.session_id;
+          const response = msg.response;
+          const delta = msg.delta || null;
+          if (msg.weather) currentWeather = msg.weather;
+          const isItin = looksLikeItinerary(response);
+          const summary = extractSummary(response);
+          loadWrap.querySelector('.bubble').innerHTML =
+            mdToHtml(escHtml(summary || (isItin ? 'Your itinerary is ready — see the panel on the right.' : response)));
+          loadWrap.classList.remove('loading');
+
+          if (delta) {
+            renderDelta(delta, previousItineraryText);
+          } else if (isItin) {
+            previousItineraryText = response;
+            renderItinerary(response);
+          } else {
+            // Fallback: try to parse re-plan prose into a diff view
+            const proseDelta = tryParseProseDelta(response);
+            if (proseDelta) renderDelta(proseDelta, previousItineraryText);
+          }
+
+        } else if (msg.type === 'error') {
+          loadWrap.querySelector('.bubble').innerHTML =
+            `<span style="color:var(--terra)">Something went wrong</span>` +
+            `<br><small style="color:var(--stone)">${escHtml(String(msg.detail || '').slice(0, 300))}</small>`;
+          loadWrap.classList.remove('loading');
+        }
+      }
     }
 
   } catch(e) {
@@ -1512,6 +2404,16 @@ async function sendMessage(text) {
 }
 
 async function sendNL() {
+  // If there are queued batch edits, compose from queue (ignoring textarea unless it has extra context)
+  if (editQueue.size > 0) {
+    const queueMsg = _buildQueueMessage();
+    const extra = nlInput.value.trim();
+    const text = extra ? queueMsg + '\n\nAdditional context: ' + extra : queueMsg;
+    nlInput.value = '';
+    clearEditQueue();
+    await sendMessage(text);
+    return;
+  }
   const text = nlInput.value.trim();
   if (!text) return;
   nlInput.value = '';
@@ -1613,18 +2515,17 @@ function parseLine(raw) {
   s = s.slice(kw[0].length).trim();
   s = s.replace(/\*\*/g, '').trim();
 
-  // 1. Extract ALL markdown links [label](url) — there may be one per slot
-  //    Collect all links, remove them from s, keep the last one as the action link.
-  let link = null;
+  // 1. Extract ALL markdown links — collect into array, show all in UI
+  const links = [];
   const linkRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
   let lm;
   while ((lm = linkRe.exec(s)) !== null) {
-    // Normalize common link labels to short display text
     let label = lm[1].trim();
-    if (/maps/i.test(label))         label = 'Maps';
-    else if (/book ticket/i.test(label)) label = 'Book Tickets';
+    if (/maps/i.test(label))              label = '📍 Maps';
+    else if (/book ticket/i.test(label))  label = 'Book Tickets';
+    else if (/reserve/i.test(label))      label = 'Reserve';
     else if (/official|book/i.test(label)) label = 'Book';
-    link = { label, url: lm[2] };
+    links.push({ label, url: lm[2] });
   }
   s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '').trim();
 
@@ -1649,7 +2550,7 @@ function parseLine(raw) {
   s = s.replace(/[,\s]+$/, '').trim();
   if (!s) return null;
 
-  return { type: 'slot', period, icon: PERIOD_ICON[period] || '📍', name: s, note, cost, link };
+  return { type: 'slot', period, icon: PERIOD_ICON[period] || '📍', name: s, note, cost, links };
 }
 
 function parseItinerary(text) {
@@ -1725,32 +2626,62 @@ function parseItinerary(text) {
 }
 
 // ─── Render itinerary ────────────────────────────────────────────────
-function renderItinerary(text) {
-  const data = parseItinerary(text);
+function _slotHtml(sl, dayNumber) {
+  const periodKey = sl.period === 'lunch' || sl.period === 'breakfast' ? 'afternoon'
+                  : sl.period === 'dinner' ? 'evening'
+                  : sl.period;
+  const key = `day${dayNumber}_${periodKey}`;
+  const isLocked = lockedSlots.has(key);
+  const safeKey  = escHtml(key);
+  const safeName = escHtml(sl.name);
+  const safeDay  = dayNumber;
+  const safePeriod = escHtml(sl.period);
+  return `
+  <div class="slot${isLocked ? ' locked' : ''}" data-slot-key="${safeKey}">
+    <div class="slot-icon">${sl.icon || '📍'}</div>
+    <div class="slot-body">
+      <div class="slot-period ${sl.period}">${sl.period}</div>
+      <div class="slot-name">${safeName}</div>
+      ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
+      ${(sl.links || (sl.link ? [sl.link] : [])).map(l => `<a class="slot-link" href="${escHtml(l.url)}" target="_blank" rel="noopener">↗ ${escHtml(l.label)}</a>`).join('')}
+      <div class="slot-note-input-wrap" id="note-wrap-${safeKey}">
+        <input class="slot-note-input" id="note-input-${safeKey}"
+               placeholder="Add a note about this slot…"
+               onkeydown="if(event.key==='Enter'){submitSlotNote('${safeKey}');}else if(event.key==='Escape'){closeSlotNote('${safeKey}');}"/>
+        <button class="slot-note-submit" onclick="submitSlotNote('${safeKey}')">Send</button>
+      </div>
+    </div>
+    ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : '<div></div>'}
+    <div class="slot-actions">
+      <button class="slot-action-btn"
+              title="Queue for replacement — combine with other changes before sending"
+              onclick="slotActionReplace(${safeDay},'${safePeriod}','${safeName}','${safeKey}')">↺ Replace</button>
+      <button class="slot-action-btn danger"
+              title="Mark as broken/unavailable — queue with other changes"
+              onclick="slotActionBroken(${safeDay},'${safePeriod}','${safeName}','${safeKey}')">✕ Broken</button>
+      <button class="slot-action-btn"
+              title="Add a note to include in your next message"
+              onclick="slotActionNote('${safeKey}')">✎ Note</button>
+      <button class="slot-lock-btn${isLocked ? ' locked' : ''}"
+              title="${isLocked ? 'Locked — click to unlock' : 'Click to lock this slot'}"
+              onclick="toggleLock(this, '${safeKey}')">${isLocked ? '🔒' : '🔓'}</button>
+    </div>
+  </div>`;
+}
 
+function _renderItineraryData(data, fallbackText) {
   emptyState.style.display = 'none';
   itinPane.classList.add('visible');
 
   if (data.days.length === 0) {
-    itinPane.innerHTML = `<div class="raw-response">${mdToHtml(escHtml(text))}</div>`;
+    itinPane.innerHTML = `<div class="raw-response">${mdToHtml(escHtml(fallbackText || ''))}</div>`;
     return;
   }
 
-  const chips = data.meta
-    .map(m => `<span class="itin-chip">${escHtml(m)}</span>`).join('');
+  const chips = data.meta.map(m => `<span class="itin-chip">${escHtml(m)}</span>`).join('');
 
   const cards = data.days.map((day, i) => {
-    const slots = day.slots.map(sl => `
-      <div class="slot">
-        <div class="slot-icon">${sl.icon}</div>
-        <div class="slot-body">
-          <div class="slot-period ${sl.period}">${sl.period}</div>
-          <div class="slot-name">${escHtml(sl.name)}</div>
-          ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
-          ${sl.link ? `<a class="slot-link" href="${escHtml(sl.link.url)}" target="_blank" rel="noopener">↗ ${escHtml(sl.link.label)}</a>` : ''}
-        </div>
-        ${sl.cost ? `<div class="slot-cost">${escHtml(sl.cost)}</div>` : ''}
-      </div>`).join('');
+    const slots = day.slots.map(sl => _slotHtml(sl, day.number)).join('');
 
     const navBar = day.mapsUrl ? `
       <div class="day-nav-bar">
@@ -1774,10 +2705,11 @@ function renderItinerary(text) {
         <div class="day-header" onclick="toggleDay(this)">
           <span class="day-num">Day ${day.number}</span>
           <span class="day-name">${escHtml(day.name)}</span>
+          ${_weatherBadge(i)}
           ${day.cost ? `<span class="day-cost">${escHtml(day.cost)}</span>` : ''}
           <span class="day-chev">▼</span>
         </div>
-        <div class="day-body" style="max-height:2000px">${slots}${navBar}</div>
+        <div class="day-body">${slots}${navBar}</div>
       </div>`;
   }).join('');
 
@@ -1799,6 +2731,63 @@ function renderItinerary(text) {
     </div>
     <div class="days-grid">${cards}</div>
     ${totalBar}`;
+
+  _lastItineraryData = data;
+  document.getElementById('export-toolbar').classList.remove('hidden');
+  _enterPostItineraryMode(data);
+}
+
+function renderItinerary(text) {
+  _renderItineraryData(parseItinerary(text), text);
+}
+
+// ─── Accept re-plan: merge delta into itinerary ───────────────────────
+function applyDelta(data, delta) {
+  const removedNames = new Set(
+    (delta.removed_slots || []).map(s => `${s.day_number}:${s.period}:${s.place_name}`)
+  );
+
+  for (const day of data.days) {
+    // Remove slots that appear in removed_slots
+    day.slots = day.slots.filter(sl => {
+      const norm = sl.period === 'lunch' || sl.period === 'breakfast' ? 'afternoon'
+                 : sl.period === 'dinner' ? 'evening' : sl.period;
+      return !removedNames.has(`${day.number}:${norm}:${sl.name}`) &&
+             !removedNames.has(`${day.number}:${sl.period}:${sl.name}`);
+    });
+
+    // Replace or insert changed slots for this day
+    for (const cs of (delta.changed_slots || [])) {
+      if (cs.day_number !== day.number) continue;
+      const newSlot = {
+        type: 'slot',
+        period: cs.period,
+        icon: PERIOD_ICON[cs.period] || '📍',
+        name: cs.place_name,
+        note: cs.notes || '',
+        cost: cs.cost_usd ? `~$${cs.cost_usd}` : '',
+        links: cs.booking_url ? [{ label: 'Book', url: cs.booking_url }] : [],
+      };
+      // Replace existing slot with same period, otherwise append
+      const idx = day.slots.findIndex(s => {
+        const norm = s.period === 'lunch' || s.period === 'breakfast' ? 'afternoon'
+                   : s.period === 'dinner' ? 'evening' : s.period;
+        return norm === cs.period;
+      });
+      if (idx >= 0) day.slots[idx] = newSlot;
+      else day.slots.push(newSlot);
+    }
+  }
+  return data;
+}
+
+function acceptReplan() {
+  if (!currentDeltaData || !previousItineraryText) return;
+  const merged = applyDelta(parseItinerary(previousItineraryText), currentDeltaData);
+  _renderItineraryData(merged, '');
+  previousItineraryText = '';
+  currentDeltaData = null;
+  clearEditQueue();
 }
 
 // ─── Day collapse/expand ─────────────────────────────────────────────
@@ -1840,6 +2829,878 @@ function toggleQr(btn) {
         .catch(() => { img.alt = 'QR unavailable'; });
     }
   }
+}
+
+// ─── Export: PDF ─────────────────────────────────────────────────────
+function exportPDF() {
+  const content = document.getElementById('itinerary-content');
+  if (!content || !content.classList.contains('visible')) return;
+
+  // Grab the raw itinerary HTML, with all cards expanded (no collapsed class)
+  // Clone so we can mutate without touching the live DOM
+  const clone = content.cloneNode(true);
+
+  // Remove UI-only elements that should not appear in print
+  clone.querySelectorAll('.day-chev, .day-nav-bar, .qr-panel, .slot-link, .export-toolbar').forEach(el => el.remove());
+
+  // Expand every card: remove collapsed class + clear inline max-height
+  clone.querySelectorAll('.day-card').forEach(card => {
+    card.classList.remove('collapsed');
+    card.dataset.open = '1';
+  });
+  clone.querySelectorAll('.day-body').forEach(body => {
+    body.style.maxHeight = '';
+    body.style.overflow  = '';
+  });
+
+  const data = _lastItineraryData;
+  const title = data ? (data.title || 'Voyager Itinerary') : 'Voyager Itinerary';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>${title}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Instrument+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 0; }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 210mm;
+    background: #0d0c0a;
+    color: #c8bfb2;
+    font-family: 'Instrument Sans', sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #print-root {
+    width: 210mm;
+    padding: 12mm 14mm 16mm;
+    background: #0d0c0a;
+  }
+
+  /* ── Header ── */
+  .print-wordmark {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.4em;
+    color: #c9a05a;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .itin-header {
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+    border-bottom: none;
+    position: relative;
+  }
+  .itin-header::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(201,160,90,0.4), transparent);
+    margin-top: 12px;
+  }
+  .itin-eyebrow {
+    font-size: 0.53rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #56524b;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .itin-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.9rem;
+    font-weight: 300;
+    color: #e8e0d4;
+    line-height: 1.15;
+    margin-bottom: 8px;
+  }
+  .itin-meta { display: flex; flex-wrap: wrap; gap: 5px; }
+  .itin-chip {
+    font-size: 0.55rem;
+    background: #1e1c18;
+    color: #7a7469;
+    border: 1px solid #2a2823;
+    padding: 2px 8px;
+    border-radius: 2px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── City banner ── */
+  .city-banner {
+    padding: 0.55rem 1.35rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #c9a05a;
+    background: #1e1c18;
+    border-left: 3px solid #c9a05a;
+    margin-top: 1rem;
+    margin-bottom: 1px;
+  }
+
+  /* ── Days grid ── */
+  .days-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: rgba(255,255,255,0.055);
+    border-radius: 3px;
+    overflow: visible;
+  }
+
+  /* ── Day card ── */
+  .day-card {
+    break-inside: avoid;
+    background: #161512;
+    overflow: visible;
+  }
+  .day-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.9rem 1.35rem;
+    position: relative;
+  }
+  .day-header::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: #c9a05a;
+  }
+  .day-num {
+    font-size: 0.53rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-weight: 700;
+    color: #c9a05a;
+    min-width: 40px;
+  }
+  .day-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.02rem;
+    font-weight: 400;
+    font-style: italic;
+    color: #c8bfb2;
+    flex: 1;
+  }
+  .day-cost { font-size: 0.68rem; font-weight: 600; color: #7a7469; }
+  .day-chev, .day-nav-bar, .qr-panel, .slot-link { display: none !important; }
+
+  /* ── Day body ── */
+  .day-body {
+    overflow: visible;
+    border-top: 1px solid rgba(255,255,255,0.055);
+  }
+
+  /* ── Slots ── */
+  .slot {
+    display: grid;
+    grid-template-columns: 26px 1fr auto;
+    align-items: start;
+    gap: 0.8rem;
+    padding: 0.72rem 1.35rem;
+    border-bottom: 1px solid rgba(255,255,255,0.028);
+    background: #161512;
+  }
+  .slot:last-child { border-bottom: none; }
+  .slot-icon { font-size: 0.88rem; text-align: center; margin-top: 2px; opacity: 0.72; }
+  .slot-body { min-width: 0; }
+  .slot-period {
+    font-size: 0.53rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-weight: 700;
+    margin-bottom: 0.14rem;
+  }
+  .slot-period.morning   { color: #c9a05a; }
+  .slot-period.afternoon { color: #c05840; }
+  .slot-period.evening   { color: #5a8c64; }
+  .slot-period.lunch, .slot-period.dinner, .slot-period.dining { color: #5a8c64; }
+  .slot-period.lodging, .slot-period.travel { color: #4a7aab; }
+  .slot-name { font-size: 0.84rem; color: #e8e0d4; line-height: 1.4; }
+  .slot-note {
+    display: inline-flex;
+    margin-top: 0.22rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #c05840;
+    background: rgba(192,88,64,0.10);
+    padding: 0.06rem 0.38rem;
+    border-radius: 1px;
+  }
+  .slot-cost {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #c9a05a;
+    white-space: nowrap;
+    padding-top: 2px;
+  }
+
+  /* ── Total bar ── */
+  .itin-total {
+    margin-top: 1.5rem;
+    padding: 1.05rem 1.35rem;
+    background: #1e1c18;
+    border: 1px solid rgba(255,255,255,0.055);
+    border-left: 3px solid #c9a05a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 2px;
+  }
+  .total-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #7a7469;
+    font-weight: 700;
+  }
+  .total-amount {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.55rem;
+    font-weight: 300;
+    color: #dfc080;
+  }
+
+  /* ── Footer ── */
+  .print-footer {
+    margin-top: 1.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255,255,255,0.055);
+    font-size: 0.5rem;
+    text-align: center;
+    color: #3d3a34;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div id="print-root">
+  <div class="print-wordmark">✦ &nbsp;Voyager</div>
+  ${clone.outerHTML}
+  <div class="print-footer">Generated by Voyager AI &nbsp;·&nbsp; Columbia IEOR Agentic AI Capstone</div>
+</div>
+<script>
+  // Auto-print once fonts are loaded, then close
+  window.addEventListener('load', () => {
+    setTimeout(() => { window.print(); window.close(); }, 800);
+  });
+<\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { alert('Please allow popups to export PDF.'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+// ─── Export: Calendar helpers ─────────────────────────────────────────
+const PERIOD_HOUR = { morning: 9, afternoon: 13, evening: 19,
+                      lunch: 12, dinner: 19, lodging: 15, travel: 10, dining: 12 };
+const PERIOD_DUR  = { morning: 180, afternoon: 180, evening: 150,
+                      lunch: 60,    dinner: 90,     lodging: 0,   travel: 240, dining: 75 };
+
+function _calPad(n) { return String(n).padStart(2, '0'); }
+
+function _calDtLocal(date) {
+  return date.getFullYear() +
+    _calPad(date.getMonth() + 1) +
+    _calPad(date.getDate()) + 'T' +
+    _calPad(date.getHours()) +
+    _calPad(date.getMinutes()) + '00';
+}
+
+function _calIcsEscape(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+}
+
+function _calFold(line) {
+  const out = [];
+  while (line.length > 75) { out.push(line.slice(0, 75)); line = ' ' + line.slice(75); }
+  out.push(line);
+  return out.join('\r\n');
+}
+
+function _generateAndDownloadIcs(base) {
+  const data = _lastItineraryData;
+  const stamp = _calDtLocal(new Date()) + 'Z';
+  const events = [];
+
+  data.days.forEach((day, i) => {
+    const dayDate = new Date(base);
+    dayDate.setDate(base.getDate() + i);
+
+    day.slots.forEach(slot => {
+      if (slot.period === 'lodging') return;
+      const hour = PERIOD_HOUR[slot.period] ?? 9;
+      const dur  = PERIOD_DUR[slot.period]  ?? 60;
+      const dtStart = new Date(dayDate); dtStart.setHours(hour, 0, 0, 0);
+      const dtEnd   = new Date(dtStart);  dtEnd.setMinutes(dtEnd.getMinutes() + dur);
+
+      const summary = slot.name + (slot.cost ? ' (' + slot.cost + ')' : '');
+      const desc    = [
+        slot.note ? 'Note: ' + slot.note : '',
+        slot.link ? slot.link.label + ': ' + slot.link.url : '',
+      ].filter(Boolean).join('\\n');
+
+      const uid = 'voyager-' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '@voyager.ai';
+      events.push([
+        'BEGIN:VEVENT',
+        _calFold('UID:' + uid),
+        _calFold('DTSTAMP:' + stamp),
+        _calFold('DTSTART:' + _calDtLocal(dtStart)),
+        _calFold('DTEND:'   + _calDtLocal(dtEnd)),
+        _calFold('SUMMARY:' + _calIcsEscape(summary)),
+        desc ? _calFold('DESCRIPTION:' + _calIcsEscape(desc)) : '',
+        'END:VEVENT',
+      ].filter(Boolean).join('\r\n'));
+    });
+  });
+
+  const cal = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0',
+    'PRODID:-//Voyager AI//Travel Itinerary//EN',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    _calFold('X-WR-CALNAME:' + _calIcsEscape(data.title || 'Voyager Itinerary')),
+    ...events,
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const blob = new Blob([cal], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (data.title || 'voyager-itinerary').replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.ics';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─── Calendar modal controls ──────────────────────────────────────────
+function exportCalendar() {
+  const data = _lastItineraryData;
+  if (!data || !data.days.length) return;
+
+  // Prefer: date from Trip Builder form, then parsed itinerary date, then modal
+  if (_formStartDate) {
+    const base = new Date(_formStartDate + 'T00:00:00');
+    _generateAndDownloadIcs(base);
+    return;
+  }
+
+  if (data.startDate) {
+    const base = new Date(data.startDate);
+    base.setHours(0, 0, 0, 0);
+    _generateAndDownloadIcs(base);
+    return;
+  }
+
+  // No date known — open the picker modal
+  const input = document.getElementById('cal-date-input');
+  // Pre-fill with next Monday as a sensible default
+  const today = new Date();
+  const dow = today.getDay();
+  const toMonday = dow === 1 ? 0 : (8 - dow) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + toMonday);
+  input.value = monday.toISOString().slice(0, 10);
+  input.min   = today.toISOString().slice(0, 10);
+
+  onCalDateChange(); // populate range preview
+  document.getElementById('cal-backdrop').classList.add('open');
+  input.focus();
+}
+
+function closeCalModal() {
+  document.getElementById('cal-backdrop').classList.remove('open');
+}
+
+function onCalDateChange() {
+  const data  = _lastItineraryData;
+  const input = document.getElementById('cal-date-input');
+  const range = document.getElementById('cal-date-range');
+  const btn   = document.getElementById('cal-btn-confirm');
+
+  if (!input.value) { range.innerHTML = '&nbsp;'; btn.disabled = true; return; }
+
+  const start = new Date(input.value + 'T00:00:00');
+  const end   = new Date(start);
+  end.setDate(start.getDate() + (data ? data.days.length - 1 : 0));
+
+  const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  range.innerHTML = '<span>' + fmt(start) + '</span> → <span>' + fmt(end) + '</span>';
+  btn.disabled = false;
+}
+
+function confirmCalDate() {
+  const input = document.getElementById('cal-date-input');
+  if (!input.value) return;
+  const base = new Date(input.value + 'T00:00:00');
+  closeCalModal();
+  _generateAndDownloadIcs(base);
+}
+
+// Close on backdrop click
+document.getElementById('cal-backdrop').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeCalModal();
+});
+// Close on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeCalModal();
+});
+
+// ─── Weather state ───────────────────────────────────────────────────
+let currentWeather = null;  // list of per-day weather dicts from backend
+
+function _weatherBadge(dayIndex) {
+  if (!currentWeather || !currentWeather[dayIndex]) return '';
+  const w = currentWeather[dayIndex];
+  const temp = w.temp_high_c != null ? ` ${w.temp_high_c}°C` : '';
+  const tag = w.is_forecast ? '' : ' ~';
+  return `<span class="day-weather-badge" title="${escHtml(w.condition)}">${w.icon}${tag}${escHtml(temp)}</span>`;
+}
+
+// ─── Diff / Delta rendering ──────────────────────────────────────────
+let previousItineraryText = '';
+let currentDeltaData = null;
+let showingDiff = true;
+
+function renderDelta(delta, fullItineraryText) {
+  previousItineraryText = fullItineraryText || previousItineraryText;
+  currentDeltaData = delta;
+  showingDiff = true;
+
+  emptyState.style.display = 'none';
+  itinPane.classList.add('visible');
+
+  const affectedDays = delta.affected_days || [];
+  const cascadeNote = affectedDays.length > 1
+    ? `<div class="diff-cascade-banner">⚡ Days ${affectedDays.join(', ')} updated due to cascading changes.</div>`
+    : '';
+
+  const costRows = (delta.new_daily_costs || []).map(dc =>
+    `<span style="margin-right:0.75rem">Day ${escHtml(String(dc.day))}: <strong>$${Number(dc.cost_usd).toFixed(0)}</strong></span>`
+  ).join('');
+
+  const removedHtml = (delta.removed_slots || []).map(s => `
+    <div class="diff-slot removed">
+      <div class="diff-slot-period">${escHtml(s.period || '')}</div>
+      <div class="diff-slot-name">${escHtml(s.place_name || '')}</div>
+      <span class="diff-cost-badge positive">removed</span>
+    </div>`).join('');
+
+  const changedHtml = (delta.changed_slots || []).map(s => `
+    <div class="diff-slot added">
+      <div class="diff-slot-period">${escHtml(s.period || '')}</div>
+      <div class="diff-slot-name">${escHtml(s.place_name || '')}${s.notes ? `<br><span style="font-size:0.65rem;color:var(--stone)">${escHtml(s.notes)}</span>` : ''}</div>
+      ${s.cost_usd ? `<span class="diff-cost-badge negative">$${Number(s.cost_usd).toFixed(0)}</span>` : ''}
+    </div>`).join('');
+
+  itinPane.innerHTML = `
+    <div class="diff-header">
+      <div class="diff-title">Re-plan Changes</div>
+      <button class="diff-toggle" onclick="acceptReplan()" style="border-color:rgba(90,140,100,0.5);color:#5a8c64">✓ Accept changes</button>
+      ${previousItineraryText ? `<button class="diff-toggle" onclick="showFullPlan()">View original plan</button>` : ''}
+      ${previousItineraryText ? `<button class="diff-toggle" onclick="undoReplan()">↩ Undo</button>` : ''}
+    </div>
+    <div class="diff-reasoning">${escHtml(delta.reasoning || '')}</div>
+    ${cascadeNote}
+    <div class="diff-days">
+      ${costRows ? `<div style="padding:0.5rem 0; font-size:0.65rem; color:var(--stone)">${costRows}</div>` : ''}
+      ${removedHtml || changedHtml
+        ? `<div class="diff-day-label">Changes</div>${removedHtml}${changedHtml}`
+        : '<div style="font-size:0.75rem;color:var(--stone);padding:1rem 0">No slot changes — see chat for details.</div>'
+      }
+    </div>`;
+}
+
+function showFullPlan() {
+  if (previousItineraryText) {
+    renderItinerary(previousItineraryText);
+    // Add a "back to diff" button
+    const hdr = itinPane.querySelector('.itin-header');
+    if (hdr && currentDeltaData) {
+      const btn = document.createElement('button');
+      btn.className = 'diff-toggle';
+      btn.style.cssText = 'margin:0.5rem 1.35rem; display:block;';
+      btn.textContent = 'View re-plan changes';
+      btn.onclick = () => renderDelta(currentDeltaData, previousItineraryText);
+      hdr.after(btn);
+    }
+  }
+}
+
+function undoReplan() {
+  if (previousItineraryText) {
+    renderItinerary(previousItineraryText);
+    currentDeltaData = null;
+  }
+}
+
+// ─── Prose delta fallback parser ─────────────────────────────────────
+function tryParseProseDelta(text) {
+  if (!previousItineraryText) return null;
+  if (!/replac|remov|adjust|disruption|sick|closed|delay/i.test(text)) return null;
+
+  const dayMatch = text.match(/Day\s+(\d+)/i);
+  if (!dayMatch) return null;
+  const dayNum = parseInt(dayMatch[1]);
+
+  const removed = [], changed = [];
+
+  // "X replaced with Y" or "X has been replaced with Y" — capture names and look back for period
+  const replaceRe = /([\w][\w\s&'',\-\/]+?)\s+(?:\([^)]*\)\s*)?(?:has been |have been |is |are )?replaced with\s+(?:a\s+)?(?:shorter[^,\.]*?visit to\s+)?([\w][\w\s&'',\-\/]+?)(?:\s*[\(\.,])/gi;
+  let m;
+  while ((m = replaceRe.exec(text)) !== null) {
+    const before = text.slice(Math.max(0, m.index - 150), m.index);
+    const pm = before.match(/(morning|afternoon|evening)/i);
+    const period = pm ? pm[1].toLowerCase() : 'morning';
+    removed.push({ day_number: dayNum, period, place_name: m[1].replace(/^(the|a)\s+/i,'').trim(), cost_usd: 0, notes: '', place_id: '', category: 'activity', address: '', booking_url: '', duration_minutes: 90 });
+    changed.push({ day_number: dayNum, period, place_name: m[2].replace(/^(the|a)\s+/i,'').trim(), cost_usd: 0, notes: 'replacement for disrupted slot', place_id: '', category: 'activity', address: '', booking_url: '', duration_minutes: 90 });
+  }
+
+  // "X has been removed" / "X removed entirely"
+  const removeRe = /([\w][\w\s&'',\-\/\/]+?)\s+(?:\([^)]*\)\s*)?(?:has been |have been |is |are )?removed/gi;
+  while ((m = removeRe.exec(text)) !== null) {
+    const name = m[1].replace(/^(the|a)\s+/i,'').trim();
+    if (name.length < 3 || /morning|afternoon|evening|day|slot|activity/i.test(name)) continue;
+    const before = text.slice(Math.max(0, m.index - 150), m.index);
+    const pm = before.match(/(morning|afternoon|evening)/i);
+    const period = pm ? pm[1].toLowerCase() : 'afternoon';
+    if (!removed.find(r => r.place_name === name))
+      removed.push({ day_number: dayNum, period, place_name: name, cost_usd: 0, notes: '', place_id: '', category: 'activity', address: '', booking_url: '', duration_minutes: 90 });
+  }
+
+  if (removed.length === 0 && changed.length === 0) return null;
+
+  const costMatch = text.match(/Day\s*\d+\s*(?:estimated\s+)?cost[:\s]+~?\$\s*([\d,]+)/i);
+  const costUsd = costMatch ? parseFloat(costMatch[1].replace(',','')) : 0;
+
+  // Clean reasoning: strip markdown bullets, trim
+  const reasoning = text.replace(/[*•\-]\s+/g, '').replace(/\n+/g, ' ').trim().slice(0, 400);
+
+  return {
+    disruption: { day_number: dayNum, period: '', description: reasoning.slice(0, 100), disruption_type: 'health' },
+    affected_days: [dayNum],
+    changed_slots: changed,
+    removed_slots: removed,
+    reasoning,
+    new_daily_costs: costUsd ? [{ day: dayNum, cost_usd: costUsd }] : [],
+  };
+}
+
+// ─── Disruption quick-actions ────────────────────────────────────────
+const DISRUPTION_TEMPLATES = {
+  venue_closed:   'Venue closed: [venue name] on Day [N] is unexpectedly closed. Please re-plan that slot.',
+  weather:        'Bad weather on Day [N]: heavy rain forecast, outdoor activities affected. Please suggest indoor alternatives.',
+  health:         'Sick day on Day [N]: we need a low-effort, low-walking schedule. Please adjust.',
+  transit_delay:  'Flight delayed [X hours] — arrival on Day [N] pushed back. Please shift the day\'s schedule forward.',
+};
+
+function useDisruptionTemplate(type) {
+  const tmpl = DISRUPTION_TEMPLATES[type];
+  if (!tmpl) return;
+  nlInput.value = tmpl;
+  nlInput.focus();
+  // select the first [placeholder] so user can type directly
+  const start = tmpl.indexOf('[');
+  const end   = tmpl.indexOf(']') + 1;
+  if (start >= 0) nlInput.setSelectionRange(start, end);
+  disruptionHint.classList.add('visible');
+}
+
+// ─── Lock state ──────────────────────────────────────────────────────
+const lockedSlots = new Set();
+
+function toggleLock(btn, key) {
+  const slot = btn.closest('.slot');
+  if (lockedSlots.has(key)) {
+    lockedSlots.delete(key);
+    btn.textContent = '🔓';
+    btn.classList.remove('locked');
+    btn.title = 'Click to lock this slot';
+    slot.classList.remove('locked');
+    slot.querySelector('.slot-period').style.color = '';
+  } else {
+    lockedSlots.add(key);
+    btn.textContent = '🔒';
+    btn.classList.add('locked');
+    btn.title = 'Locked — click to unlock';
+    slot.classList.add('locked');
+  }
+}
+
+// ─── Batch edit queue ────────────────────────────────────────────────
+// editQueue: Map<slotKey, { type: 'replace'|'broken'|'note', dayNum, period, name, note? }>
+const editQueue = new Map();
+
+function _queueStrip()  { return document.getElementById('edit-queue-strip'); }
+function _queueChips()  { return document.getElementById('queue-chips'); }
+
+function _refreshQueue() {
+  const strip  = _queueStrip();
+  const chips  = _queueChips();
+  const count  = editQueue.size;
+
+  // Show/hide strip
+  strip.classList.toggle('visible', count > 0);
+
+  // Rebuild chips
+  chips.innerHTML = '';
+  for (const [key, item] of editQueue) {
+    const icons = { replace: '↺', broken: '✕', note: '✎' };
+    const labels = {
+      replace: `Replace Day ${item.dayNum} ${item.period} — ${item.name}`,
+      broken:  `Broken Day ${item.dayNum} ${item.period} — ${item.name}`,
+      note:    `Note on Day ${item.dayNum} ${item.period} — ${item.name}`,
+    };
+    const chip = document.createElement('span');
+    chip.className = `queue-chip ${item.type}`;
+    chip.innerHTML = `
+      <span style="flex-shrink:0;opacity:0.8">${icons[item.type]}</span>
+      <span class="queue-chip-label">${escHtml(labels[item.type])}</span>
+      <button class="queue-chip-remove" title="Remove" onclick="removeFromQueue('${escHtml(key)}')">×</button>`;
+    chips.appendChild(chip);
+  }
+
+  // Update send button
+  const nlBtn = document.getElementById('nl-send-btn');
+  if (!nlBtn) return;
+  if (count > 0) {
+    nlBtn.innerHTML = `Apply ${count} change${count > 1 ? 's' : ''} <span class="btn-send-arrow">→</span>`;
+  } else if (_lastItineraryData) {
+    nlBtn.innerHTML = 'Update plan <span class="btn-send-arrow">→</span>';
+  } else {
+    nlBtn.innerHTML = 'Plan trip <span class="btn-send-arrow">→</span>';
+  }
+}
+
+function _setSlotQueueState(key, type) {
+  // Remove any existing queue class on this slot
+  const slot = document.querySelector(`.slot[data-slot-key="${CSS.escape(key)}"]`);
+  if (!slot) return;
+  slot.classList.remove('queued-replace', 'queued-broken', 'queued-note');
+
+  // Remove old badge if any
+  slot.querySelector('.slot-queue-badge')?.remove();
+
+  if (!type) return; // just clearing
+
+  slot.classList.add(`queued-${type}`);
+
+  // Insert badge into slot-body after slot-name
+  const body = slot.querySelector('.slot-body');
+  if (body) {
+    const badge = document.createElement('div');
+    badge.className = `slot-queue-badge ${type}`;
+    const labels = { replace: '↺ queued for replacement', broken: '✕ marked broken', note: '✎ note queued' };
+    badge.textContent = labels[type] || type;
+    const nameEl = body.querySelector('.slot-name');
+    if (nameEl) nameEl.after(badge);
+    else body.prepend(badge);
+  }
+}
+
+function addToQueue(key, type, dayNum, period, name, note) {
+  // If already queued with same type, toggle off
+  if (editQueue.has(key) && editQueue.get(key).type === type) {
+    editQueue.delete(key);
+    _setSlotQueueState(key, null);
+  } else {
+    editQueue.set(key, { type, dayNum, period, name, note: note || '' });
+    _setSlotQueueState(key, type);
+  }
+  _refreshQueue();
+}
+
+function removeFromQueue(key) {
+  editQueue.delete(key);
+  _setSlotQueueState(key, null);
+  _refreshQueue();
+}
+
+function clearEditQueue() {
+  for (const key of editQueue.keys()) _setSlotQueueState(key, null);
+  editQueue.clear();
+  _refreshQueue();
+}
+
+function _buildQueueMessage() {
+  if (editQueue.size === 0) return null;
+  const parts = [];
+  for (const [, item] of editQueue) {
+    if (item.type === 'replace') {
+      parts.push(`Day ${item.dayNum} ${item.period}: replace "${item.name}" with a suitable alternative.`);
+    } else if (item.type === 'broken') {
+      parts.push(`Day ${item.dayNum} ${item.period}: "${item.name}" is unavailable/closed — please re-plan this slot.`);
+    } else if (item.type === 'note') {
+      parts.push(`Day ${item.dayNum} ${item.period} "${item.name}": ${item.note}`);
+    }
+  }
+  const hasDisruption = [...editQueue.values()].some(i => i.type === 'broken');
+  const prefix = hasDisruption
+    ? 'Please re-plan the following disruptions and changes in one pass:\n'
+    : 'Please apply all of the following changes to the itinerary:\n';
+  return prefix + parts.map((p, i) => `${i + 1}. ${p}`).join('\n');
+}
+
+// ─── Slot hover actions (now queue-aware) ────────────────────────────
+function slotActionReplace(dayNum, period, name, key) {
+  addToQueue(key, 'replace', dayNum, period, name);
+  switchMode('nl');
+}
+
+function slotActionBroken(dayNum, period, name, key) {
+  addToQueue(key, 'broken', dayNum, period, name);
+  switchMode('nl');
+}
+
+function slotActionNote(key) {
+  const wrap = document.getElementById(`note-wrap-${key}`);
+  if (!wrap) return;
+  const isOpen = wrap.classList.contains('open');
+  document.querySelectorAll('.slot-note-input-wrap.open').forEach(w => w.classList.remove('open'));
+  if (!isOpen) {
+    wrap.classList.add('open');
+    const inp = document.getElementById(`note-input-${key}`);
+    if (inp) inp.focus();
+  }
+}
+
+function closeSlotNote(key) {
+  const wrap = document.getElementById(`note-wrap-${key}`);
+  if (wrap) wrap.classList.remove('open');
+}
+
+function submitSlotNote(key) {
+  const inp = document.getElementById(`note-input-${key}`);
+  if (!inp || !inp.value.trim()) { closeSlotNote(key); return; }
+  const note = inp.value.trim();
+  const slot = document.querySelector(`.slot[data-slot-key="${CSS.escape(key)}"]`);
+  const slotName = slot?.querySelector('.slot-name')?.textContent?.trim() || key;
+  // Parse dayNum and period back from key: "dayN_period"
+  const km = key.match(/^day(\d+)_(\w+)$/);
+  const dayNum = km ? +km[1] : 0;
+  const period = km ? km[2] : '';
+  addToQueue(key, 'note', dayNum, period, slotName, note);
+  closeSlotNote(key);
+  inp.value = '';
+  switchMode('nl');
+}
+
+// ─── Adaptive UI: called once itinerary renders ───────────────────────
+function _enterPostItineraryMode(data) {
+  // 1. Reveal quick-actions disruption buttons
+  document.getElementById('quick-actions').style.display = 'flex';
+
+  // 2. Update send button label
+  const nlBtn = document.getElementById('nl-send-btn');
+  if (nlBtn) nlBtn.innerHTML = 'Update plan <span class="btn-send-arrow">→</span>';
+
+  // 3. Update textarea placeholder
+  nlInput.placeholder = 'Re-plan a slot, adjust the budget, or describe a disruption…\ne.g. "Day 2 afternoon Borghese is closed — re-plan"';
+
+  // 4. Hide Trip Builder tab
+  const tabForm = document.getElementById('tab-form');
+  if (tabForm) tabForm.style.display = 'none';
+
+  // 5. Replace welcome block with plan-context card (only first time)
+  const welcome = document.querySelector('.welcome-block');
+  if (!welcome || welcome.classList.contains('plan-context-replaced')) return;
+  welcome.classList.add('plan-context-replaced');
+
+  const title = data.title || 'Your Itinerary';
+  const dayCount = data.days.length;
+  const cities = data.cities.length
+    ? data.cities.join(' → ')
+    : (title.match(/\b([A-Z][a-z]+)\b/)?.[1] || '');
+  const chips = data.meta.slice(0, 3).map(m =>
+    `<span class="plan-context-chip">${escHtml(m.replace(/^budget:\s*/i,'').trim().slice(0,28))}</span>`
+  ).join('');
+
+  welcome.innerHTML = `
+    <div class="plan-context-card">
+      <div class="plan-context-eyebrow">Active plan</div>
+      <div class="plan-context-title">${escHtml(title)}</div>
+      ${chips ? `<div class="plan-context-meta">${chips}</div>` : ''}
+      <div class="plan-context-body">
+        ${dayCount} days${cities ? ` · ${escHtml(cities)}` : ''}. Hover any slot on the right to replace, mark broken, or add a note — queue multiple changes and apply in one pass.
+      </div>
+      <div class="new-trip-divider">
+        <span>or start fresh</span>
+        <button class="new-trip-btn" onclick="startNewTrip()">New trip →</button>
+      </div>
+    </div>`;
+}
+
+function prefillRefine(type) {
+  const templates = {
+    swap:   'Swap Day [N] [period] — replace [current place] with something [different/better/cheaper].',
+    budget: 'Please trim the overall budget to $[X]/day — reduce costs on Day [N] first.',
+    walk:   'Day [N] has too much walking — please find lower-effort alternatives.',
+  };
+  const tmpl = templates[type] || '';
+  nlInput.value = tmpl;
+  switchMode('nl');
+  nlInput.focus();
+  const start = tmpl.indexOf('[');
+  if (start >= 0) nlInput.setSelectionRange(start, tmpl.indexOf(']') + 1);
+}
+
+function startNewTrip() {
+  // Reset to blank-slate planning mode
+  nlInput.value = '';
+  nlInput.placeholder = 'Describe a trip or report a disruption…\ne.g. "5-day Rome, couple, $200/day, ancient history"';
+  const nlBtn = document.getElementById('nl-send-btn');
+  if (nlBtn) nlBtn.innerHTML = 'Plan trip <span class="btn-send-arrow">→</span>';
+  const tabForm = document.getElementById('tab-form');
+  if (tabForm) tabForm.style.display = '';
+  document.getElementById('quick-actions').style.display = 'none';
+  disruptionHint.classList.remove('visible');
+  // Clear session so the next message starts fresh
+  sessionId = null;
+  _lastItineraryData = null;
+  _formStartDate = null;
+  clearEditQueue();
+  previousItineraryText = '';
+  currentDeltaData = null;
+  lockedSlots.clear();
+  // Restore empty state in itinerary pane
+  emptyState.style.display = '';
+  itinPane.classList.remove('visible');
+  itinPane.innerHTML = '';
+  document.getElementById('export-toolbar').classList.add('hidden');
+  // Restore welcome block
+  const welcome = document.querySelector('.welcome-block');
+  if (welcome) {
+    welcome.classList.remove('plan-context-replaced');
+    welcome.innerHTML = `
+      <div class="welcome-heading">Good to have you,<br><em>where to next?</em></div>
+      <div class="welcome-body">
+        Describe a trip in plain language — destination, duration, budget, interests, any constraints.
+        I'll return a full day-by-day itinerary with real places, hours, routing, and costs.
+      </div>
+      <div class="example-list">
+        <button class="example-btn" onclick="usePrompt(this)">5-day Rome, couple, $200/day, ancient history — one partner uses a cane</button>
+        <button class="example-btn" onclick="usePrompt(this)">10-day country trip to Portugal, solo, $150/day, seafood and wine lover</button>
+        <button class="example-btn" onclick="usePrompt(this)">Day 2 afternoon: Borghese Gallery closed — please re-plan</button>
+      </div>`;
+  }
+  switchMode('nl');
+  nlInput.focus();
 }
 
 // ─── Boot ────────────────────────────────────────────────────────────
