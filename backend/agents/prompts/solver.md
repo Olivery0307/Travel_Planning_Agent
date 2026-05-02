@@ -21,8 +21,31 @@ When given a multi-city candidate pool with per-city legs:
 4. Each city gets its own hotel; do not carry the first city's hotel into subsequent cities.
 5. No restaurant may appear more than once across the entire trip, even across cities.
 
-## Constraints (hard)
-- Daily cost (activities + dining + transport estimate) must not exceed budget_per_day_usd.
+## Budget accounting (hard constraint)
+
+For every non-travel day, compute the **remaining daily budget** before assigning activities and dining:
+
+```
+remaining = budget_per_day_usd − lodging_cost_per_night
+```
+
+- `lodging_cost_per_night` = the estimated nightly rate provided with the lodging candidate (use 0 if unknown).
+- Activities + dining for that day must not exceed `remaining`.
+- Show the breakdown on the 💰 line: `💰 Day total: ~$X/person (lodging $A + activities $B + dining $C)`
+
+For travel days, also deduct the transport cost per person:
+```
+remaining = budget_per_day_usd − transport_cost_per_person
+```
+- `transport_cost_per_person` comes from the `cost_per_person_usd` field in the transport_agent result.
+- Show: `💰 Day total: ~$X/person (transport $T + dinner $D)`
+
+In the header, show the full budget split:
+```
+Budget: $200/day | Lodging: ~$80/night | Activities+Dining: ~$120/day | Group: Couple
+```
+
+**Other hard constraints:**
 - must_include places must appear somewhere in the itinerary.
 - must_exclude places must not appear.
 - Mobility: if mobility_notes is set, prefer accessible venues and note any walking distances.
@@ -50,15 +73,15 @@ Return a clearly formatted text itinerary. For single-city trips:
 
 ---
 **5-Day Rome Itinerary**
-Budget: $200/day | Group: Couple
+Budget: $200/day | Lodging: ~$120/night | Activities+Dining: ~$80/day | Group: Couple
 
 **Day 1 — Vatican**
-- 🏨 Hotel Colosseum (all nights) [Book / Official Site](https://hotelcolosseum.com)
+- 🏨 Hotel Colosseum (all nights, ~$120/night) [Book / Official Site](https://hotelcolosseum.com)
 - 🌅 Morning: Vatican Museums (3h, $25/person) — book tickets in advance [Book Tickets](https://www.museivaticani.va)
 - 🌇 Afternoon: St. Peter's Basilica (1.5h, free) [📍 Maps](https://www.google.com/maps/search/?api=1&query=Piazza+San+Pietro%2C+00120+Vatican+City)
 - 🍽️ Lunch: La Nuova Piazzetta (~$18/person) [📍 Maps](https://www.google.com/maps/search/?api=1&query=Via+della+Croce+76%2C+00187+Rome)
 - 🌆 Evening: Dinner at Tonnarello (~$20/person) [📍 Maps](https://www.google.com/maps/search/?api=1&query=Via+della+Paglia+1%2C+00153+Rome)
-- 💰 Day total: ~$83/person
+- 💰 Day total: ~$183/person (lodging $120 + activities $25 + dining $38)
 [🗺 Navigate Day 1 on Google Maps](https://www.google.com/maps/dir/Piazza+San+Pietro,+00120+Vatican+City/Via+della+Croce+76,+00187+Rome/Via+della+Paglia+1,+00153+Rome/)
 [QR_DAY_1](https://www.google.com/maps/dir/Piazza+San+Pietro,+00120+Vatican+City/Via+della+Croce+76,+00187+Rome/Via+della+Paglia+1,+00153+Rome/)
 
@@ -95,7 +118,7 @@ Cities: Lisbon (4 nights) → Porto (3 nights)
 - 🚆 Afternoon: Travel Lisbon → Porto — Alfa Pendular train (~3h, ~$35/person). Depart Oriente station, arrive Porto Campanhã.
 - 🏨 Hotel Porto (Porto, Days 4–7) [Book / Official Site](https://...)
 - 🌆 Evening: Arrival & dinner in Ribeira district [📍 Maps](...)
-- 💰 Day total: ~$60/person (transport + dinner)
+- 💰 Day total: ~$60/person (transport $35 + dinner $25)
 [🗺 Navigate Day 4 on Google Maps](...)
 [QR_DAY_4](...)
 

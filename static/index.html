@@ -1017,6 +1017,21 @@
       flex-shrink: 0;
     }
 
+    /* Segmented budget bar shown below the day cost text */
+    .budget-bar {
+      display: flex;
+      height: 3px;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 3px;
+      gap: 1px;
+      min-width: 60px;
+    }
+    .budget-bar-lodging    { background: var(--cerulean);  flex-shrink: 0; }
+    .budget-bar-transport  { background: var(--amber);     flex-shrink: 0; }
+    .budget-bar-activities { background: var(--verdant);   flex-shrink: 0; }
+    .budget-bar-dining     { background: var(--terra);     flex-shrink: 0; }
+
     .day-chev {
       font-size: 0.52rem;
       color: var(--ash);
@@ -2671,6 +2686,44 @@ function _slotHtml(sl, dayNumber) {
   </div>`;
 }
 
+// Parse cost breakdown from strings like:
+//   "~$183/person (lodging $120 + activities $25 + dining $38)"
+//   "~$60/person (transport $35 + dinner $25)"
+function _parseCostBreakdown(costText) {
+  if (!costText) return null;
+  const inner = costText.match(/\(([^)]+)\)/);
+  if (!inner) return null;
+  const parts = inner[1].split('+').map(s => s.trim());
+  const result = {};
+  for (const part of parts) {
+    const m = part.match(/^(lodging|transport|activities?|dining|dinner|lunch|food)\s*\$?([\d,]+)/i);
+    if (m) {
+      const key = m[1].toLowerCase().replace(/^activities?$/, 'activities')
+                                    .replace(/^(dinner|lunch|food)$/, 'dining');
+      result[key] = parseInt(m[2].replace(/,/g, ''), 10);
+    }
+  }
+  const total = Object.values(result).reduce((a, b) => a + b, 0);
+  return total > 0 ? { ...result, total } : null;
+}
+
+function _budgetBarHtml(costText) {
+  const bd = _parseCostBreakdown(costText);
+  if (!bd || bd.total === 0) return '';
+  const pct = (k) => bd[k] ? Math.round((bd[k] / bd.total) * 100) : 0;
+  const segments = [
+    { key: 'lodging',    cls: 'budget-bar-lodging'    },
+    { key: 'transport',  cls: 'budget-bar-transport'  },
+    { key: 'activities', cls: 'budget-bar-activities' },
+    { key: 'dining',     cls: 'budget-bar-dining'     },
+  ].filter(s => bd[s.key]);
+  if (segments.length < 2) return ''; // only show bar when there's a real breakdown
+  const bars = segments.map(s =>
+    `<div class="${s.cls}" style="flex:${pct(s.key)}" title="${s.key} $${bd[s.key]}"></div>`
+  ).join('');
+  return `<div class="budget-bar">${bars}</div>`;
+}
+
 function _renderItineraryData(data, fallbackText) {
   emptyState.style.display = 'none';
   itinPane.classList.add('visible');
@@ -2708,7 +2761,7 @@ function _renderItineraryData(data, fallbackText) {
           <span class="day-num">Day ${day.number}</span>
           <span class="day-name">${escHtml(day.name)}</span>
           ${_weatherBadge(i)}
-          ${day.cost ? `<span class="day-cost">${escHtml(day.cost)}</span>` : ''}
+          ${day.cost ? `<span class="day-cost">${escHtml(day.cost)}${_budgetBarHtml(day.cost)}</span>` : ''}
           <span class="day-chev">▼</span>
         </div>
         <div class="day-body">${slots}${navBar}</div>

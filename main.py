@@ -129,6 +129,15 @@ class AppContext(BaseModel):
     candidate_pool: dict[str, list[dict]] = Field(
         default_factory=lambda: {"lodging": [], "activities": [], "dining": []}
     )
+    # "CityA→CityB" → cost_per_person_usd from transport tool
+    transport_costs: dict[str, int] = Field(default_factory=dict)
+    # hotel_name_lower → nightly_rate_usd (populated post-plan via LiteAPI)
+    lodging_rates: dict[str, float] = Field(default_factory=dict)
+    # Extracted from the last itinerary for use in post-processing
+    last_city: str = ""
+    last_country_code: str = "US"
+    last_checkin: str = ""   # ISO date string or ""
+    last_nights: int = 0
 
     @classmethod
     def get_or_create(cls, session_id: str) -> "AppContext":
@@ -154,6 +163,31 @@ def _extract_itinerary_text(text: str) -> str:
         if re.match(r"\*\*\d+-Day|\*\*Day\s+\d", line.strip()):
             return "\n".join(lines[i:]).strip()
     return text
+
+
+_CITY_COUNTRY: dict[str, str] = {
+    "rome": "IT", "florence": "IT", "venice": "IT", "milan": "IT", "naples": "IT",
+    "paris": "FR", "lyon": "FR", "nice": "FR", "bordeaux": "FR",
+    "barcelona": "ES", "madrid": "ES", "seville": "ES", "granada": "ES", "valencia": "ES",
+    "lisbon": "PT", "porto": "PT", "algarve": "PT",
+    "london": "GB", "edinburgh": "GB", "manchester": "GB", "bath": "GB",
+    "amsterdam": "NL", "rotterdam": "NL",
+    "berlin": "DE", "munich": "DE", "hamburg": "DE",
+    "tokyo": "JP", "kyoto": "JP", "osaka": "JP", "hiroshima": "JP",
+    "bangkok": "TH", "chiang mai": "TH", "phuket": "TH",
+    "hanoi": "VN", "ho chi minh city": "VN", "hoi an": "VN",
+    "athens": "GR", "santorini": "GR", "mykonos": "GR",
+    "dubrovnik": "HR", "split": "HR", "zagreb": "HR",
+    "istanbul": "TR", "cappadocia": "TR",
+    "marrakech": "MA", "fes": "MA", "casablanca": "MA",
+    "dublin": "IE", "galway": "IE", "cork": "IE",
+    "copenhagen": "DK", "stockholm": "SE", "oslo": "NO", "bergen": "NO",
+    "new york": "US", "washington dc": "US", "boston": "US",
+    "los angeles": "US", "san francisco": "US", "las vegas": "US",
+}
+
+def _country_code(city: str) -> str:
+    return _CITY_COUNTRY.get(city.lower(), "US")
 
 
 def _looks_like_itinerary(text: str) -> bool:
@@ -182,14 +216,27 @@ def _guardrail_message(user_input: str) -> str:
 
 
 def _capture_itinerary(ctx: "AppContext", response: str) -> None:
-    """If the response contains an itinerary, store it in AppContext for the re-planner."""
-    if _looks_like_itinerary(response):
-        ctx.itinerary_json = json.dumps({
-            "text": response,
-            "version": ctx.disruption_count + 1,
-        })
-        logger.info("itinerary captured in AppContext (session=%s, %d chars)",
-                    ctx.session_id, len(response))
+    """If the response contains an itinerary, store it and extract trip metadata."""
+    if not _looks_like_itinerary(response):
+        return
+    ctx.itinerary_json = json.dumps({
+        "text": response,
+        "version": ctx.disruption_count + 1,
+    })
+    # Extract city, nights, and checkin from the itinerary header for post-processing
+    city_m = re.search(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+Itinerary\b', response)
+    if city_m:
+        ctx.last_city = city_m.group(1)
+        ctx.last_country_code = _country_code(ctx.last_city)
+    nights_m = re.search(r'\*\*(\d+)-Day', response)
+    if nights_m:
+        ctx.last_nights = int(nights_m.group(1))
+    # Try to extract checkin from weather badge dates like "(2026-05-15)"
+    date_m = re.search(r'Day 1 \((\d{4}-\d{2}-\d{2})\)', response)
+    if date_m:
+        ctx.last_checkin = date_m.group(1)
+    logger.info("itinerary captured in AppContext (session=%s, city=%s, %d chars)",
+                ctx.session_id, ctx.last_city, len(response))
 
 
 # Models & Agents --------------------------------------------------------------
@@ -331,6 +378,53 @@ async def _enrich_itinerary_links(text: str, city: str) -> str:
             logger.info("link enriched: %r → %s", venue, url)
 
     return '\n'.join(lines)
+
+
+async def _enrich_lodging_rates(
+    text: str,
+    ctx: "AppContext",
+    city: str,
+    country_code: str,
+    checkin: "date | None",
+    nights: int,
+) -> None:
+    """Populate ctx.lodging_rates with LiteAPI nightly rates for hotels found in the itinerary.
+    Non-blocking — called with a 15s cap. Results stored in AppContext for the solver summary."""
+    from backend.tools.hotel_pricing import get_hotel_nightly_rate
+    from datetime import date as _date
+
+    if checkin is None:
+        checkin = _date.today()
+
+    # Extract hotel names from 🏨 lines
+    hotel_lines = [l for l in text.splitlines() if "🏨" in l]
+    hotel_names: list[str] = []
+    for line in hotel_lines:
+        m = re.search(r"🏨\s*(.+?)(?:\s*[\(\[]|$)", line)
+        if m:
+            name = m.group(1).strip().rstrip(".,—–").strip()
+            if name and name not in hotel_names:
+                hotel_names.append(name)
+
+    if not hotel_names:
+        return
+
+    async def _fetch_rate(name: str) -> tuple[str, float | None]:
+        try:
+            rate = await asyncio.wait_for(
+                get_hotel_nightly_rate(name, city, country_code, checkin, nights),
+                timeout=8.0,
+            )
+            return name, rate
+        except Exception:
+            return name, None
+
+    results = await asyncio.gather(*[_fetch_rate(n) for n in hotel_names])
+    for name, rate in results:
+        if rate is not None:
+            ctx.lodging_rates[name.lower()] = rate
+            logger.info("lodging_rate %r → $%.0f/night", name, rate)
+    ctx.save()
 
 
 def _looks_like_replan(text: str) -> bool:
@@ -513,7 +607,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
     final_output = _extract_itinerary_text(result.final_output)
 
-    # Post-process: add missing booking links via Tavily (non-blocking, 20s cap)
+    # Post-process: add missing booking links + fetch hotel nightly rates (non-blocking)
     if _looks_like_itinerary(final_output):
         city_m = re.search(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+Itinerary\b', final_output)
         city = city_m.group(1) if city_m else ""
@@ -523,6 +617,29 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             )
         except asyncio.TimeoutError:
             logger.warning("link enrichment timed out — returning itinerary without enrichment")
+
+        # Fetch real nightly rates from LiteAPI (best-effort, 15s cap)
+        if city or ctx.last_city:
+            from datetime import date as _date
+            checkin_date = None
+            if ctx.last_checkin:
+                try:
+                    checkin_date = _date.fromisoformat(ctx.last_checkin)
+                except ValueError:
+                    pass
+            try:
+                await asyncio.wait_for(
+                    _enrich_lodging_rates(
+                        final_output, ctx,
+                        city=city or ctx.last_city,
+                        country_code=_country_code(city or ctx.last_city),
+                        checkin=checkin_date,
+                        nights=ctx.last_nights or 5,
+                    ),
+                    timeout=15.0,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("lodging rate enrichment timed out")
 
     _capture_itinerary(ctx, final_output)
 
@@ -592,7 +709,7 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
 
             final_output = _extract_itinerary_text(result.final_output)
 
-            # Post-process: add missing booking links via Tavily (non-blocking, 20s cap)
+            # Post-process: add missing booking links + fetch hotel nightly rates (non-blocking)
             if _looks_like_itinerary(final_output):
                 city_m = re.search(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+Itinerary\b', final_output)
                 city = city_m.group(1) if city_m else ""
@@ -602,6 +719,28 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                     )
                 except asyncio.TimeoutError:
                     logger.warning("link enrichment timed out — returning itinerary without enrichment")
+
+                if city or ctx.last_city:
+                    from datetime import date as _date
+                    checkin_date = None
+                    if ctx.last_checkin:
+                        try:
+                            checkin_date = _date.fromisoformat(ctx.last_checkin)
+                        except ValueError:
+                            pass
+                    try:
+                        await asyncio.wait_for(
+                            _enrich_lodging_rates(
+                                final_output, ctx,
+                                city=city or ctx.last_city,
+                                country_code=_country_code(city or ctx.last_city),
+                                checkin=checkin_date,
+                                nights=ctx.last_nights or 5,
+                            ),
+                            timeout=15.0,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning("lodging rate enrichment timed out")
 
             _capture_itinerary(ctx, final_output)
 
