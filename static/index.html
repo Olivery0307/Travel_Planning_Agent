@@ -2633,15 +2633,16 @@ function _slotHtml(sl, dayNumber) {
   const key = `day${dayNumber}_${periodKey}`;
   const isLocked = lockedSlots.has(key);
   const safeKey  = escHtml(key);
-  const safeName = escHtml(sl.name);
-  const safeDay  = dayNumber;
-  const safePeriod = escHtml(sl.period);
   return `
-  <div class="slot${isLocked ? ' locked' : ''}" data-slot-key="${safeKey}">
+  <div class="slot${isLocked ? ' locked' : ''}"
+       data-slot-key="${safeKey}"
+       data-slot-day="${dayNumber}"
+       data-slot-period="${escHtml(sl.period)}"
+       data-slot-name="${escHtml(sl.name)}">
     <div class="slot-icon">${sl.icon || '📍'}</div>
     <div class="slot-body">
       <div class="slot-period ${sl.period}">${sl.period}</div>
-      <div class="slot-name">${safeName}</div>
+      <div class="slot-name">${escHtml(sl.name)}</div>
       ${sl.note ? `<div class="slot-note">⚑ ${escHtml(sl.note)}</div>` : ''}
       ${(sl.links || (sl.link ? [sl.link] : [])).map(l => `<a class="slot-link" href="${escHtml(l.url)}" target="_blank" rel="noopener">↗ ${escHtml(l.label)}</a>`).join('')}
       <div class="slot-note-input-wrap" id="note-wrap-${safeKey}">
@@ -2655,10 +2656,10 @@ function _slotHtml(sl, dayNumber) {
     <div class="slot-actions">
       <button class="slot-action-btn"
               title="Queue for replacement — combine with other changes before sending"
-              onclick="slotActionReplace(${safeDay},'${safePeriod}','${safeName}','${safeKey}')">↺ Replace</button>
+              onclick="slotActionReplace(this)">↺ Replace</button>
       <button class="slot-action-btn danger"
               title="Mark as broken/unavailable — queue with other changes"
-              onclick="slotActionBroken(${safeDay},'${safePeriod}','${safeName}','${safeKey}')">✕ Broken</button>
+              onclick="slotActionBroken(this)">✕ Broken</button>
       <button class="slot-action-btn"
               title="Add a note to include in your next message"
               onclick="slotActionNote('${safeKey}')">✎ Note</button>
@@ -3558,13 +3559,25 @@ function _buildQueueMessage() {
 }
 
 // ─── Slot hover actions (now queue-aware) ────────────────────────────
-function slotActionReplace(dayNum, period, name, key) {
-  addToQueue(key, 'replace', dayNum, period, name);
+function _slotDataFromBtn(btn) {
+  const slot = btn.closest('.slot');
+  return {
+    key:    slot.dataset.slotKey,
+    day:    +slot.dataset.slotDay,
+    period: slot.dataset.slotPeriod,
+    name:   slot.dataset.slotName,
+  };
+}
+
+function slotActionReplace(btn) {
+  const { key, day, period, name } = _slotDataFromBtn(btn);
+  addToQueue(key, 'replace', day, period, name);
   switchMode('nl');
 }
 
-function slotActionBroken(dayNum, period, name, key) {
-  addToQueue(key, 'broken', dayNum, period, name);
+function slotActionBroken(btn) {
+  const { key, day, period, name } = _slotDataFromBtn(btn);
+  addToQueue(key, 'broken', day, period, name);
   switchMode('nl');
 }
 
