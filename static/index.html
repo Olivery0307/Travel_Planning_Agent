@@ -2515,7 +2515,7 @@ const TRANSPORT_EMOJI = { '🚆': true, '✈️': true, '🚌': true, '⛴': tru
 
 const COST_RE = /~?\$[\d,]+(?:[^\s,\)]*)?/;
 // Note: stops before any [ to avoid eating booking links that follow a dash
-const NOTE_RE = /[—–]\s*([^\[]+?)(?:\s*\[|$)/;
+const NOTE_RE = /(?:[—–]| - )\s*([^\[]+?)(?:\s*\[|$)/;
 
 function parseLine(raw) {
   let s = raw.replace(/^[-•*]\s+/, '').trim();
