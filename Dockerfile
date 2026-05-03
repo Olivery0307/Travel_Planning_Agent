@@ -18,5 +18,6 @@ COPY static/ static/
 
 # Cloud Run injects PORT env var
 ENV PORT=8080
+ENV PATH="/app/.venv/bin:$PATH"
 
-CMD uv run python main.py serve --host 0.0.0.0 --port ${PORT}
+CMD ["python", "main.py", "serve", "--host", "0.0.0.0", "--port", "8080"]
