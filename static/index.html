@@ -2596,6 +2596,10 @@ function parseLine(raw) {
     if (tm) { cost = tm[0]; s = s.replace(tm[0], '').replace(/,\s*$/, '').trim(); }
   }
 
+  // If the LLM jammed two bullet lines together, only take the first part
+  const splitIdx = s.search(/\s*\\?n[-•*]\s/);
+  if (splitIdx > 0) s = s.slice(0, splitIdx).trim();
+
   // Clean up leftover empty parens like "(3h, )" after cost extraction
   s = s.replace(/\(\s*[\w\s]+,?\s*\)/, '').trim();
   s = s.replace(/[,\s]+$/, '').trim();
@@ -2605,6 +2609,8 @@ function parseLine(raw) {
 }
 
 function parseItinerary(text) {
+  // Normalise literal \n escape sequences the LLM sometimes emits instead of real newlines
+  text = text.replace(/\\n/g, '\n');
   const lines  = text.split('\n').map(l => l.trim());
   const result = { title: '', meta: [], days: [], total: '', cities: [] };
   let cur      = null;
@@ -2976,7 +2982,17 @@ function exportPDF() {
   const clone = content.cloneNode(true);
 
   // Remove UI-only elements that should not appear in print
-  clone.querySelectorAll('.day-chev, .day-nav-bar, .qr-panel, .slot-link, .export-toolbar').forEach(el => el.remove());
+  clone.querySelectorAll([
+    '.day-chev', '.day-nav-bar', '.qr-panel', '.export-toolbar',
+    '.slot-actions', '.slot-note-input-wrap', '.slot-queue-badge',
+    '.budget-bar', '.weather-badge', '.plan-context-card',
+    '#edit-queue-strip',
+  ].join(', ')).forEach(el => el.remove());
+
+  // After removing the 4th-column .slot-actions, reset the grid to 3 cols
+  clone.querySelectorAll('.slot').forEach(sl => {
+    sl.style.gridTemplateColumns = '26px 1fr auto';
+  });
 
   // Expand every card: remove collapsed class + clear inline max-height
   clone.querySelectorAll('.day-card').forEach(card => {
@@ -3129,8 +3145,10 @@ function exportPDF() {
     color: #c8bfb2;
     flex: 1;
   }
-  .day-cost { font-size: 0.68rem; font-weight: 600; color: #7a7469; }
-  .day-chev, .day-nav-bar, .qr-panel, .slot-link { display: none !important; }
+  .day-cost { font-size: 0.68rem; font-weight: 600; color: #7a7469; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .day-cost-amount { font-size: 0.72rem; font-weight: 700; color: #c9a05a; }
+  .day-slot-count { font-size: 0.55rem; color: #56524b; }
+  .day-chev, .day-nav-bar, .qr-panel { display: none !important; }
 
   /* ── Day body ── */
   .day-body {
@@ -3149,6 +3167,11 @@ function exportPDF() {
     background: #161512;
   }
   .slot:last-child { border-bottom: none; }
+  .slot-actions { display: none !important; }
+  .slot-note-input-wrap { display: none !important; }
+  .slot-queue-badge { display: none !important; }
+  .weather-badge { display: none !important; }
+  .budget-bar { display: none !important; }
   .slot-icon { font-size: 0.88rem; text-align: center; margin-top: 2px; opacity: 0.72; }
   .slot-body { min-width: 0; }
   .slot-period {
@@ -3176,6 +3199,7 @@ function exportPDF() {
     padding: 0.06rem 0.38rem;
     border-radius: 1px;
   }
+  .slot-link { display: none !important; }
   .slot-cost {
     font-size: 0.72rem;
     font-weight: 600;
