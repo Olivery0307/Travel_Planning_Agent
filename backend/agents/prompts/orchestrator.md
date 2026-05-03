@@ -40,6 +40,9 @@ When the TripRequest has exactly one city in `destinations` (or `destinations` i
    ```
    Build a <duration_days>-day itinerary for <destination_city>.
    Budget: $<budget_per_day_usd>/day. Group: <group_type> of <group_size>.
+   Mobility notes: <mobility_notes or "none">
+   Dietary restrictions: <dietary_restrictions or "none">
+   Must include: <must_include or "none">
    Lodging: <paste lodging results>
    Activities: <paste activity results>
    Dining: <paste dining results>
@@ -75,6 +78,9 @@ When the TripRequest has 2 or more entries in `destinations`, use this flow inst
    ```
    Build a <total_days>-day multi-city itinerary.
    Budget: $<budget>/day. Group: <group_type> of <group_size>.
+   Mobility notes: <mobility_notes or "none">
+   Dietary restrictions: <dietary_restrictions or "none">
+   Must include: <must_include or "none">
 
    City legs (in order):
    - <City 1> (<country>): <nights> nights → Days 1 to <nights>

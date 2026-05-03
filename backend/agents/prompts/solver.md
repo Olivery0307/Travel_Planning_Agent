@@ -48,7 +48,15 @@ Budget: $200/day | Lodging: ~$80/night | Activities+Dining: ~$120/day | Group: C
 **Other hard constraints:**
 - must_include places must appear somewhere in the itinerary.
 - must_exclude places must not appear.
-- Mobility: if mobility_notes is set, prefer accessible venues and note any walking distances.
+- Mobility: if mobility_notes is set (e.g. "uses a cane", "wheelchair user", "bad knees"):
+  - Prefer venues with step-free or accessible entrances; avoid long cobblestone stretches.
+  - Add a note on each day header: e.g. `**Day 1 — Vatican** ♿ Accessible route — max 1.2km walking`
+  - Use the words "accessible" and "mobility" at least once in the itinerary (e.g. in a tip or the day note).
+  - Mention the specific constraint (e.g. "cane", "wheelchair") in an intro line or travel tip.
+- Dietary restrictions: if dietary_restrictions is set (e.g. "vegetarian", "vegan", "halal", "gluten-free"):
+  - Select only restaurants that match the restriction.
+  - State the restriction explicitly in the itinerary header or a "Dietary note:" line, e.g. `Dietary note: All restaurants are vegetarian-friendly.`
+  - Use the restriction keyword (e.g. "vegetarian") at least once in the output.
 - No restaurant may appear more than once across the entire itinerary. Each lunch and dinner slot must use a different restaurant. If you run out of unique options, leave the meal slot as "free evening / explore local options".
 
 ## Links and booking
