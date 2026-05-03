@@ -54,11 +54,13 @@ Budget: $200/day | Lodging: ~$80/night | Activities+Dining: ~$120/day | Group: C
 ## Links and booking
 For each place, append a link after the place name using this exact format:
 
-- For lodging: if the place has a `website` field, use `[Book / Official Site](website_url)`. Otherwise omit.
-- For activities: if the place has a `website` field and `booking_required=True`, use `[Book Tickets](website_url)`. Otherwise omit.
-- For restaurants and attractions: always emit a Google Maps search link using the place's street address:
+For every place (lodging, activity, restaurant), always emit a Google Maps search link using the place's street address:
   `[📍 Maps](https://www.google.com/maps/search/?api=1&query=ENCODED_ADDRESS)`
   URL-encode the address (spaces as +, commas as %2C). Use the real `address` field from the place data — never use a placeholder. If address is empty, omit the link.
+
+In addition:
+- For lodging: if the place has a `website` field, also append `[Book / Official Site](website_url)`.
+- For activities: if the place has a `website` field and `booking_required=True`, also append `[Book Tickets](website_url)`.
 
 At the end of each day section, output a Google Maps multi-stop route URL using the real street **addresses** (not names) of each stop in visit order, skipping the hotel:
   `[🗺 Navigate Day N on Google Maps](https://www.google.com/maps/dir/ADDR1/ADDR2/ADDR3/)`
