@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import os
 import re
 import sys
@@ -32,10 +33,13 @@ import time
 import uuid
 from pathlib import Path
 
+import litellm
 from agents import Runner
 from agents.extensions.models.litellm_model import LitellmModel
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -108,6 +112,30 @@ def _prime_session(session_id: str, itinerary_text: str) -> None:
 
 # ── Scoring ────────────────────────────────────────────────────────────────────
 
+def _llm_judge(response: str, criterion: str) -> bool:
+    """Use the LLM to check whether the response semantically satisfies a criterion."""
+    import litellm
+    model = os.environ.get("SPECIALIST_MODEL", "vertex_ai/gemini-2.0-flash")
+    prompt = (
+        f"You are an evaluator. Read the agent response and determine if it satisfies the criterion.\n\n"
+        f"Criterion: {criterion}\n\n"
+        f"Agent response:\n{response}\n\n"
+        f"Answer with exactly one word: YES or NO."
+    )
+    try:
+        resp = litellm.completion(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=5,
+            temperature=0,
+        )
+        answer = resp.choices[0].message.content.strip().upper()
+        return answer.startswith("YES")
+    except Exception as e:
+        logger.warning("LLM judge failed: %s", e)
+        return False  # fail safe
+
+
 def _score_delta(
     delta: ItineraryDelta | None,
     response: str,
@@ -178,9 +206,11 @@ def _score_delta(
                 check(f"surgical_edit:day{d}_untouched", not touched,
                       f"Day {d} was modified but not in affected_days")
 
-    # 8. Response text checks
-    for kw in checks.get("response_must_contain", []):
-        check(f"response_contains:{kw}", kw.lower() in response.lower())
+    # 8. Semantic response check via LLM judge (replaces brittle keyword matching)
+    if checks.get("response_semantic_check"):
+        criterion = checks["response_semantic_check"]
+        judge_result = _llm_judge(response, criterion)
+        check("response_semantic", judge_result, f"LLM judge: '{criterion[:80]}'")
 
     return passed, total, failures
 
@@ -190,14 +220,19 @@ def _score_delta(
 async def run_evals(filter_id: str | None = None, verbose: bool = False) -> None:
     orch_model_str = os.environ.get("ORCHESTRATOR_MODEL", "vertex_ai/gemini-2.5-flash")
     spec_model_str = os.environ.get("SPECIALIST_MODEL", "vertex_ai/gemini-2.0-flash")
+    repl_model_str = os.environ.get("REPLANNER_MODEL") or orch_model_str
 
     orch_model = LitellmModel(model=orch_model_str, api_key="unused")
-    spec_model  = LitellmModel(model=spec_model_str, api_key="unused")
+    spec_model = LitellmModel(model=spec_model_str, api_key="unused")
+    repl_model = LitellmModel(model=repl_model_str, api_key="unused")
+
+    print(f"Models: orchestrator={orch_model_str} specialist={spec_model_str} replanner={repl_model_str}")
 
     init_guardrail_agents(spec_model)
     agent = build_orchestrator(
         orch_model, spec_model,
         input_guardrails=[off_topic_guardrail, budget_sanity_guardrail],
+        replanner_model=repl_model,
     )
 
     cases_raw = json.loads(GOLDEN.read_text())

@@ -46,7 +46,7 @@
       "locked_slots_not_touched": ["day1_morning", "day1_evening"],
       "changed_or_removed_non_empty": true,
       "reasoning_non_empty": true,
-      "response_must_contain": ["sick", "rest", "light", "easy", "gentle"],
+      "response_semantic_check": "The response acknowledges that someone is sick and that the Day 2 schedule has been lightened, reduced, or replaced with easier/restful activities.",
       "comment": "Response must acknowledge the health situation. Day 2 slots should be lightened or removed."
     }
   },
@@ -62,7 +62,7 @@
       "locked_slots_not_touched": [],
       "changed_or_removed_non_empty": true,
       "reasoning_non_empty": true,
-      "response_must_contain": ["indoor", "museum", "gallery", "rain", "weather"],
+      "response_semantic_check": "The response mentions that outdoor activities were replaced due to rain or bad weather, and that indoor alternatives (such as museums, galleries, or covered venues) were chosen.",
       "comment": "Replacement activities must be indoor. Reasoning must mention weather."
     }
   },
@@ -93,7 +93,7 @@
       "locked_slots_not_touched": ["day2_morning"],
       "changed_or_removed_non_empty": true,
       "reasoning_non_empty": true,
-      "response_must_contain": ["opera", "Teatro", "evening"],
+      "response_semantic_check": "The response confirms that the Day 2 evening slot has been updated to accommodate the opera or Teatro dell'Opera tickets, and that the morning Colosseum visit is unchanged.",
       "comment": "Day 2 evening should be replaced with the opera. Morning Colosseum unchanged."
     }
   },
@@ -124,7 +124,7 @@
       "locked_slots_not_touched": ["day5_evening"],
       "changed_or_removed_non_empty": true,
       "reasoning_non_empty": true,
-      "response_must_contain": ["food", "brunch", "market", "cooking", "relax"],
+      "response_semantic_check": "The response confirms that Day 5 has been updated with more relaxed or food-focused activities such as brunch, a food market, or a cooking class, replacing the sightseeing slots.",
       "comment": "Morning and afternoon of Day 5 should shift to food-focused activities. Evening locked."
     }
   },

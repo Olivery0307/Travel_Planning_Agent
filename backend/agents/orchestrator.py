@@ -79,16 +79,16 @@ def build_orchestrator(
     orchestrator_model: LitellmModel,
     specialist_model: LitellmModel,
     input_guardrails: list[Any] | None = None,
+    replanner_model: LitellmModel | None = None,
 ) -> Agent:
     intake = build_intake_agent(specialist_model)
     lodging = build_lodging_agent(specialist_model)
     activity = build_activity_agent(specialist_model)
     dining = build_dining_agent(specialist_model)
     solver = build_solver_agent(specialist_model)
-    replanner = build_replanner_agent(specialist_model)
+    replanner = build_replanner_agent(replanner_model or orchestrator_model)
     transport = build_transport_agent(specialist_model)
     conversation = build_conversation_agent(specialist_model)
-
     return Agent(
         name="OrchestratorAgent",
         model=orchestrator_model,

@@ -127,16 +127,13 @@ If the user follows up with confirmation ("yes", "go ahead", "do it") after a co
 ## Re-planning flow
 
 When the user reports a disruption (closed venue, sick day, delay, slot swap, or any change to the existing plan):
-1. The current itinerary is already in the `## Current Itinerary` section below — use it directly.
-2. Check the `## Advisor-Locked Slots` section (if present) for locked slots.
-3. Call **replanner_agent** once, passing: the full itinerary text, the disruption description, and the locked slots list (formatted as "Locked slots: day2_morning, day3_evening" etc.).
-4. The replanner_agent will call `store_delta` internally — you do not need to call it yourself.
-5. Return the replanner_agent's response directly to the user. Do not add any wrapper text.
+1. Call **replanner_agent** once, passing the user's message verbatim. The replanner parses the disruption, resolves slots, finds candidates, and patches the itinerary internally.
+2. Return the replanner_agent's response directly to the user. Do not add any wrapper text.
 
 ## Refinement flow
 
 When the user asks to adjust the existing itinerary without a disruption ("cheaper dinner", "less walking on day 2", "swap day 3 afternoon"):
-1. Call **replanner_agent** with the change described as the disruption. It handles refinements the same way.
+1. Call **replanner_agent** with the user's message. It handles refinements the same as disruptions.
 2. Do NOT re-call lodging/activity/dining/solver agents for small refinements.
 
 ---
@@ -145,8 +142,8 @@ When the user asks to adjust the existing itinerary without a disruption ("cheap
 
 - **If `## Current Itinerary` is present, never call `intake_agent`** — the trip is already planned.
 - **Never ask the user for a start date** — if it is not in the message, skip weather and proceed.
-- **Always call `store_delta`** immediately after `replanner_agent` returns — pass the replanner's full output verbatim. Never skip this step even if the replanner output looks unusual.
-- **Never call `conversation_agent` for change requests** — changes always go to `replanner_agent`.
+- **Do not call `store_delta` yourself** — apply_swap inside replanner_agent writes the delta automatically.
+- **Never call `conversation_agent` for change requests** — changes always go to `disruption_parser` → `replanner_agent`.
 - **Never call `replanner_agent` for questions or analysis** — questions always go to `conversation_agent`.
 - If a specialist returns an error or empty result, retry once with a simpler query (just the city name). If it fails twice, skip it and proceed.
 - Never fabricate place details. All place data comes from tool results.

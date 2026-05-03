@@ -2703,13 +2703,17 @@ function parseItinerary(text) {
 }
 
 // ─── Render itinerary ────────────────────────────────────────────────
-function _slotHtml(sl, dayNumber) {
+function _slotHtml(sl, dayNumber, slotIndex) {
   const periodKey = sl.period === 'lunch' || sl.period === 'breakfast' ? 'afternoon'
                   : sl.period === 'dinner' ? 'evening'
                   : sl.period;
-  const key = `day${dayNumber}_${periodKey}`;
-  const isLocked = lockedSlots.has(key);
-  const safeKey  = escHtml(key);
+  // Lock check uses the canonical period key (no index suffix)
+  const lockKey  = `day${dayNumber}_${periodKey}`;
+  const isLocked = lockedSlots.has(lockKey);
+  // The rendered key includes a slot index to ensure uniqueness when multiple
+  // slots share the same period on one day (e.g. lunch + afternoon activity).
+  const key     = slotIndex > 0 ? `day${dayNumber}_${periodKey}_${slotIndex}` : lockKey;
+  const safeKey = escHtml(key);
   return `
   <div class="slot${isLocked ? ' locked' : ''}${sl._carried ? ' carried' : ''}"
        data-slot-key="${safeKey}"
@@ -2820,7 +2824,16 @@ function _renderItineraryData(data, fallbackText) {
       slotsArr = [{ ..._lastLodgingSlot, note: 'continuing', _carried: true }, ...slotsArr];
     }
 
-    const slots = slotsArr.map(sl => _slotHtml(sl, day.number)).join('');
+    // Track per-period counts so duplicate periods get a unique index suffix
+    const periodCounts = {};
+    const slots = slotsArr.map(sl => {
+      const pk = sl.period === 'lunch' || sl.period === 'breakfast' ? 'afternoon'
+               : sl.period === 'dinner' ? 'evening'
+               : sl.period;
+      const idx = periodCounts[pk] || 0;
+      periodCounts[pk] = idx + 1;
+      return _slotHtml(sl, day.number, idx);
+    }).join('');
 
     const navBar = day.mapsUrl ? `
       <div class="day-nav-bar">

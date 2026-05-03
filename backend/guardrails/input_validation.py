@@ -69,8 +69,13 @@ async def off_topic_guardrail(
 async def budget_sanity_guardrail(
     ctx: RunContextWrapper, agent: Agent, input: str
 ) -> GuardrailFunctionOutput:
-    """Reject impossible budgets (<$20/day or >$10k/day)."""
+    """Reject impossible budgets (<$20/day or >$10k/day).
+    Skipped when an itinerary already exists — mid-trip budget changes are valid replan requests.
+    """
     if _budget_agent is None:
+        return GuardrailFunctionOutput(output_info=None, tripwire_triggered=False)
+    # If an itinerary exists this is a replan/followup — don't second-guess the budget
+    if ctx.context and getattr(ctx.context, "itinerary_json", None):
         return GuardrailFunctionOutput(output_info=None, tripwire_triggered=False)
     from agents import Runner
     result = await Runner.run(_budget_agent, input, context=ctx.context)
