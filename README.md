@@ -20,8 +20,8 @@ Built for the **Columbia IEOR Agentic AI for Analytics** capstone.
 > _Placeholder: screen recording of "Day 2: Borghese Gallery is closed" → re-planned itinerary_
 
 ### Pipeline Visualization
-<!-- INSERT: screenshot of pipeline_demo.html showing agent flow -->
-> _Placeholder: screenshot of the live pipeline diagram_
+
+![Pipeline Diagram](assets/images/pipeline.png)
 
 ---
 
@@ -69,8 +69,6 @@ User message
                                           ↓  (on question)
                                    ConversationAgent
 ```
-
-![Pipeline Diagram](assets/images/pipeline.png)
 
 **Agent framework:** OpenAI Agents SDK (`openai-agents`) — specialists exposed via `agent.as_tool()`
 **Models:** `vertex_ai/gemini-2.5-flash` (orchestrator) · `vertex_ai/gemini-2.5-flash-lite` (specialists)
