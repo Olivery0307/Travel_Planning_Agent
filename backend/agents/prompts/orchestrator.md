@@ -124,7 +124,7 @@ When the user reports a disruption (closed venue, sick day, delay, slot swap, or
 1. The current itinerary is already in the `## Current Itinerary` section below — use it directly.
 2. Check the `## Advisor-Locked Slots` section (if present) for locked slots.
 3. Call **replanner_agent** once, passing: the full itinerary text, the disruption description, and the locked slots list (formatted as "Locked slots: day2_morning, day3_evening" etc.).
-4. `replanner_agent` handles everything internally including storing the delta. Do NOT call `store_delta` yourself — it is not your tool.
+4. Immediately after **replanner_agent** returns, call **store_delta** with the replanner's complete output as the `replanner_output` argument. This is mandatory — do it before generating your summary.
 5. Return a concise human-readable summary of what changed and why (2-3 sentences max). Do not repeat the full itinerary.
 
 ## Refinement flow
@@ -139,7 +139,7 @@ When the user asks to adjust the existing itinerary without a disruption ("cheap
 
 - **If `## Current Itinerary` is present, never call `intake_agent`** — the trip is already planned.
 - **Never ask the user for a start date** — if it is not in the message, skip weather and proceed.
-- **Never call `store_delta`** — it is internal to `replanner_agent` only.
+- **Always call `store_delta`** immediately after `replanner_agent` returns — pass the replanner's full output verbatim.
 - **Never call `conversation_agent` for change requests** — changes always go to `replanner_agent`.
 - **Never call `replanner_agent` for questions or analysis** — questions always go to `conversation_agent`.
 - If a specialist returns an error or empty result, retry once with a simpler query (just the city name). If it fails twice, skip it and proceed.

@@ -2142,6 +2142,7 @@
 </div>
 
 <script>
+
 // ─── State ──────────────────────────────────────────────────────────
 let sessionId         = null;
 let interestPills     = [];
@@ -2408,16 +2409,8 @@ async function sendMessage(text) {
           loadWrap.classList.remove('loading');
 
           if (delta) {
-            // Auto-apply the delta and re-render the updated itinerary directly.
-            // The chat message already summarises what changed — no diff view needed.
-            if (previousItineraryText) {
-              const merged = applyDelta(parseItinerary(previousItineraryText), delta);
-              _renderItineraryData(merged, '');
-              // Keep previousItineraryText as the pre-merge version so Undo still works
-              currentDeltaData = delta;
-            } else {
-              renderDelta(delta, previousItineraryText);
-            }
+            // Always show the diff view so the user can review and explicitly accept/undo.
+            renderDelta(delta, previousItineraryText);
           } else if (isItin) {
             previousItineraryText = response;
             renderItinerary(response);
@@ -2557,13 +2550,31 @@ function parseLine(raw) {
     return { type: 'slot', period: 'travel', icon: firstEmoji, name: cleanText, note: '', cost: '', link };
   }
 
+  // Capture the period implied by the emoji before stripping it (e.g. 🏨 → lodging)
+  const firstEmojiPeriod = EMOJI_PERIOD[firstEmoji] || null;
+
   s = s.replace(/^[\p{Emoji}️⃣‍]+\s*/u, '').trim();
 
   const kw = s.match(/^(morning|afternoon|evening|lunch|dinner|breakfast|lodging|hotel)[:\s–—]+/i);
-  if (!kw) return null;
 
-  const period = kw[1].toLowerCase() === 'hotel' ? 'lodging' : kw[1].toLowerCase();
-  s = s.slice(kw[0].length).trim();
+  // If no keyword AND no emoji-inferred period, skip the line
+  if (!kw && !firstEmojiPeriod) return null;
+
+  let period;
+  if (kw) {
+    period = kw[1].toLowerCase() === 'hotel' ? 'lodging' : kw[1].toLowerCase();
+    // Only strip the keyword when it has a colon/dash separator (e.g. "Lunch: Name").
+    // For "Hotel Name" (space-only separator), the keyword is part of the name — keep it.
+    const sep = kw[0].slice(kw[1].length);
+    if (/[:\-–—]/.test(sep) || period !== 'lodging') {
+      s = s.slice(kw[0].length).trim();
+    }
+  } else {
+    // No keyword, but emoji tells us the period (e.g. "🏨 The Westin Excelsior (all nights…)")
+    period = firstEmojiPeriod;
+  }
+  // Strip solver-generated time annotations like "(1:00 PM - 2:00 PM): " before the place name
+  s = s.replace(/^\(\d{1,2}:\d{2}\s*(?:AM|PM)\s*[-–]\s*\d{1,2}:\d{2}\s*(?:AM|PM)\s*\)\s*[:\-–]\s*/i, '');
   s = s.replace(/\*\*/g, '').trim();
 
   // 1. Extract ALL markdown links — collect into array, show all in UI
@@ -2802,15 +2813,11 @@ function _renderItineraryData(data, fallbackText) {
       _lastLodgingSlot = day.slots.find(sl => sl.period === 'lodging');
     }
 
-    // For non-last days without lodging: inject a dimmed "continuing" lodging slot
-    const isLastDay = i === data.days.length - 1;
+    // For days without their own lodging slot: inject a dimmed carried-over hotel
+    // at the top of the slot list (matching Day 1 position) so it's always visible.
     let slotsArr = [...day.slots];
-    if (!hasLodging && !isLastDay && _lastLodgingSlot) {
-      slotsArr = [...slotsArr, {
-        ..._lastLodgingSlot,
-        note: _lastLodgingSlot.note || 'continuing',
-        _carried: true,
-      }];
+    if (!hasLodging && _lastLodgingSlot) {
+      slotsArr = [{ ..._lastLodgingSlot, note: 'continuing', _carried: true }, ...slotsArr];
     }
 
     const slots = slotsArr.map(sl => _slotHtml(sl, day.number)).join('');
@@ -2884,47 +2891,91 @@ function renderItinerary(text) {
 
 // ─── Accept re-plan: merge delta into itinerary ───────────────────────
 function applyDelta(data, delta) {
-  const removedNames = new Set(
-    (delta.removed_slots || []).map(s => `${s.day_number}:${s.period}:${s.place_name}`)
-  );
+  function normPeriod(p) {
+    return p === 'lunch' || p === 'breakfast' ? 'afternoon'
+         : p === 'dinner' ? 'evening' : (p || '');
+  }
+  // Case-insensitive substring overlap: handles "Ristorante A" vs "Ristorante A (2h)"
+  function nameMatch(a, b) {
+    a = (a || '').toLowerCase().trim();
+    b = (b || '').toLowerCase().trim();
+    return a && b && (a === b || a.includes(b) || b.includes(a));
+  }
+  function makeSlot(cs, overridePeriod) {
+    const p = overridePeriod || cs.period;
+    return {
+      type: 'slot',
+      period: p,
+      icon: PERIOD_ICON[p] || PERIOD_ICON[normPeriod(p)] || '📍',
+      name: cs.place_name,
+      note: '',
+      cost: cs.cost_usd ? `~$${cs.cost_usd}` : '',
+      links: cs.booking_url ? [{ label: 'Book', url: cs.booking_url }] : [],
+    };
+  }
 
   for (const day of data.days) {
-    // Remove slots that appear in removed_slots
-    day.slots = day.slots.filter(sl => {
-      const norm = sl.period === 'lunch' || sl.period === 'breakfast' ? 'afternoon'
-                 : sl.period === 'dinner' ? 'evening' : sl.period;
-      return !removedNames.has(`${day.number}:${norm}:${sl.name}`) &&
-             !removedNames.has(`${day.number}:${sl.period}:${sl.name}`);
-    });
+    const removedForDay = (delta.removed_slots || []).filter(s => s.day_number === day.number);
+    const changedForDay = (delta.changed_slots || []).filter(s => s.day_number === day.number);
+    const usedChanged = new Set();
+    const newSlots = [];
 
-    // Replace or insert changed slots for this day
-    for (const cs of (delta.changed_slots || [])) {
-      if (cs.day_number !== day.number) continue;
-      const newSlot = {
-        type: 'slot',
-        period: cs.period,
-        icon: PERIOD_ICON[cs.period] || '📍',
-        name: cs.place_name,
-        note: cs.notes || '',
-        cost: cs.cost_usd ? `~$${cs.cost_usd}` : '',
-        links: cs.booking_url ? [{ label: 'Book', url: cs.booking_url }] : [],
-      };
-      // Replace existing slot with same period, otherwise append
-      const idx = day.slots.findIndex(s => {
-        const norm = s.period === 'lunch' || s.period === 'breakfast' ? 'afternoon'
-                   : s.period === 'dinner' ? 'evening' : s.period;
-        return norm === cs.period;
-      });
-      if (idx >= 0) day.slots[idx] = newSlot;
-      else day.slots.push(newSlot);
+    for (const sl of day.slots) {
+      const slNorm = normPeriod(sl.period);
+      // Find a removed_slot that matches this slot by period + fuzzy name
+      const removed = removedForDay.find(r =>
+        normPeriod(r.period) === slNorm && nameMatch(sl.name, r.place_name)
+      );
+      if (removed) {
+        // Swap in the changed_slot for the same period (keeps position)
+        const replacement = changedForDay.find(c =>
+          !usedChanged.has(c) && normPeriod(c.period) === slNorm
+        );
+        if (replacement) {
+          usedChanged.add(replacement);
+          newSlots.push(makeSlot(replacement, sl.period));
+        }
+        // else: pure removal, slot dropped
+        continue;
+      }
+      newSlots.push(sl);
     }
+
+    // For changed_slots not yet placed: only do in-place replacement for true pure
+    // insertions (no removed_slot for that period). If a removed_slot was specified
+    // but name-matching failed, just append — replacing the first period-match would
+    // hit the wrong slot (e.g. a morning activity instead of a lunch restaurant).
+    for (const cs of changedForDay) {
+      if (usedChanged.has(cs)) continue;
+      const slNorm = normPeriod(cs.period);
+      const hasPendingRemoval = removedForDay.some(r => normPeriod(r.period) === slNorm);
+      if (!hasPendingRemoval) {
+        // True pure insertion — safe to replace first slot with same period
+        const idx = newSlots.findIndex(s => normPeriod(s.period) === slNorm);
+        if (idx >= 0) newSlots.splice(idx, 1, makeSlot(cs, newSlots[idx].period));
+        else newSlots.push(makeSlot(cs, cs.period));
+      } else {
+        // Name matching failed for a specified removal — append rather than replace wrong slot
+        newSlots.push(makeSlot(cs, cs.period));
+      }
+    }
+
+    day.slots = newSlots;
   }
   return data;
 }
 
 function acceptReplan() {
-  if (!currentDeltaData || !previousItineraryText) return;
-  const merged = applyDelta(parseItinerary(previousItineraryText), currentDeltaData);
+  if (!currentDeltaData) return;
+  let base;
+  if (previousItineraryText) {
+    base = parseItinerary(previousItineraryText);
+  } else if (_lastItineraryData) {
+    base = JSON.parse(JSON.stringify(_lastItineraryData)); // deep clone
+  } else {
+    return;
+  }
+  const merged = applyDelta(base, currentDeltaData);
   _renderItineraryData(merged, '');
   previousItineraryText = '';
   currentDeltaData = null;
@@ -3464,16 +3515,18 @@ function renderDelta(delta, fullItineraryText) {
   const changedHtml = (delta.changed_slots || []).map(s => `
     <div class="diff-slot added">
       <div class="diff-slot-period">${escHtml(s.period || '')}</div>
-      <div class="diff-slot-name">${escHtml(s.place_name || '')}${s.notes ? `<br><span style="font-size:0.65rem;color:var(--stone)">${escHtml(s.notes)}</span>` : ''}</div>
-      ${s.cost_usd ? `<span class="diff-cost-badge negative">$${Number(s.cost_usd).toFixed(0)}</span>` : ''}
+      <div class="diff-slot-name">
+        <span style="font-size:0.6rem;font-weight:700;color:var(--verdant);margin-right:0.4rem;letter-spacing:0.04em">↳ NEW</span>${escHtml(s.place_name || '')}${s.notes ? `<br><span style="font-size:0.65rem;color:var(--stone)">${escHtml(s.notes)}</span>` : ''}
+      </div>
+      ${s.cost_usd ? `<span class="diff-cost-badge negative">$${Number(s.cost_usd).toFixed(0)}</span>` : '<span class="diff-cost-badge negative">new</span>'}
     </div>`).join('');
 
   itinPane.innerHTML = `
     <div class="diff-header">
       <div class="diff-title">Re-plan Changes</div>
       <button class="diff-toggle" onclick="acceptReplan()" style="border-color:rgba(90,140,100,0.5);color:#5a8c64">✓ Accept changes</button>
-      ${previousItineraryText ? `<button class="diff-toggle" onclick="showFullPlan()">View original plan</button>` : ''}
-      ${previousItineraryText ? `<button class="diff-toggle" onclick="undoReplan()">↩ Undo</button>` : ''}
+      ${(previousItineraryText || _lastItineraryData) ? `<button class="diff-toggle" onclick="showFullPlan()">View current plan</button>` : ''}
+      ${(previousItineraryText || _lastItineraryData) ? `<button class="diff-toggle" onclick="undoReplan()">↩ Undo</button>` : ''}
     </div>
     <div class="diff-reasoning">${escHtml(delta.reasoning || '')}</div>
     ${cascadeNote}
@@ -3489,24 +3542,28 @@ function renderDelta(delta, fullItineraryText) {
 function showFullPlan() {
   if (previousItineraryText) {
     renderItinerary(previousItineraryText);
-    // Add a "back to diff" button
-    const hdr = itinPane.querySelector('.itin-header');
-    if (hdr && currentDeltaData) {
-      const btn = document.createElement('button');
-      btn.className = 'diff-toggle';
-      btn.style.cssText = 'margin:0.5rem 1.35rem; display:block;';
-      btn.textContent = 'View re-plan changes';
-      btn.onclick = () => renderDelta(currentDeltaData, previousItineraryText);
-      hdr.after(btn);
-    }
+  } else if (_lastItineraryData) {
+    _renderItineraryData(JSON.parse(JSON.stringify(_lastItineraryData)), '');
+  } else { return; }
+  // Add a "back to diff" button
+  const hdr = itinPane.querySelector('.itin-header');
+  if (hdr && currentDeltaData) {
+    const btn = document.createElement('button');
+    btn.className = 'diff-toggle';
+    btn.style.cssText = 'margin:0.5rem 1.35rem; display:block;';
+    btn.textContent = 'View re-plan changes';
+    btn.onclick = () => renderDelta(currentDeltaData, previousItineraryText);
+    hdr.after(btn);
   }
 }
 
 function undoReplan() {
   if (previousItineraryText) {
     renderItinerary(previousItineraryText);
-    currentDeltaData = null;
+  } else if (_lastItineraryData) {
+    _renderItineraryData(JSON.parse(JSON.stringify(_lastItineraryData)), '');
   }
+  currentDeltaData = null;
 }
 
 // ─── Prose delta fallback parser ─────────────────────────────────────
