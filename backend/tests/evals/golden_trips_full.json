@@ -1,0 +1,149 @@
+[
+  {
+    "id": "rome_single_city_cached",
+    "description": "Standard single-city plan using cached Rome data. Baseline for speed and quality.",
+    "input": "5-day Rome trip, couple, $200/day, ancient history focus, must see Vatican and Colosseum, starting 2026-06-10",
+    "checks": {
+      "structure": {
+        "min_days": 5,
+        "max_days": 5,
+        "requires_day_headers": true,
+        "requires_cost_lines": true,
+        "requires_maps_links": true
+      },
+      "must_include_places": ["Vatican", "Colosseum"],
+      "must_not_repeat_restaurants": true,
+      "budget_per_day_usd": 200,
+      "weather_badge_expected": true,
+      "comment": "Date is within 16 days of eval run — should get real forecast badges."
+    }
+  },
+  {
+    "id": "rome_mobility",
+    "description": "Mobility constraint — cane user, max 1.5km/day walking. Solver must note accessibility.",
+    "input": "5-day Rome, couple, $180/day, one partner uses a cane — max 1.5km walking per day, loves food and art",
+    "checks": {
+      "structure": {
+        "min_days": 5,
+        "max_days": 5,
+        "requires_day_headers": true,
+        "requires_cost_lines": true
+      },
+      "must_include_places": [],
+      "must_not_repeat_restaurants": true,
+      "budget_per_day_usd": 180,
+      "response_must_contain": ["cane", "accessible", "mobility"],
+      "comment": "At least one of these words should appear in the itinerary notes."
+    }
+  },
+  {
+    "id": "lisbon_porto_multi_city",
+    "description": "Two-city Portugal trip. Tests multi-city flow, transport day, per-city hotel.",
+    "input": "7-day Portugal trip, couple, $150/day, food and culture, starting 2026-09-01",
+    "checks": {
+      "structure": {
+        "min_days": 7,
+        "max_days": 7,
+        "requires_day_headers": true,
+        "requires_cost_lines": true,
+        "requires_city_banners": true,
+        "requires_transport_day": true
+      },
+      "must_include_places": [],
+      "must_not_repeat_restaurants": true,
+      "expected_cities": ["Lisbon", "Porto"],
+      "budget_per_day_usd": 150,
+      "comment": "Must show city banners and a travel day with transport emoji (🚆/🚌)."
+    }
+  },
+  {
+    "id": "tokyo_kyoto_osaka_multi_city",
+    "description": "Three-city Japan trip. Tests 3-leg multi-city, Shinkansen transport, no restaurant repeats across cities.",
+    "input": "10-day Japan trip, couple, $250/day, temples and food, must see Fushimi Inari shrine, starting 2026-10-15",
+    "checks": {
+      "structure": {
+        "min_days": 10,
+        "max_days": 10,
+        "requires_day_headers": true,
+        "requires_cost_lines": true,
+        "requires_city_banners": true,
+        "requires_transport_day": true
+      },
+      "must_include_places": ["Fushimi Inari"],
+      "must_not_repeat_restaurants": true,
+      "expected_cities": ["Tokyo", "Kyoto", "Osaka"],
+      "budget_per_day_usd": 250,
+      "comment": "Fushimi Inari is in Kyoto — must appear there. Two transport days expected."
+    }
+  },
+  {
+    "id": "bangkok_budget",
+    "description": "Budget traveler, cached Bangkok data. Tests budget constraint enforcement.",
+    "input": "4-day Bangkok trip, solo backpacker, $80/day, street food and temples, no luxury restaurants",
+    "checks": {
+      "structure": {
+        "min_days": 4,
+        "max_days": 4,
+        "requires_day_headers": true,
+        "requires_cost_lines": true
+      },
+      "must_include_places": [],
+      "must_not_repeat_restaurants": true,
+      "budget_per_day_usd": 80,
+      "response_must_not_contain": ["luxury", "$$$$"],
+      "comment": "No high-end restaurants should appear for an $80/day budget."
+    }
+  },
+  {
+    "id": "florence_art_short",
+    "description": "Short 3-day trip, cached Florence data. Tests quality on minimal duration.",
+    "input": "3-day Florence trip, couple, $200/day, Renaissance art focus, must see Uffizi Gallery",
+    "checks": {
+      "structure": {
+        "min_days": 3,
+        "max_days": 3,
+        "requires_day_headers": true,
+        "requires_cost_lines": true
+      },
+      "must_include_places": ["Uffizi"],
+      "must_not_repeat_restaurants": true,
+      "budget_per_day_usd": 200
+    }
+  },
+  {
+    "id": "no_date_no_weather",
+    "description": "Query with no start_date — orchestrator must skip weather silently and still produce full itinerary.",
+    "input": "5-day Rome trip, couple, $150/day, general sightseeing",
+    "checks": {
+      "structure": {
+        "min_days": 5,
+        "max_days": 5,
+        "requires_day_headers": true,
+        "requires_cost_lines": true
+      },
+      "must_include_places": [],
+      "must_not_repeat_restaurants": true,
+      "budget_per_day_usd": 150,
+      "weather_badge_expected": false,
+      "comment": "No date → no weather call → no badges. Itinerary must still be complete."
+    }
+  },
+  {
+    "id": "dietary_restriction",
+    "description": "Vegetarian dietary restriction must propagate to restaurant selection.",
+    "input": "4-day Rome trip, couple, $150/day, vegetarian diet, loves art and history",
+    "checks": {
+      "structure": {
+        "min_days": 4,
+        "max_days": 4,
+        "requires_day_headers": true,
+        "requires_cost_lines": true
+      },
+      "must_include_places": [],
+      "must_not_repeat_restaurants": true,
+      "budget_per_day_usd": 150,
+      "response_must_contain": ["vegetarian"],
+      "comment": "The word vegetarian must appear somewhere in the itinerary (dietary note per slot or header)."
+    }
+  }
+]
