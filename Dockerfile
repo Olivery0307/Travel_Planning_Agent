@@ -12,6 +12,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 # Copy application code
+COPY main.py ./
 COPY backend/ backend/
 COPY static/ static/
 
