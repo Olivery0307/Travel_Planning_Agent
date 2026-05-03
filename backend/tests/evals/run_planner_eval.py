@@ -45,8 +45,13 @@ CACHED_CITIES = {"rome", "florence", "bangkok", "lisbon", "porto", "algarve"}
 
 # ── Scoring helpers ────────────────────────────────────────────────────────────
 
+def _strip_fences(text: str) -> str:
+    """Remove markdown code fences so regex checks work on raw content."""
+    return re.sub(r'```[a-z]*\n?', '', text)
+
+
 def _count_day_headers(text: str) -> int:
-    return len(re.findall(r'^\*\*Day\s+\d+', text, re.MULTILINE))
+    return len(re.findall(r'^\*\*Day\s+\d+', _strip_fences(text), re.MULTILINE))
 
 
 def _count_cost_lines(text: str) -> int:
@@ -165,22 +170,18 @@ def _score_case(response: str, checks: dict) -> tuple[int, int, list[str]]:
     return passed, total, failures
 
 
-def _cities_in_input(text: str) -> list[str]:
-    """Rough extraction of city names from input string."""
-    words = re.findall(r'\b([A-Z][a-z]+)\b', text)
-    return [w.lower() for w in words]
-
-
-def _uses_cached_cities_only(input_text: str) -> bool:
-    """Return True if all likely destination cities in the input have cached data."""
-    found = _cities_in_input(input_text)
-    destinations = [w for w in found if w in CACHED_CITIES]
-    return len(destinations) > 0
+def _uses_cached_cities_only(input_text: str, expected_cities: list[str] | None = None) -> bool:
+    """Return True if any destination city in the input or expected_cities has cached data."""
+    words = re.findall(r'\b([A-Z][a-z]+)\b', input_text)
+    candidates = {w.lower() for w in words}
+    if expected_cities:
+        candidates |= {c.lower() for c in expected_cities}
+    return bool(candidates & CACHED_CITIES)
 
 
 # ── Main runner ────────────────────────────────────────────────────────────────
 
-async def run_evals(filter_id: str | None = None, verbose: bool = False) -> None:
+async def run_evals(filter_id: str | None = None, verbose: bool = False, live: bool = False) -> None:
     orch_model_str = os.environ.get("ORCHESTRATOR_MODEL", "vertex_ai/gemini-2.5-flash")
     spec_model_str = os.environ.get("SPECIALIST_MODEL", "vertex_ai/gemini-2.0-flash")
 
@@ -212,8 +213,9 @@ async def run_evals(filter_id: str | None = None, verbose: bool = False) -> None
         print(f"Case: {case['id']}")
         print(f"Input: {case['input'][:90]}...")
 
-        if not _uses_cached_cities_only(case["input"]):
-            print("SKIP — no cached data for destination (would incur live API cost)")
+        expected_cities = case.get("checks", {}).get("expected_cities", [])
+        if not live and not _uses_cached_cities_only(case["input"], expected_cities):
+            print("SKIP — no cached data for destination (use --live to run with live Places API)")
             continue
 
         t0 = time.time()
@@ -262,5 +264,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run full planner evals")
     parser.add_argument("--case", help="Run only the case with this id")
     parser.add_argument("--verbose", action="store_true", help="Print first 600 chars of each response")
+    parser.add_argument("--live", action="store_true", help="Allow live Places API calls for uncached cities")
     args = parser.parse_args()
-    asyncio.run(run_evals(filter_id=args.case, verbose=args.verbose))
+    asyncio.run(run_evals(filter_id=args.case, verbose=args.verbose, live=args.live))
