@@ -58,8 +58,8 @@ async def _geocode(city: str, country: str) -> tuple[float, float] | None:
 
 async def _forecast(lat: float, lng: float, start: date, days: int) -> list[dict]:
     """Real forecast — Open-Meteo supports up to 16 days from today."""
-    # Clamp end_date to 16 days from today so we never exceed the API window
-    max_end = date.today() + timedelta(days=16)
+    # Clamp end_date to 15 days from today so we never exceed the API window
+    max_end = date.today() + timedelta(days=15)
     end = min(start + timedelta(days=days - 1), max_end)
     if end < start:
         return []
@@ -152,9 +152,10 @@ async def _weather_forecast_impl(
     lat, lng = coords
 
     today = date.today()
-    forecast_cutoff = today + timedelta(days=16)
+    # Open-Meteo forecast API supports up to 15 days ahead (today + 15 = 16th day exclusive)
+    forecast_cutoff = today + timedelta(days=15)
 
-    if trip_start >= forecast_cutoff:
+    if trip_start > forecast_cutoff:
         # Entirely beyond forecast window — use historical only
         weather = await _historical(lat, lng, trip_start, duration_days)
     elif trip_start + timedelta(days=duration_days - 1) <= forecast_cutoff:
@@ -162,8 +163,8 @@ async def _weather_forecast_impl(
         weather = await _forecast(lat, lng, trip_start, duration_days)
     else:
         # Straddles the boundary — forecast for the near days, historical for the rest
-        forecast_days = (forecast_cutoff - trip_start).days
-        hist_start = forecast_cutoff
+        forecast_days = (forecast_cutoff - trip_start).days + 1
+        hist_start = trip_start + timedelta(days=forecast_days)
         hist_days = duration_days - forecast_days
         weather = await _forecast(lat, lng, trip_start, forecast_days)
         weather += await _historical(lat, lng, hist_start, hist_days)
