@@ -16,6 +16,7 @@ from backend.agents.lodging import build_lodging_agent
 from backend.agents.replanner import build_replanner_agent
 from backend.agents.solver import build_solver_agent
 from backend.agents.transport import build_transport_agent
+from backend.tools.context_tools import store_delta
 from backend.tools.weather import get_weather_forecast
 
 _BASE_PROMPT = (Path(__file__).parent / "prompts" / "orchestrator.md").read_text()
@@ -95,6 +96,7 @@ def build_orchestrator(
         input_guardrails=input_guardrails or [],
         tools=[
             get_weather_forecast,
+            store_delta,
             conversation.as_tool(
                 tool_name="conversation_agent",
                 tool_description=(

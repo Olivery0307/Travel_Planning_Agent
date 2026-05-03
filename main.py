@@ -531,9 +531,19 @@ def _validate_delta(ctx: "AppContext") -> dict | None:
     from backend.models.disruption import ItineraryDelta
     try:
         delta = ItineraryDelta.model_validate_json(ctx.pending_delta)
-    except Exception:
-        logger.warning("Failed to parse pending_delta — skipping validation")
-        return None
+    except Exception as e:
+        logger.warning("ItineraryDelta validation failed (%s) — using raw delta dict", e)
+        # Don't drop the delta entirely; pass the raw dict so the frontend still gets it
+        try:
+            raw = json.loads(ctx.pending_delta)
+            raw.setdefault("changed_slots", [])
+            raw.setdefault("removed_slots", [])
+            raw.setdefault("affected_days", [])
+            raw.setdefault("reasoning", "")
+            raw.setdefault("new_daily_costs", [])
+            return raw
+        except Exception:
+            return None
 
     locked = set(ctx.locked_slots)
     if not locked:
@@ -577,28 +587,50 @@ def _apply_delta_to_stored_itinerary(ctx: "AppContext", delta: dict) -> None:
         if not text:
             return
 
-        removed_keys: set[str] = set()
-        for s in delta.get("removed_slots", []):
-            name = (s.get("place_name") or "").strip().lower()
-            day = s.get("day_number", 0)
-            period = (s.get("period") or "").lower()
-            if name:
-                removed_keys.add(f"{day}:{period}:{name}")
+        def _norm_period(p: str) -> str:
+            p = (p or "").lower()
+            return "afternoon" if p in ("lunch", "breakfast") else "evening" if p == "dinner" else p
 
-        changed_by_day_period: dict[str, dict] = {}
+        # Re-index by (day, norm_period) using the helper
+        removed_by_key: dict[tuple, dict] = {}
+        for s in delta.get("removed_slots", []):
+            removed_by_key[(s.get("day_number", 0), _norm_period(s.get("period", "")))] = s
+
+        changed_by_key: dict[tuple, dict] = {}
         for s in delta.get("changed_slots", []):
-            day = s.get("day_number", 0)
-            period = (s.get("period") or "").lower()
-            changed_by_day_period[f"{day}:{period}"] = s
+            changed_by_key[(s.get("day_number", 0), _norm_period(s.get("period", "")))] = s
+
+        # Matches solver format: "- [emoji] PeriodKeyword: ..."
+        # [^\w]* skips any emoji/non-word characters between the bullet and the keyword.
+        _SLOT_KW = re.compile(
+            r"^[-•*]\s*[^\w]*(morning|afternoon|evening|lunch|dinner|breakfast|lodging|hotel)"
+            r"\s*[:\s–—]+",
+            re.IGNORECASE,
+        )
+
+        def _slot_name(line: str) -> str:
+            """Strip bullet, emoji, period keyword, links, and parentheticals → bare place name."""
+            s = re.sub(r"^[-•*]\s*", "", line.strip())       # bullet
+            s = re.sub(r"^[^\w]*", "", s)                    # leading emoji / non-word chars
+            s = re.sub(                                        # period keyword + separator
+                r"^(morning|afternoon|evening|lunch|dinner|breakfast|lodging|hotel)\s*[:\s–—]+",
+                "", s, flags=re.IGNORECASE,
+            )
+            s = re.sub(r"\*\*", "", s)                        # bold markers
+            s = re.sub(r"\[[^\]]*\]\([^)]*\)", "", s)         # markdown links [text](url)
+            s = re.sub(r"\s*[\[(].+$", "", s)                 # parentheticals + everything after
+            s = re.sub(r"\s*[—–|].*$", "", s)                 # notes after dash / pipe
+            s = re.sub(r"~?\$[\d,.]+\S*", "", s)              # inline costs like ~$25/pp
+            return s.strip().lower()
 
         lines = text.splitlines()
         current_day = 0
         current_period = ""
         new_lines = []
-        skip_next_slot = False
+        used_keys: set[tuple] = set()
 
         for line in lines:
-            # Detect day header
+            # Day header
             day_m = re.match(r"\*\*Day\s+(\d+)", line)
             if day_m:
                 current_day = int(day_m.group(1))
@@ -606,46 +638,46 @@ def _apply_delta_to_stored_itinerary(ctx: "AppContext", delta: dict) -> None:
                 new_lines.append(line)
                 continue
 
-            # Detect period
-            period_m = re.match(r"\s*[-•*]?\s*\*\*(Morning|Afternoon|Evening)\*\*", line, re.IGNORECASE)
-            if period_m:
-                current_period = period_m.group(1).lower()
+            # Bold period header: **Morning** / **Afternoon** / **Evening**
+            bold_m = re.match(r"\s*[-•*]?\s*\*\*(Morning|Afternoon|Evening)\*\*", line, re.IGNORECASE)
+            if bold_m:
+                current_period = _norm_period(bold_m.group(1))
                 new_lines.append(line)
                 continue
 
-            # Check if this is a slot line to remove
+            # Inline period keyword: "- 🌅 Morning: ..." or "- 🍽️ Lunch: ..."
+            kw_m = _SLOT_KW.match(line)
+            if kw_m:
+                current_period = _norm_period(kw_m.group(1))
+
+            # Process slot lines
             if current_day and line.strip().startswith(("- ", "• ", "* ")):
-                # Extract name: first bold text or first meaningful words
-                name_m = re.search(r"\*\*([^*]+)\*\*", line)
-                slot_name = name_m.group(1).strip().lower() if name_m else ""
-                if not slot_name:
-                    # Try plain text after bullet
-                    plain = re.sub(r"^[-•*]\s*", "", line.strip())
-                    slot_name = plain.split("|")[0].split("~$")[0].strip().lower()[:60]
+                name = _slot_name(line)
+                key = (current_day, current_period)
 
-                key = f"{current_day}:{current_period}:{slot_name}"
-                # Also try exact name match without period
-                if any(slot_name and slot_name in k.split(":")[2] for k in removed_keys if k.startswith(f"{current_day}:")):
-                    continue  # drop this line
-
-                # Check changed slots for this day/period
-                ck = f"{current_day}:{current_period}"
-                if ck in changed_by_day_period:
-                    cs = changed_by_day_period.pop(ck)
-                    cost_str = f" ~${cs['cost_usd']:.0f}/pp" if cs.get("cost_usd") else ""
-                    note_str = f" | {cs['notes']}" if cs.get("notes") else ""
-                    new_lines.append(f"- **{cs['place_name']}**{cost_str}{note_str}")
-                    continue
+                removed = removed_by_key.get(key)
+                if removed:
+                    rname = (removed.get("place_name") or "").strip().lower()
+                    # Bidirectional substring check handles partial / full name variations
+                    if rname and (rname in name or name in rname):
+                        changed = changed_by_key.get(key)
+                        if changed and key not in used_keys:
+                            used_keys.add(key)
+                            cost_str = f" ~${changed['cost_usd']:.0f}/pp" if changed.get("cost_usd") else ""
+                            note_str = f" | {changed['notes']}" if changed.get("notes") else ""
+                            new_lines.append(f"- **{changed['place_name']}**{cost_str}{note_str}")
+                        # else: pure removal — drop line without replacement
+                        continue
 
             new_lines.append(line)
 
-        # Append any changed slots that weren't matched (new insertions)
-        for ck, cs in changed_by_day_period.items():
-            day_n = int(ck.split(":")[0])
-            period_n = ck.split(":")[1]
-            cost_str = f" ~${cs['cost_usd']:.0f}/pp" if cs.get("cost_usd") else ""
-            note_str = f" | {cs['notes']}" if cs.get("notes") else ""
-            new_lines.append(f"  - **{cs['place_name']}**{cost_str}{note_str}  ← inserted Day {day_n} {period_n}")
+        # Pure insertions: changed slots with no matching removed slot
+        for key, cs in changed_by_key.items():
+            if key not in used_keys:
+                day_n, period_n = key
+                cost_str = f" ~${cs['cost_usd']:.0f}/pp" if cs.get("cost_usd") else ""
+                note_str = f" | {cs['notes']}" if cs.get("notes") else ""
+                new_lines.append(f"  - **{cs['place_name']}**{cost_str}{note_str}  ← inserted Day {day_n} {period_n}")
 
         updated_text = "\n".join(new_lines)
         ctx.itinerary_json = json.dumps({

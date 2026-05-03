@@ -8,6 +8,35 @@ import re
 from agents import RunContextWrapper, function_tool
 
 
+def _extract_outermost_json(text: str) -> str | None:
+    """Return the first complete {...} object from text, correctly handling nesting."""
+    start = text.find('{')
+    if start == -1:
+        return None
+    depth = 0
+    in_string = False
+    escape = False
+    for i, ch in enumerate(text[start:], start):
+        if escape:
+            escape = False
+            continue
+        if ch == '\\' and in_string:
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == '{':
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
+
+
 @function_tool
 def store_delta(ctx: RunContextWrapper, replanner_output: str) -> str:
     """Store the ItineraryDelta from the replanner_agent output.
@@ -17,18 +46,10 @@ def store_delta(ctx: RunContextWrapper, replanner_output: str) -> str:
     if ctx.context is None:
         return "No context available — delta not stored."
 
-    # Extract JSON from a ```json ... ``` code block or bare JSON object
-    json_str = replanner_output
-    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", replanner_output, re.DOTALL)
-    if match:
-        json_str = match.group(1)
-    else:
-        # Try to find a bare JSON object
-        obj_match = re.search(r"\{.*\}", replanner_output, re.DOTALL)
-        if obj_match:
-            json_str = obj_match.group(0)
+    json_str = _extract_outermost_json(replanner_output)
+    if not json_str:
+        return f"No JSON object found in replanner output. Raw output: {replanner_output[:200]}"
 
-    # Validate it parses as JSON
     try:
         json.loads(json_str)
     except Exception as e:
