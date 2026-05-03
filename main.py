@@ -329,6 +329,9 @@ async def _enrich_itinerary_links(text: str, city: str) -> str:
     )
 
     targets: list[tuple[int, str, str]] = []  # (line_idx, venue_name, category)
+    # Regex to extract hotel name from "- 🏨 Hotel Name (all nights…) [link]…" lines
+    hotel_re = re.compile(r'^[-•*]\s*🏨\s*(.+?)(?:\s*\(|\s*\[|$)', re.IGNORECASE)
+
     for i, line in enumerate(lines):
         # Skip if line already has a non-Maps booking link
         existing_links = re.findall(r'\[([^\]]+)\]\((https?://[^)]+)\)', line)
@@ -338,9 +341,23 @@ async def _enrich_itinerary_links(text: str, city: str) -> str:
         )
         if has_booking_link:
             continue
-        # Skip non-slot lines — must be a bullet and contain a period keyword
+        # Skip non-slot lines — must be a bullet
         if not line.strip().startswith(('-', '•', '*')):
             continue
+
+        # Hotel lines: identified by 🏨 emoji (no period keyword needed)
+        if '🏨' in line:
+            hm = hotel_re.search(line.strip())
+            if not hm:
+                continue
+            venue = hm.group(1).strip().rstrip('.,;—–').strip()
+            venue = re.sub(r'\s*\([^)]*\)', '', venue).strip()
+            if len(venue) < 3:
+                continue
+            targets.append((i, venue, "lodging"))
+            continue
+
+        # All other slots — must contain a period keyword
         if not re.search(r'\b(morning|afternoon|evening|lunch|dinner|lodging)\b', line, re.IGNORECASE):
             continue
         nm = slot_re.search(line)
@@ -352,7 +369,6 @@ async def _enrich_itinerary_links(text: str, city: str) -> str:
         if len(venue) < 3:
             continue
         cat = ("restaurant" if re.search(r'🍽|lunch|dinner', line, re.IGNORECASE)
-               else "lodging" if '🏨' in line
                else "attraction")
         targets.append((i, venue, cat))
 
@@ -523,6 +539,43 @@ def _parse_prose_to_delta(response: str) -> str | None:
     return result
 
 
+def _enrich_delta_from_pool(ctx: "AppContext", delta: dict) -> dict:
+    """Fill missing address / booking_url in changed_slots from the session candidate pool."""
+    all_candidates: list[dict] = []
+    for places in ctx.candidate_pool.values():
+        all_candidates.extend(places)
+    if not all_candidates:
+        return delta
+
+    for slot in delta.get("changed_slots", []):
+        has_address = bool(slot.get("address"))
+        has_booking = bool(slot.get("booking_url"))
+        if has_address and has_booking:
+            continue
+
+        place_id = slot.get("place_id", "")
+        place_name = (slot.get("place_name") or "").strip().lower()
+
+        match = None
+        if place_id:
+            match = next((p for p in all_candidates if p.get("place_id") == place_id), None)
+        if not match and place_name:
+            match = next(
+                (p for p in all_candidates
+                 if place_name in (p.get("name") or "").lower()
+                 or (p.get("name") or "").lower() in place_name),
+                None,
+            )
+
+        if match:
+            if not has_address:
+                slot["address"] = match.get("address") or ""
+            if not has_booking:
+                slot["booking_url"] = match.get("booking_url") or match.get("website") or ""
+
+    return delta
+
+
 def _validate_delta(ctx: "AppContext") -> dict | None:
     """Parse and validate the pending ItineraryDelta, dropping any locked slots."""
     if not ctx.pending_delta:
@@ -589,16 +642,17 @@ def _apply_delta_to_stored_itinerary(ctx: "AppContext", delta: dict) -> None:
 
         def _norm_period(p: str) -> str:
             p = (p or "").lower()
-            return "afternoon" if p in ("lunch", "breakfast") else "evening" if p == "dinner" else p
+            if p in ("lunch", "breakfast"):
+                return "afternoon"
+            if p == "dinner":
+                return "evening"
+            if p == "hotel":
+                return "lodging"
+            return p
 
-        # Re-index by (day, norm_period) using the helper
-        removed_by_key: dict[tuple, dict] = {}
-        for s in delta.get("removed_slots", []):
-            removed_by_key[(s.get("day_number", 0), _norm_period(s.get("period", "")))] = s
-
-        changed_by_key: dict[tuple, dict] = {}
-        for s in delta.get("changed_slots", []):
-            changed_by_key[(s.get("day_number", 0), _norm_period(s.get("period", "")))] = s
+        # Use lists so multiple changes on the same (day, period) don't overwrite each other.
+        removed_slots_list: list[dict] = delta.get("removed_slots", [])
+        changed_slots_list: list[dict] = delta.get("changed_slots", [])
 
         # Matches solver format: "- [emoji] PeriodKeyword: ..."
         # [^\w]* skips any emoji/non-word characters between the bullet and the keyword.
@@ -653,28 +707,47 @@ def _apply_delta_to_stored_itinerary(ctx: "AppContext", delta: dict) -> None:
             # Process slot lines
             if current_day and line.strip().startswith(("- ", "• ", "* ")):
                 name = _slot_name(line)
-                key = (current_day, current_period)
 
-                removed = removed_by_key.get(key)
+                # Find a removed_slot matching this line by day + period + fuzzy name
+                removed = next(
+                    (s for s in removed_slots_list
+                     if s.get("day_number") == current_day
+                     and _norm_period(s.get("period", "")) == current_period
+                     and (rn := (s.get("place_name") or "").strip().lower())
+                     and (rn in name or name in rn)
+                     and id(s) not in used_keys),
+                    None,
+                )
                 if removed:
-                    rname = (removed.get("place_name") or "").strip().lower()
-                    # Bidirectional substring check handles partial / full name variations
-                    if rname and (rname in name or name in rname):
-                        changed = changed_by_key.get(key)
-                        if changed and key not in used_keys:
-                            used_keys.add(key)
-                            cost_str = f" ~${changed['cost_usd']:.0f}/pp" if changed.get("cost_usd") else ""
-                            note_str = f" | {changed['notes']}" if changed.get("notes") else ""
-                            new_lines.append(f"- **{changed['place_name']}**{cost_str}{note_str}")
-                        # else: pure removal — drop line without replacement
-                        continue
+                    used_keys.add(id(removed))
+                    # Find the matching changed_slot for the same day + period
+                    changed = next(
+                        (c for c in changed_slots_list
+                         if c.get("day_number") == current_day
+                         and _norm_period(c.get("period", "")) == current_period
+                         and id(c) not in used_keys),
+                        None,
+                    )
+                    if changed:
+                        used_keys.add(id(changed))
+                        cost_str = f" ~${changed['cost_usd']:.0f}/pp" if changed.get("cost_usd") else ""
+                        note_str = f" | {changed['notes']}" if changed.get("notes") else ""
+                        maps_str = ""
+                        if changed.get("address"):
+                            from urllib.parse import quote_plus
+                            maps_str = f" [📍 Maps](https://www.google.com/maps/search/?api=1&query={quote_plus(changed['address'])})"
+                        book_str = f" [Book]({changed['booking_url']})" if changed.get("booking_url") else ""
+                        new_lines.append(f"- **{changed['place_name']}**{cost_str}{note_str}{maps_str}{book_str}")
+                    # else: pure removal — drop line without replacement
+                    continue
 
             new_lines.append(line)
 
-        # Pure insertions: changed slots with no matching removed slot
-        for key, cs in changed_by_key.items():
-            if key not in used_keys:
-                day_n, period_n = key
+        # Pure insertions: changed slots with no matched removal
+        for cs in changed_slots_list:
+            if id(cs) not in used_keys:
+                day_n = cs.get("day_number", 0)
+                period_n = _norm_period(cs.get("period", ""))
                 cost_str = f" ~${cs['cost_usd']:.0f}/pp" if cs.get("cost_usd") else ""
                 note_str = f" | {cs['notes']}" if cs.get("notes") else ""
                 new_lines.append(f"  - **{cs['place_name']}**{cost_str}{note_str}  ← inserted Day {day_n} {period_n}")
@@ -685,7 +758,7 @@ def _apply_delta_to_stored_itinerary(ctx: "AppContext", delta: dict) -> None:
             "version": itin.get("version", 1) + 1,
         })
         logger.info("itinerary text patched with delta (%d removed, %d changed)",
-                    len(delta.get("removed_slots", [])), len(delta.get("changed_slots", [])))
+                    len(removed_slots_list), len(changed_slots_list))
     except Exception as e:
         logger.warning("delta patch failed — keeping original itinerary text: %s", e)
 
@@ -779,6 +852,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
     validated_delta = _validate_delta(ctx)
     if validated_delta:
+        validated_delta = _enrich_delta_from_pool(ctx, validated_delta)
         _apply_delta_to_stored_itinerary(ctx, validated_delta)
     ctx.pending_delta = ""   # consumed
     ctx.save()

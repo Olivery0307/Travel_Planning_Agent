@@ -2893,7 +2893,9 @@ function renderItinerary(text) {
 function applyDelta(data, delta) {
   function normPeriod(p) {
     return p === 'lunch' || p === 'breakfast' ? 'afternoon'
-         : p === 'dinner' ? 'evening' : (p || '');
+         : p === 'dinner' ? 'evening'
+         : p === 'hotel' ? 'lodging'
+         : (p || '');
   }
   // Case-insensitive substring overlap: handles "Ristorante A" vs "Ristorante A (2h)"
   function nameMatch(a, b) {
@@ -2903,6 +2905,13 @@ function applyDelta(data, delta) {
   }
   function makeSlot(cs, overridePeriod) {
     const p = overridePeriod || cs.period;
+    const links = [];
+    if (cs.address) {
+      links.push({ label: '📍 Maps', url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cs.address)}` });
+    }
+    if (cs.booking_url) {
+      links.push({ label: 'Book', url: cs.booking_url });
+    }
     return {
       type: 'slot',
       period: p,
@@ -2910,7 +2919,7 @@ function applyDelta(data, delta) {
       name: cs.place_name,
       note: '',
       cost: cs.cost_usd ? `~$${cs.cost_usd}` : '',
-      links: cs.booking_url ? [{ label: 'Book', url: cs.booking_url }] : [],
+      links,
     };
   }
 
@@ -2922,14 +2931,18 @@ function applyDelta(data, delta) {
 
     for (const sl of day.slots) {
       const slNorm = normPeriod(sl.period);
-      // Find a removed_slot that matches this slot by period + fuzzy name
+      const isLodging = slNorm === 'lodging';
+      // Find a removed_slot matching by period + fuzzy name.
+      // Lodging slots: skip period check — the replanner may label them as morning/afternoon/evening.
       const removed = removedForDay.find(r =>
-        normPeriod(r.period) === slNorm && nameMatch(sl.name, r.place_name)
+        (isLodging || normPeriod(r.period) === slNorm) && nameMatch(sl.name, r.place_name)
       );
       if (removed) {
-        // Swap in the changed_slot for the same period (keeps position)
+        // Find replacement: match by the removed slot's period (covers lodging where
+        // slNorm='lodging' but delta period is 'morning'/'lodging'/etc.)
+        const removedNorm = normPeriod(removed.period);
         const replacement = changedForDay.find(c =>
-          !usedChanged.has(c) && normPeriod(c.period) === slNorm
+          !usedChanged.has(c) && (normPeriod(c.period) === removedNorm || isLodging)
         );
         if (replacement) {
           usedChanged.add(replacement);
@@ -2948,7 +2961,10 @@ function applyDelta(data, delta) {
     for (const cs of changedForDay) {
       if (usedChanged.has(cs)) continue;
       const slNorm = normPeriod(cs.period);
-      const hasPendingRemoval = removedForDay.some(r => normPeriod(r.period) === slNorm);
+      // For lodging changed_slots, consider any unmatched lodging removal as pending
+      const hasPendingRemoval = normPeriod(cs.period) === 'lodging'
+        ? removedForDay.some(r => !usedChanged.has(r))
+        : removedForDay.some(r => normPeriod(r.period) === slNorm);
       if (!hasPendingRemoval) {
         // True pure insertion — safe to replace first slot with same period
         const idx = newSlots.findIndex(s => normPeriod(s.period) === slNorm);
