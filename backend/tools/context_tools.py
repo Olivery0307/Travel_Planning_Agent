@@ -55,6 +55,15 @@ def store_delta(ctx: RunContextWrapper, replanner_output: str) -> str:
     except Exception as e:
         return f"Failed to parse delta JSON: {e}. Raw output: {replanner_output[:200]}"
 
+    # Don't overwrite a valid delta already written by the replanner
+    if ctx.context.pending_delta:
+        try:
+            existing = json.loads(ctx.context.pending_delta)
+            if existing.get("changed_slots") is not None:
+                return "Delta already stored by replanner — skipping overwrite."
+        except Exception:
+            pass
+
     ctx.context.pending_delta = json_str
     ctx.context.save()
     return "Delta stored successfully."

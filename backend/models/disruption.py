@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -42,6 +43,24 @@ class DeltaSlot(BaseModel):
 class DailyCost(BaseModel):
     day: int = Field(description="Day number (1-indexed).")
     cost_usd: float = Field(description="Total cost for this day in USD per person.")
+
+
+class AffectedSlot(BaseModel):
+    """One slot the user wants changed — extracted from free text by DisruptionParser."""
+    day_number: int = Field(description="Day of the trip (1-indexed).")
+    period: str = Field(description="One of: morning, afternoon, evening. Empty string means whole day.")
+    venue_name: str = Field(description="Name of the venue being disrupted/removed, as mentioned by the user. Empty if not specified.")
+    category: str = Field(description="One of: activity, dining, lodging. Infer from context.")
+
+
+class DisruptionRequest(BaseModel):
+    """Structured output from DisruptionParser — the only LLM step in the replan pipeline."""
+    disruption_type: DisruptionType = Field(description="Type of disruption.")
+    affected_slots: list[AffectedSlot] = Field(description="All slots that need to change. Must have at least one entry.")
+    locked_slot_keys: list[str] = Field(default_factory=list, description="Slots that must NOT be touched, e.g. ['day1_morning', 'day2_evening'].")
+    new_budget_per_day: Optional[float] = Field(default=None, description="New daily budget in USD, only set for budget_change disruptions.")
+    special_instructions: str = Field(default="", description="Free-text constraints from the user: 'indoor only', 'max 0.5km walking', 'vegetarian', etc.")
+    reasoning: str = Field(description="One sentence: what happened and what the system should do.")
 
 
 class ItineraryDelta(BaseModel):

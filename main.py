@@ -84,6 +84,7 @@ litellm.request_timeout = 90   # kill silent Vertex AI hangs; LiteLLM retries au
 
 _orchestrator_model_str = os.environ.get("ORCHESTRATOR_MODEL") or os.environ.get("MODEL")
 _specialist_model_str = os.environ.get("SPECIALIST_MODEL") or os.environ.get("MODEL")
+_replanner_model_str = os.environ.get("REPLANNER_MODEL") or _orchestrator_model_str
 
 if not _orchestrator_model_str or not _specialist_model_str:
     sys.exit("ERROR: ORCHESTRATOR_MODEL and SPECIALIST_MODEL (or MODEL) must be set in .env")
@@ -244,6 +245,7 @@ def _capture_itinerary(ctx: "AppContext", response: str) -> None:
 
 _orchestrator_model = LitellmModel(model=_orchestrator_model_str, api_key="unused")
 _specialist_model = LitellmModel(model=_specialist_model_str, api_key="unused")
+_replanner_model = LitellmModel(model=_replanner_model_str, api_key="unused")
 
 # Import here (after models are defined) to avoid circular issues at module load
 from backend.agents.orchestrator import build_orchestrator  # noqa: E402
@@ -259,6 +261,7 @@ agent = build_orchestrator(
     orchestrator_model=_orchestrator_model,
     specialist_model=_specialist_model,
     input_guardrails=[off_topic_guardrail, budget_sanity_guardrail],
+    replanner_model=_replanner_model,
 )
 
 
