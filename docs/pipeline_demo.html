@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Voyager — Pipeline Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Instrument+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void:     #0d0c0a;
+    --charcoal: #1e1c18;
+    --graphite: #2a2823;
+    --smoke:    #3d3a34;
+    --ash:      #56524b;
+    --stone:    #7a7469;
+    --silk:     #c8bfb2;
+    --amber:    #c9a05a;
+    --amber-dk: #9e7a3a;
+    --terra:    #c05840;
+    --verdant:  #5a8c64;
+    --cerulean: #4a7aab;
+    --violet:   #8a6aab;
+    --FD: 'Cormorant Garamond', serif;
+    --FB: 'Instrument Sans', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--void); }
+  body {
+    font-family: var(--FB);
+    color: var(--silk);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow-x: auto;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 100;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px; opacity: 0.022;
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: linear-gradient(var(--smoke) 1px,transparent 1px),linear-gradient(90deg,var(--smoke) 1px,transparent 1px);
+    background-size: 52px 52px; opacity: 0.05;
+  }
+  .glow-a { position:fixed; top:-15%; right:-8%; width:700px; height:700px; background:radial-gradient(ellipse,rgba(201,160,90,.055) 0%,transparent 65%); pointer-events:none; z-index:0; }
+  .glow-b { position:fixed; bottom:-12%; left:-6%; width:500px; height:500px; background:radial-gradient(ellipse,rgba(74,122,171,.04) 0%,transparent 65%); pointer-events:none; z-index:0; }
+
+  /* ── Page shell ── */
+  .page {
+    position: relative; z-index: 1;
+    max-width: 1800px; margin: 0 auto;
+    padding: 52px 60px 72px;
+  }
+
+  /* ── SVG overlay ── */
+  .svg-layer {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; overflow: visible; z-index: 2;
+  }
+
+  /* ── Animations ── */
+  @keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .anim { animation: rise .5s ease both; }
+  .d0{animation-delay:.05s} .d1{animation-delay:.14s} .d2{animation-delay:.23s}
+  .d3{animation-delay:.33s} .d4{animation-delay:.43s} .d5{animation-delay:.53s}
+  .d6{animation-delay:.63s} .d7{animation-delay:.73s} .d8{animation-delay:.83s}
+  .d9{animation-delay:.93s} .d10{animation-delay:1.03s}
+
+  /* ── Title ── */
+  .title { text-align:center; margin-bottom:48px; }
+  .title-main { font-family:var(--FD); font-size:3rem; font-weight:600; letter-spacing:.26em; color:var(--amber); line-height:1; }
+  .title-rule { width:320px; height:1px; background:linear-gradient(90deg,transparent,var(--amber-dk),transparent); margin:12px auto; }
+  .title-sub  { font-size:.7rem; letter-spacing:.24em; text-transform:uppercase; color:var(--stone); }
+
+  /* ── Generic box ── */
+  .box {
+    border-radius:8px; border:1.5px solid var(--smoke);
+    background:var(--charcoal);
+    display:flex; align-items:center; justify-content:center;
+    text-align:center; position:relative;
+  }
+  .label { font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.18em; line-height:1.3; }
+
+  /* color variants */
+  .b-amber   {border-color:var(--amber);}   .c-amber   {color:var(--amber);}
+  .b-terra   {border-color:var(--terra);}   .c-terra   {color:var(--terra);}
+  .b-verdant {border-color:var(--verdant);} .c-verdant {color:var(--verdant);}
+  .b-cerulean{border-color:var(--cerulean);}  .c-cerulean{color:var(--cerulean);}
+  .b-violet  {border-color:var(--violet);}  .c-violet  {color:var(--violet);}
+  .b-stone   {border-color:var(--stone);}   .c-stone   {color:var(--stone);}
+  .b-smoke   {border-color:var(--smoke);}   .c-silk    {color:var(--silk);}
+
+  /* ── Two-column layout ── */
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    gap: 0 52px;
+    align-items: start;
+  }
+
+  /* LEFT column — main planning flow */
+  .left { display:flex; flex-direction:column; align-items:center; gap:0; }
+
+  /* RIGHT column — reactive agents + APIs */
+  .right { display:flex; flex-direction:column; gap:12px; padding-top:0; }
+
+  /* ── Specific node sizes ── */
+  .nd-user {
+    width:80px; height:80px; border-radius:50%;
+    border:2px solid var(--amber); background:var(--charcoal);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 28px rgba(201,160,90,.14);
+    font-size:1.8rem;
+  }
+  .nd-user-label { margin-top:8px; font-size:.6rem; text-transform:uppercase; letter-spacing:.18em; color:var(--stone); text-align:center; }
+
+  .nd-guard  { width:440px; height:56px; background:rgba(192,88,64,.06); }
+  .nd-orch   { width:560px; height:78px; background:rgba(201,160,90,.05); box-shadow:0 0 44px rgba(201,160,90,.09); }
+  .nd-orch .label { font-size:.88rem; letter-spacing:.22em; }
+  .nd-intake { width:300px; height:66px; background:rgba(201,160,90,.04); }
+  .nd-solver { width:680px; height:76px; background:rgba(90,140,100,.05); box-shadow:0 0 36px rgba(90,140,100,.07); }
+  .nd-solver .label { font-size:.88rem; letter-spacing:.22em; }
+  .nd-fe     { width:560px; height:76px; background:rgba(74,122,171,.05); box-shadow:0 0 28px rgba(74,122,171,.07); }
+  .nd-fe .label { font-size:.88rem; letter-spacing:.22em; }
+
+  /* Parallel agents row */
+  .parallel-row { display:flex; gap:12px; width:680px; }
+  .nd-agent { flex:1; height:66px; }
+  .nd-agent .label { font-size:.68rem; }
+
+  /* Output row */
+  .output-row { display:flex; gap:20px; }
+  .nd-out { width:200px; height:66px; }
+  .nd-out.itin   { background:rgba(201,160,90,.05); box-shadow:0 0 20px rgba(201,160,90,.07); }
+  .nd-out.disrupt{ background:rgba(192,88,64,.06); }
+  .nd-out.convo  { background:rgba(138,106,171,.06); }
+  .nd-out .label { font-size:.66rem; }
+
+  /* Vertical spacers */
+  .vgap    { height:44px; flex-shrink:0; }
+  .vgap-sm { height:20px; flex-shrink:0; }
+
+  /* Fan-out label */
+  .fan-label {
+    font-size:.48rem; text-transform:uppercase; letter-spacing:.14em;
+    color:var(--ash); text-align:center; margin-bottom:6px;
+  }
+
+  /* Right column boxes */
+  .nd-react {
+    width:100%; padding:14px 16px;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+  }
+  .nd-react .label { font-size:.66rem; }
+  .nd-react .sublabel { font-size:.5rem; color:var(--ash); text-transform:uppercase; letter-spacing:.1em; margin-top:2px; }
+
+  .nd-replanner {
+    background:rgba(192,88,64,.07);
+    box-shadow:0 0 24px rgba(192,88,64,.10);
+    padding:18px 16px !important;
+    gap:6px !important;
+  }
+  .nd-replanner .label   { font-size:.78rem !important; letter-spacing:.16em; }
+  .nd-replanner .sublabel{ font-size:.55rem !important; }
+  .nd-conv      { background:rgba(138,106,171,.06); }
+
+  /* API boxes */
+  .api-header { font-size:.44rem; text-transform:uppercase; letter-spacing:.16em; color:var(--stone); margin-bottom:6px; text-align:center; }
+  .nd-api { width:100%; height:44px; background:rgba(122,116,105,.07); margin-bottom:0; }
+  .nd-api .label { font-size:.5rem; letter-spacing:.12em; }
+
+  /* ── Section divider in right col ── */
+  .right-divider { height:1px; background:var(--graphite); margin:12px 0 8px; }
+
+  /* Footer */
+  .footer { text-align:center; margin-top:52px; font-size:.55rem; letter-spacing:.18em; text-transform:uppercase; color:var(--ash); }
+  .footer span { margin:0 10px; opacity:.4; }
+</style>
+</head>
+<body>
+<div class="glow-a"></div>
+<div class="glow-b"></div>
+
+<div class="page" id="page">
+<svg class="svg-layer" id="svg" aria-hidden="true">
+  <defs>
+    <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L0,7 L9,3.5z" fill="#c9a05a" opacity=".85"/></marker>
+    <marker id="at" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L0,7 L9,3.5z" fill="#c05840" opacity=".85"/></marker>
+    <marker id="av" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L0,7 L9,3.5z" fill="#8a6aab" opacity=".85"/></marker>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L0,7 L9,3.5z" fill="#5a8c64" opacity=".85"/></marker>
+    <marker id="as" markerWidth="8" markerHeight="8" refX="6" refY="3"   orient="auto"><path d="M0,0 L0,6 L8,3z"   fill="#7a7469" opacity=".65"/></marker>
+    <marker id="am" markerWidth="8" markerHeight="8" refX="6" refY="3"   orient="auto"><path d="M0,0 L0,6 L8,3z"   fill="#56524b" opacity=".70"/></marker>
+  </defs>
+</svg>
+
+<!-- TITLE -->
+<div class="title anim d0">
+  <div class="title-main">VOYAGER</div>
+  <div class="title-rule"></div>
+  <div class="title-sub">AI Travel Itinerary &nbsp;—&nbsp; Agent Pipeline</div>
+</div>
+
+<!-- TWO COLUMN LAYOUT -->
+<div class="cols">
+
+  <!-- ══ LEFT: main planning flow ══ -->
+  <div class="left">
+
+    <!-- User -->
+    <div class="anim d1" style="display:flex;flex-direction:column;align-items:center">
+      <div id="nd-user" class="nd-user">👤</div>
+      <div class="nd-user-label">User / Advisor</div>
+    </div>
+
+    <div class="vgap"></div>
+
+    <!-- Guardrails -->
+    <div id="nd-guard" class="box b-terra nd-guard anim d2">
+      <span class="label c-terra">Input Guardrails</span>
+    </div>
+
+    <div class="vgap"></div>
+
+    <!-- Orchestrator -->
+    <div id="nd-orch" class="box b-amber nd-orch anim d3">
+      <span class="label c-amber">Orchestrator Agent</span>
+    </div>
+
+    <div class="vgap"></div>
+
+    <!-- Intake (step 1 — sequential) -->
+    <div style="display:flex;flex-direction:column;align-items:center;width:100%" class="anim d4">
+      <div class="fan-label">① Parse request</div>
+      <div id="nd-intake" class="box b-amber nd-intake">
+        <span class="label c-amber">Intake Agent</span>
+      </div>
+    </div>
+
+    <div class="vgap-sm"></div>
+
+    <!-- Parallel agents (step 2) -->
+    <div style="display:flex;flex-direction:column;align-items:center;width:100%" class="anim d5">
+      <div class="fan-label">② Parallel — all at once</div>
+      <div class="parallel-row">
+        <div id="nd-lodging"   class="box b-stone nd-agent"><span class="label c-silk">Lodging</span></div>
+        <div id="nd-activity"  class="box b-stone nd-agent"><span class="label c-silk">Activity</span></div>
+        <div id="nd-dining"    class="box b-stone nd-agent"><span class="label c-silk">Dining</span></div>
+        <div id="nd-transport" class="box b-stone nd-agent"><span class="label c-silk">Transport</span></div>
+      </div>
+    </div>
+
+    <div class="vgap"></div>
+
+    <!-- Solver (step 3) -->
+    <div style="display:flex;flex-direction:column;align-items:center;width:100%" class="anim d6">
+      <div class="fan-label">③ Sequence into itinerary</div>
+      <div id="nd-solver" class="box b-verdant nd-solver">
+        <span class="label c-verdant">Solver Agent</span>
+      </div>
+    </div>
+
+    <div class="vgap"></div>
+
+    <!-- Frontend -->
+    <div id="nd-fe" class="box b-cerulean nd-fe anim d7">
+      <span class="label c-cerulean">Frontend</span>
+    </div>
+
+    <div class="vgap"></div>
+
+    <!-- Outputs -->
+    <div class="output-row anim d8">
+      <div id="nd-itin"    class="box b-amber   nd-out itin">   <span class="label c-amber">✦ Itinerary</span></div>
+      <div id="nd-disrupt" class="box b-terra   nd-out disrupt"><span class="label c-terra">Re-plan</span></div>
+      <div id="nd-convo"   class="box b-violet  nd-out convo">  <span class="label c-violet">Q &amp; A</span></div>
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- ══ RIGHT: reactive agents + APIs ══ -->
+  <div class="right anim d4">
+
+    <!-- Reactive agents header -->
+    <div class="api-header" style="color:var(--stone)">On-demand routing</div>
+
+    <!-- Replanner -->
+    <div id="nd-replanner" class="box b-terra nd-react nd-replanner">
+      <span class="label c-terra">Replanner</span>
+      <span class="sublabel">disruptions · re-plan</span>
+    </div>
+
+    <!-- Conversation -->
+    <div id="nd-conv" class="box b-violet nd-react nd-conv">
+      <span class="label c-violet">Conversation</span>
+      <span class="sublabel">Q&amp;A · analysis</span>
+    </div>
+
+    <div class="right-divider"></div>
+
+    <!-- APIs header -->
+    <div class="api-header">External APIs</div>
+
+    <div id="api-places"  class="box b-smoke nd-api"><span class="label c-stone">Google Places + Cache</span></div>
+    <div style="height:8px"></div>
+    <div id="api-maps"    class="box b-smoke nd-api"><span class="label c-stone">Google Maps</span></div>
+    <div style="height:8px"></div>
+    <div id="api-weather" class="box b-smoke nd-api"><span class="label c-stone">Open-Meteo</span></div>
+    <div style="height:8px"></div>
+    <div id="api-tavily"  class="box b-smoke nd-api"><span class="label c-stone">Tavily Search</span></div>
+    <div style="height:8px"></div>
+    <div id="api-liteapi" class="box b-smoke nd-api"><span class="label c-stone">LiteAPI</span></div>
+
+  </div><!-- /right -->
+
+</div><!-- /cols -->
+
+<div class="footer anim d10">
+  Columbia IEOR Agentic AI Capstone <span>·</span> 2026
+</div>
+
+</div><!-- /page -->
+
+<script>
+(function(){
+  function $ (id) { return document.getElementById(id); }
+
+  function draw() {
+    const svg  = $('svg');
+    const page = $('page');
+
+    // Size SVG to match page
+    const pw = page.offsetWidth, ph = page.offsetHeight;
+    svg.setAttribute('width',   pw);
+    svg.setAttribute('height',  ph);
+    svg.setAttribute('viewBox', '0 0 ' + pw + ' ' + ph);
+
+    // Clear old paths (keep <defs>)
+    while (svg.children.length > 1) svg.removeChild(svg.lastChild);
+
+    // Measure element relative to page
+    function m(el) {
+      const er = el.getBoundingClientRect();
+      const pr = page.getBoundingClientRect();
+      const t = er.top - pr.top, l = er.left - pr.left;
+      const w = er.width,        h = er.height;
+      return { t, b:t+h, l, r:l+w, cx:l+w/2, cy:t+h/2, w, h };
+    }
+
+    function ln(x1,y1,x2,y2,o) {
+      const e = document.createElementNS('http://www.w3.org/2000/svg','line');
+      e.setAttribute('x1',x1); e.setAttribute('y1',y1);
+      e.setAttribute('x2',x2); e.setAttribute('y2',y2);
+      e.setAttribute('stroke',     o.s  || '#56524b');
+      e.setAttribute('stroke-width',o.w || '1.8');
+      if(o.d)  e.setAttribute('stroke-dasharray', o.d);
+      if(o.mk) e.setAttribute('marker-end','url(#'+o.mk+')');
+      if(o.op) e.setAttribute('opacity', o.op);
+      svg.appendChild(e);
+    }
+
+    function pt(d,o) {
+      const e = document.createElementNS('http://www.w3.org/2000/svg','path');
+      e.setAttribute('d',d); e.setAttribute('fill','none');
+      e.setAttribute('stroke',     o.s  || '#56524b');
+      e.setAttribute('stroke-width',o.w || '1.8');
+      if(o.d)  e.setAttribute('stroke-dasharray', o.d);
+      if(o.mk) e.setAttribute('marker-end','url(#'+o.mk+')');
+      if(o.op) e.setAttribute('opacity', o.op);
+      svg.appendChild(e);
+    }
+
+    const user      = m($('nd-user'));
+    const guard     = m($('nd-guard'));
+    const orch      = m($('nd-orch'));
+    const intake    = m($('nd-intake'));
+    const lodging   = m($('nd-lodging'));
+    const activity  = m($('nd-activity'));
+    const dining    = m($('nd-dining'));
+    const transport = m($('nd-transport'));
+    const replanner = m($('nd-replanner'));
+    const conv      = m($('nd-conv'));
+    const solver    = m($('nd-solver'));
+    const fe        = m($('nd-fe'));
+    const itin      = m($('nd-itin'));
+    const disrupt   = m($('nd-disrupt'));
+    const convo     = m($('nd-convo'));
+    const apip      = m($('api-places'));
+    const apim      = m($('api-maps'));
+    const apiw      = m($('api-weather'));
+    const apit      = m($('api-tavily'));
+    const apil      = m($('api-liteapi'));
+
+    const pAgents = [lodging, activity, dining, transport];
+
+    // ── Main spine: user → guard → orch ──
+    ln(user.cx, user.b,  guard.cx, guard.t,  {s:'#c9a05a',w:'2',op:'.55',mk:'ag'});
+    ln(guard.cx, guard.b, orch.cx, orch.t,   {s:'#c9a05a',w:'2',op:'.55',mk:'ag'});
+
+    // ── orch → intake ──
+    ln(orch.cx, orch.b, intake.cx, intake.t, {s:'#c9a05a',w:'2',op:'.60',mk:'ag'});
+
+    // ── intake → fan bar → parallel agents ──
+    const fanBarY = intake.b + (lodging.t - intake.b) * 0.5;
+    ln(intake.cx, intake.b,   intake.cx,    fanBarY,      {s:'#c9a05a',w:'1.5',op:'.40'});
+    ln(lodging.cx, fanBarY,   transport.cx, fanBarY,      {s:'#c9a05a',w:'1.5',op:'.40'});
+    pAgents.forEach(function(ag){
+      ln(ag.cx, fanBarY, ag.cx, ag.t, {s:'#c9a05a',w:'1.5',op:'.45',mk:'ag'});
+    });
+
+    // ── parallel agents → collect bar → solver ──
+    const colBarY = transport.b + (solver.t - transport.b) * 0.45;
+    pAgents.forEach(function(ag){
+      ln(ag.cx, ag.b, ag.cx, colBarY, {s:'#56524b',w:'1.2',op:'.35'});
+    });
+    ln(lodging.cx, colBarY, transport.cx, colBarY, {s:'#56524b',w:'1.2',op:'.35'});
+    const midX = (lodging.cx + transport.cx) / 2;
+    ln(midX, colBarY, solver.cx, solver.t, {s:'#c9a05a',w:'2',op:'.55',mk:'ag'});
+
+    // ── solver → fe → outputs ──
+    ln(solver.cx, solver.b, fe.cx, fe.t,    {s:'#5a8c64',w:'2',op:'.60',mk:'ar'});
+    ln(fe.cx, fe.b, itin.cx,    itin.t,    {s:'#c9a05a',w:'1.8',op:'.55',mk:'ag'});
+    ln(fe.cx, fe.b, disrupt.cx, disrupt.t, {s:'#c05840',w:'1.8',op:'.55',mk:'at'});
+    ln(fe.cx, fe.b, convo.cx,   convo.t,   {s:'#8a6aab',w:'1.8',op:'.55',mk:'av'});
+
+    // ── orch → replanner (clean horizontal right then short drop, gold → right col) ──
+    // Draw a clean right-angle path from orch right edge to replanner left edge
+    const orchToRx = replanner.l - 12;
+    const orchMidY = orch.cy;
+    const replMidY = replanner.cy;
+    pt( 'M '+orch.r+' '+orchMidY+' L '+orchToRx+' '+orchMidY+' L '+orchToRx+' '+replMidY+' L '+replanner.l+' '+replMidY,
+        {s:'#c05840',w:'1.6',d:'6 4',op:'.55',mk:'at'} );
+
+    // ── orch → conv (drops slightly lower) ──
+    const orchToRx2 = conv.l - 12;
+    const convMidY  = conv.cy;
+    const orchLowY  = orch.cy + 14;
+    pt( 'M '+orch.r+' '+orchLowY+' L '+orchToRx2+' '+orchLowY+' L '+orchToRx2+' '+convMidY+' L '+conv.l+' '+convMidY,
+        {s:'#8a6aab',w:'1.6',d:'5 4',op:'.55',mk:'av'} );
+
+    // ── replanner → solver (after user confirms a replan) ──
+    // Goes left from replanner to just right of solver, then down
+    const repRightX = replanner.r;
+    const repBelowY = replanner.b + 12;
+    const solTopY   = solver.t;
+    const midWayX   = (replanner.l + solver.r) / 2 + 8;
+
+    // Simple: come down from replanner bottom, arc left to solver top-right corner
+    pt( 'M '+replanner.cx+' '+replanner.b+
+        ' L '+replanner.cx+' '+repBelowY+
+        ' L '+solver.r+' '+repBelowY+
+        ' L '+solver.r+' '+solTopY,
+        {s:'#c05840',w:'1.5',d:'5 4',op:'.40',mk:'at'} );
+
+    // ── Re-plan feedback loop: disrupt output → left → up → orch left ──
+    const loopLeftX = Math.min(itin.l, guard.l) - 36;
+    pt( 'M '+disrupt.l+' '+disrupt.cy+
+        ' L '+loopLeftX+' '+disrupt.cy+
+        ' L '+loopLeftX+' '+orch.cy+
+        ' L '+orch.l+' '+orch.cy,
+        {s:'#c05840',w:'1.5',d:'7 4',op:'.45',mk:'at'} );
+
+    // ── Conv Q&A feedback: convo output → left → up → orch (slightly offset) ──
+    const loopLeftX2 = loopLeftX - 20;
+    pt( 'M '+convo.l+' '+convo.cy+
+        ' L '+loopLeftX2+' '+convo.cy+
+        ' L '+loopLeftX2+' '+(orch.cy+14)+
+        ' L '+orch.l+' '+(orch.cy+14),
+        {s:'#8a6aab',w:'1.4',d:'5 4',op:'.38',mk:'av'} );
+
+    // ── API connections — all go right from right-col boxes ──
+    // lodging/activity/dining → places (right of api-places, from agent area)
+    [lodging,activity,dining].forEach(function(ag){
+      ln(ag.r, ag.cy, apip.l, apip.cy, {s:'#56524b',w:'1',d:'4 3',op:'.32',mk:'as'});
+    });
+    // transport → maps
+    ln(transport.r, transport.cy, apim.l, apim.cy, {s:'#56524b',w:'1',d:'4 3',op:'.32',mk:'as'});
+    // conv → weather
+    ln(conv.r, conv.cy, apiw.l, apiw.cy, {s:'#8a6aab',w:'1',d:'4 3',op:'.28',mk:'as'});
+    // solver → tavily + liteapi
+    ln(solver.r, solver.cy-6, apit.l, apit.cy, {s:'#5a8c64',w:'1',d:'4 3',op:'.28',mk:'as'});
+    ln(solver.r, solver.cy+6, apil.l, apil.cy, {s:'#5a8c64',w:'1',d:'4 3',op:'.28',mk:'as'});
+  }
+
+  window.addEventListener('load', function(){
+    draw();
+    setTimeout(draw, 600);
+    setTimeout(draw, 1200);
+  });
+  window.addEventListener('resize', draw);
+}());
+</script>
+</body>
+</html>

@@ -1,799 +1,581 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Voyager — Pipeline</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Instrument+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --void:      #0d0c0a;
-    --obsidian:  #161512;
-    --charcoal:  #1e1c18;
-    --graphite:  #2a2823;
-    --smoke:     #3d3a34;
-    --ash:       #56524b;
-    --stone:     #7a7469;
-    --silk:      #c8bfb2;
-    --parchment: #e8e0d4;
-    --amber:     #c9a05a;
-    --amber-dk:  #9e7a3a;
-    --amber-glow:rgba(201,160,90,0.12);
-    --amber-line:rgba(201,160,90,0.30);
-    --terra:     #c05840;
-    --terra-glow:rgba(192,88,64,0.10);
-    --verdant:   #5a8c64;
-    --verdant-glow:rgba(90,140,100,0.10);
-    --cerulean:  #4a7aab;
-    --cerulean-glow:rgba(74,122,171,0.10);
-    --font-display:'Cormorant Garamond', serif;
-    --font-body:   'Instrument Sans', sans-serif;
+    --void:        #0d0c0a;
+    --charcoal:    #1e1c18;
+    --graphite:    #2a2823;
+    --smoke:       #3d3a34;
+    --ash:         #56524b;
+    --stone:       #7a7469;
+    --silk:        #c8bfb2;
+    --parchment:   #e8e0d4;
+    --amber:       #c9a05a;
+    --amber-dk:    #9e7a3a;
+    --terra:       #c05840;
+    --verdant:     #5a8c64;
+    --cerulean:    #4a7aab;
+    --violet:      #8a6aab;
+    --FD: 'Cormorant Garamond', serif;
+    --FB: 'Instrument Sans', sans-serif;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+  html, body { background: var(--void); }
   body {
-    font-family: var(--font-body);
-    background: var(--void);
+    font-family: var(--FB);
     color: var(--silk);
     min-height: 100vh;
-    min-width: 1600px;
+    min-width: 1680px;
     -webkit-font-smoothing: antialiased;
     position: relative;
     overflow-x: auto;
   }
 
-  /* ── Grain texture ── */
   body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 200px;
-    opacity: 0.028;
-    pointer-events: none;
-    z-index: 1000;
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 100;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px; opacity: 0.026;
   }
-
-  /* ── Grid texture ── */
   body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(var(--smoke) 1px, transparent 1px),
-      linear-gradient(90deg, var(--smoke) 1px, transparent 1px);
-    background-size: 48px 48px;
-    opacity: 0.07;
-    pointer-events: none;
-    z-index: 0;
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: linear-gradient(var(--smoke) 1px,transparent 1px), linear-gradient(90deg,var(--smoke) 1px,transparent 1px);
+    background-size: 48px 48px; opacity: 0.06;
   }
 
-  /* ── Ambient glow ── */
-  .glow-orb {
-    position: fixed;
-    top: -20%;
-    right: -10%;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(ellipse at center, rgba(201,160,90,0.07) 0%, transparent 65%);
-    pointer-events: none;
-    z-index: 0;
+  .glow-a { position:fixed; top:-15%; right:-8%;  width:700px; height:700px; background:radial-gradient(ellipse,rgba(201,160,90,.06) 0%,transparent 65%); pointer-events:none; z-index:0; }
+  .glow-b { position:fixed; bottom:-10%; left:-6%; width:500px; height:500px; background:radial-gradient(ellipse,rgba(74,122,171,.05) 0%,transparent 65%); pointer-events:none; z-index:0; }
+
+  /* ── Page shell ── */
+  .page {
+    position: relative; z-index: 1;
+    max-width: 1800px; margin: 0 auto;
+    padding: 52px 64px 72px;
   }
 
-  /* ── Wrapper ── */
-  .diagram {
-    position: relative;
-    z-index: 1;
-    width: 1600px;
-    margin: 0 auto;
-    padding: 56px 80px 64px;
+  .svg-layer {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; overflow: visible; z-index: 2;
   }
 
-  /* ── SVG connector layer ── */
-  .connector-svg {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    overflow: visible;
-    z-index: 2;
-  }
+  /* ── Animations ── */
+  @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .anim { animation: rise .5s ease both; }
+  .d0{animation-delay:.05s} .d1{animation-delay:.14s} .d2{animation-delay:.23s}
+  .d3{animation-delay:.33s} .d4{animation-delay:.43s} .d5{animation-delay:.53s}
+  .d6{animation-delay:.63s} .d7{animation-delay:.73s} .d8{animation-delay:.83s}
+  .d9{animation-delay:.93s} .d10{animation-delay:1.03s} .d11{animation-delay:1.13s}
 
-  /* ══════════════════════════════════════
-     ANIMATIONS
-  ══════════════════════════════════════ */
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
+  /* ── Title ── */
+  .title { text-align:center; margin-bottom:44px; }
+  .title-main { font-family:var(--FD); font-size:3rem; font-weight:600; letter-spacing:.22em; color:var(--amber); line-height:1; }
+  .title-rule  { width:340px; height:1px; background:linear-gradient(90deg,transparent,var(--amber-dk),transparent); margin:10px auto; }
+  .title-sub   { font-size:.7rem; letter-spacing:.24em; text-transform:uppercase; color:var(--stone); }
 
-  .row { animation: fadeIn 0.55s ease both; }
-  .row-0 { animation-delay: 0.05s; }
-  .row-1 { animation-delay: 0.15s; }
-  .row-2 { animation-delay: 0.25s; }
-  .row-3 { animation-delay: 0.38s; }
-  .row-4 { animation-delay: 0.50s; }
-  .row-5 { animation-delay: 0.62s; }
-  .row-6 { animation-delay: 0.74s; }
-  .row-7 { animation-delay: 0.86s; }
-  .row-8 { animation-delay: 0.95s; }
-
-  /* ══════════════════════════════════════
-     TITLE
-  ══════════════════════════════════════ */
-  .title-block {
-    text-align: center;
-    margin-bottom: 36px;
-  }
-  .title-main {
-    font-family: var(--font-display);
-    font-size: 3.2rem;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    color: var(--amber);
-    line-height: 1;
-  }
-  .title-rule {
-    width: 320px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--amber-dk), transparent);
-    margin: 10px auto 10px;
-  }
-  .title-sub {
-    font-size: 0.72rem;
-    font-weight: 400;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--stone);
-  }
-
-  /* ══════════════════════════════════════
-     NODE (circle)
-  ══════════════════════════════════════ */
-  .node-row {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 0;
-  }
-  .node-circle {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    border: 2px solid var(--amber);
-    background: var(--charcoal);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    box-shadow: 0 0 20px rgba(201,160,90,0.15);
-    transition: box-shadow 0.2s;
-  }
-  .node-circle:hover { box-shadow: 0 0 32px rgba(201,160,90,0.3); }
-  .node-icon { font-size: 1.4rem; line-height: 1; }
-  .node-label {
-    font-size: 0.55rem;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--stone);
-    margin-top: 8px;
-    text-align: center;
-  }
-
-  /* ══════════════════════════════════════
-     GENERIC BOX
-  ══════════════════════════════════════ */
+  /* ── Generic box ── */
   .box {
-    border-radius: 10px;
-    border: 1px solid var(--smoke);
-    background: var(--charcoal);
-    padding: 14px 20px;
-    position: relative;
-    transition: box-shadow 0.2s, border-color 0.2s;
+    border-radius:10px; border:1px solid var(--smoke);
+    background:var(--charcoal);
+    position:relative;
+    transition: box-shadow .2s, border-color .2s;
   }
-  .box-name {
-    font-size: 0.6rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-  }
-  .box-sub {
-    font-size: 0.58rem;
-    font-weight: 400;
-    color: var(--stone);
-    margin-top: 3px;
-    line-height: 1.5;
+  .box-name { font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.18em; }
+  .box-sub   { font-size:.55rem; color:var(--stone); margin-top:4px; line-height:1.58; }
+
+  .b-amber   {border-color:var(--amber);}   .c-amber   {color:var(--amber);}
+  .b-terra   {border-color:var(--terra);}   .c-terra   {color:var(--terra);}
+  .b-verdant {border-color:var(--verdant);} .c-verdant {color:var(--verdant);}
+  .b-cerulean{border-color:var(--cerulean);}.c-cerulean{color:var(--cerulean);}
+  .b-violet  {border-color:var(--violet);}  .c-violet  {color:var(--violet);}
+  .b-stone   {border-color:var(--stone);}   .c-stone   {color:var(--stone);}
+  .b-smoke   {border-color:var(--smoke);}   .c-silk    {color:var(--silk);}
+
+  .b-amber:hover    {box-shadow:0 0 22px rgba(201,160,90,.20); border-color:var(--amber);}
+  .b-terra:hover    {box-shadow:0 0 22px rgba(192,88,64,.20);  border-color:var(--terra);}
+  .b-verdant:hover  {box-shadow:0 0 22px rgba(90,140,100,.20); border-color:var(--verdant);}
+  .b-cerulean:hover {box-shadow:0 0 22px rgba(74,122,171,.20); border-color:var(--cerulean);}
+  .b-violet:hover   {box-shadow:0 0 22px rgba(138,106,171,.20);border-color:var(--violet);}
+  .b-stone:hover    {box-shadow:0 0 18px rgba(122,116,105,.18);border-color:var(--silk);}
+
+  /* ── Two-column layout ── */
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 0 52px;
+    align-items: start;
   }
 
-  /* border variants */
-  .b-amber  { border-color: var(--amber);   }
-  .b-terra  { border-color: var(--terra);   }
-  .b-verdant{ border-color: var(--verdant); }
-  .b-cerulean{border-color: var(--cerulean);}
-  .b-stone  { border-color: var(--stone);   }
-  .b-smoke  { border-color: var(--smoke);   }
+  /* LEFT — main planning flow */
+  .left { display:flex; flex-direction:column; align-items:center; }
 
-  /* color variants for name */
-  .c-amber  { color: var(--amber);   }
-  .c-terra  { color: var(--terra);   }
-  .c-verdant{ color: var(--verdant); }
-  .c-cerulean{color: var(--cerulean);}
-  .c-silk   { color: var(--silk);    }
-  .c-stone  { color: var(--stone);   }
+  /* RIGHT — reactive agents + APIs */
+  .right { display:flex; flex-direction:column; gap:10px; }
 
-  /* hover glows */
-  .b-amber:hover   { box-shadow: 0 0 22px rgba(201,160,90,0.18);  border-color: var(--amber); }
-  .b-terra:hover   { box-shadow: 0 0 22px rgba(192,88,64,0.18);   border-color: var(--terra); }
-  .b-verdant:hover { box-shadow: 0 0 22px rgba(90,140,100,0.18);  border-color: var(--verdant); }
-  .b-cerulean:hover{ box-shadow: 0 0 22px rgba(74,122,171,0.18);  border-color: var(--cerulean); }
-  .b-stone:hover   { box-shadow: 0 0 18px rgba(122,116,105,0.18); border-color: var(--silk); }
-
-  /* ══════════════════════════════════════
-     SPACER (vertical arrow gap)
-  ══════════════════════════════════════ */
-  .gap { margin-bottom: 0; }
-  .arrow-gap { height: 38px; }
-  .arrow-gap-sm { height: 28px; }
-
-  /* ══════════════════════════════════════
-     GUARDRAILS ROW
-  ══════════════════════════════════════ */
-  .guardrail-row {
-    display: flex;
-    justify-content: center;
+  /* ── Specific left-column nodes ── */
+  .nd-user {
+    width:68px; height:68px; border-radius:50%;
+    border:2px solid var(--amber); background:var(--charcoal);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 24px rgba(201,160,90,.14);
+    transition: box-shadow .2s;
+    font-size:1.5rem;
   }
-  .guardrail-box {
-    width: 460px;
-    text-align: center;
-    padding: 13px 28px;
-    background: rgba(192,88,64,0.06);
+  .nd-user:hover { box-shadow:0 0 36px rgba(201,160,90,.30); }
+  .nd-user-label { margin-top:8px; font-size:.55rem; text-transform:uppercase; letter-spacing:.16em; color:var(--stone); text-align:center; }
+
+  .nd-guard {
+    width:460px; padding:13px 28px; text-align:center;
+    background:rgba(192,88,64,.06);
+  }
+  .nd-guard .box-name { font-size:.68rem; }
+
+  .nd-orch {
+    width:580px; padding:16px 32px; text-align:center;
+    background:rgba(201,160,90,.05);
+    box-shadow:0 0 44px rgba(201,160,90,.08), inset 0 0 60px rgba(201,160,90,.03);
+  }
+  .nd-orch .box-name { font-size:.72rem; letter-spacing:.22em; }
+  .nd-orch .box-sub  { font-size:.58rem; }
+
+  .nd-intake {
+    width:320px; padding:13px 20px; text-align:center;
+    background:rgba(201,160,90,.04);
   }
 
-  /* ══════════════════════════════════════
-     ORCHESTRATOR ROW
-  ══════════════════════════════════════ */
-  .orch-row {
-    display: flex;
-    justify-content: center;
-  }
-  .orch-box {
-    width: 640px;
-    text-align: center;
-    padding: 16px 32px;
-    background: rgba(201,160,90,0.05);
-    box-shadow: 0 0 40px rgba(201,160,90,0.08), inset 0 0 60px rgba(201,160,90,0.03);
-  }
-  .orch-box .box-name { font-size: 0.72rem; letter-spacing: 0.22em; }
-  .orch-box .box-sub  { font-size: 0.62rem; }
+  /* Parallel agents row */
+  .parallel-row { display:flex; gap:10px; width:680px; }
+  .nd-agent { flex:1; padding:12px 8px 14px; text-align:center; }
+  .nd-agent .box-name { font-size:.56rem; }
+  .nd-agent .box-sub  { font-size:.5rem; margin-top:4px; line-height:1.55; }
 
-  /* ══════════════════════════════════════
-     AGENTS ROW
-  ══════════════════════════════════════ */
-  .agents-outer {
-    display: flex;
-    align-items: flex-start;
-    gap: 0;
+  .nd-solver {
+    width:720px; padding:16px 32px; text-align:center;
+    background:rgba(90,140,100,.05);
+    box-shadow:0 0 36px rgba(90,140,100,.07), inset 0 0 50px rgba(90,140,100,.03);
   }
-  .agents-row {
-    display: flex;
-    gap: 12px;
-    flex: 1;
-  }
-  .agent-box {
-    flex: 1;
-    text-align: center;
-    padding: 14px 12px 16px;
-    min-width: 0;
-  }
-  .agent-box .box-name { font-size: 0.58rem; }
-  .agent-box .box-sub  { font-size: 0.55rem; margin-top: 5px; line-height: 1.55; }
+  .nd-solver .box-name { font-size:.72rem; letter-spacing:.2em; }
+  .nd-solver .box-sub  { font-size:.57rem; margin-top:5px; }
+  .solver-steps { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:0; margin-top:8px; }
+  .solver-step  { font-size:.52rem; font-weight:500; color:var(--stone); letter-spacing:.06em; text-transform:uppercase; }
+  .solver-arr   { font-size:.48rem; color:var(--ash); margin:0 6px; }
 
-  /* API boxes on the right */
-  .api-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-left: 22px;
-    padding-top: 4px;
-    min-width: 148px;
+  .nd-fe {
+    width:580px; padding:15px 32px; text-align:center;
+    background:rgba(74,122,171,.05);
+    box-shadow:0 0 28px rgba(74,122,171,.07);
   }
-  .api-box {
-    padding: 9px 14px;
-    text-align: center;
-  }
-  .api-box .box-name { font-size: 0.52rem; letter-spacing: 0.12em; }
-  .api-box .box-sub  { font-size: 0.5rem; }
+  .nd-fe .box-name { font-size:.68rem; letter-spacing:.2em; }
+  .nd-fe .box-sub  { font-size:.56rem; margin-top:4px; }
 
-  /* ══════════════════════════════════════
-     COLLECTOR BAR (visual horizontal line
-     under agents, before solver)
-  ══════════════════════════════════════ */
-  .collector-row {
-    display: flex;
-    justify-content: center;
-  }
+  /* Output row */
+  .output-row { display:flex; gap:22px; }
+  .nd-out { padding:14px 18px; text-align:center; }
+  .nd-out .box-name { font-size:.62rem; letter-spacing:.14em; }
+  .nd-out .box-sub  { font-size:.53rem; margin-top:4px; }
+  .nd-out.itin    { width:240px; background:rgba(201,160,90,.05); box-shadow:0 0 22px rgba(201,160,90,.07); }
+  .nd-out.disrupt { width:220px; background:rgba(192,88,64,.06); }
+  .nd-out.convo   { width:220px; background:rgba(138,106,171,.06); }
 
-  /* ══════════════════════════════════════
-     SOLVER ROW
-  ══════════════════════════════════════ */
-  .solver-row {
-    display: flex;
-    justify-content: center;
-  }
-  .solver-box {
-    width: 760px;
-    text-align: center;
-    padding: 18px 36px;
-    background: rgba(90,140,100,0.05);
-    box-shadow: 0 0 36px rgba(90,140,100,0.07), inset 0 0 50px rgba(90,140,100,0.03);
-  }
-  .solver-box .box-name { font-size: 0.72rem; letter-spacing: 0.2em; }
-  .solver-box .box-sub  { font-size: 0.6rem; margin-top: 6px; }
-  .solver-steps {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0;
-    margin-top: 8px;
-  }
-  .solver-step {
-    font-size: 0.56rem;
-    font-weight: 500;
-    color: var(--stone);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 2px 0;
-  }
-  .solver-arrow {
-    font-size: 0.5rem;
-    color: var(--ash);
-    margin: 0 6px;
-  }
-  .solver-outputs {
-    margin-top: 7px;
-    font-size: 0.55rem;
-    color: var(--ash);
-    letter-spacing: 0.08em;
-  }
+  /* Vertical spacers */
+  .vgap    { height:44px; flex-shrink:0; }
+  .vgap-sm { height:18px; flex-shrink:0; }
 
-  /* ══════════════════════════════════════
-     FRONTEND ROW
-  ══════════════════════════════════════ */
-  .fe-row {
-    display: flex;
-    justify-content: center;
-  }
-  .fe-box {
-    width: 600px;
-    text-align: center;
-    padding: 16px 32px;
-    background: rgba(74,122,171,0.05);
-    box-shadow: 0 0 28px rgba(74,122,171,0.07);
-  }
-  .fe-box .box-name { font-size: 0.68rem; letter-spacing: 0.2em; }
-  .fe-box .box-sub  { font-size: 0.6rem; margin-top: 5px; }
+  /* Fan label */
+  .fan-label { font-size:.46rem; text-transform:uppercase; letter-spacing:.14em; color:var(--ash); text-align:center; margin-bottom:5px; }
 
-  /* ══════════════════════════════════════
-     OUTPUT ROW
-  ══════════════════════════════════════ */
-  .output-row {
-    display: flex;
-    justify-content: center;
-    align-items: stretch;
-    gap: 32px;
+  /* ── RIGHT column ── */
+  .right-section-label {
+    font-size:.44rem; text-transform:uppercase; letter-spacing:.18em;
+    color:var(--stone); text-align:center; margin-bottom:4px;
   }
-  .output-box {
-    width: 300px;
-    text-align: center;
-    padding: 16px 24px;
-    background: rgba(201,160,90,0.05);
-    box-shadow: 0 0 24px rgba(201,160,90,0.08);
-  }
-  .output-box .box-name { font-size: 0.65rem; letter-spacing: 0.16em; }
-  .output-box .box-sub  { font-size: 0.58rem; margin-top: 4px; }
+  .right-divider { height:1px; background:var(--graphite); margin:10px 0 6px; }
 
-  .disruption-box {
-    width: 280px;
-    text-align: center;
-    padding: 16px 20px;
-    background: rgba(192,88,64,0.06);
+  /* Replanner — larger, it's the selling point */
+  .nd-replanner {
+    padding:18px 16px; text-align:center;
+    background:rgba(192,88,64,.07);
+    box-shadow:0 0 28px rgba(192,88,64,.09);
   }
-  .disruption-box .box-name { font-size: 0.65rem; letter-spacing: 0.16em; }
-  .disruption-box .box-sub  { font-size: 0.57rem; margin-top: 5px; line-height: 1.55; }
+  .nd-replanner .box-name { font-size:.68rem; letter-spacing:.16em; }
+  .nd-replanner .box-sub  { font-size:.53rem; margin-top:5px; }
 
-  /* ══════════════════════════════════════
-     LEGEND
-  ══════════════════════════════════════ */
-  .legend-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 36px;
-    margin-top: 52px;
-    padding-top: 20px;
-    border-top: 1px solid var(--graphite);
+  /* Conversation */
+  .nd-conv {
+    padding:13px 16px; text-align:center;
+    background:rgba(138,106,171,.06);
   }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .legend-swatch {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
-  .legend-label {
-    font-size: 0.55rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--stone);
-  }
+  .nd-conv .box-name { font-size:.6rem; }
+  .nd-conv .box-sub  { font-size:.51rem; margin-top:4px; }
 
-  /* ══════════════════════════════════════
-     FOOTER
-  ══════════════════════════════════════ */
-  .footer {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 0.52rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--ash);
-  }
-  .footer span { margin: 0 8px; opacity: 0.5; }
+  /* API boxes */
+  .nd-api { padding:9px 12px; text-align:center; background:rgba(122,116,105,.07); }
+  .nd-api .box-name { font-size:.48rem; letter-spacing:.12em; }
+  .nd-api .box-sub  { font-size:.46rem; margin-top:2px; }
 
-  /* ══════════════════════════════════════
-     ID ANCHORS (for SVG connectors)
-  ══════════════════════════════════════ */
-  #node-user, #box-guard, #box-orch,
-  #agent-intake, #agent-lodging, #agent-activity, #agent-dining, #agent-transport,
-  #api-places, #api-maps,
-  #box-solver, #box-fe, #box-output, #box-disruption { }
+  /* ── Legend ── */
+  .legend {
+    display:flex; align-items:center; justify-content:center;
+    gap:28px; margin-top:52px; padding-top:18px;
+    border-top:1px solid var(--graphite);
+  }
+  .legend-item  { display:flex; align-items:center; gap:7px; }
+  .legend-swatch { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+  .legend-label  { font-size:.52rem; font-weight:500; text-transform:uppercase; letter-spacing:.12em; color:var(--stone); }
+
+  /* Footer */
+  .footer { text-align:center; margin-top:18px; font-size:.5rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ash); }
+  .footer span { margin:0 8px; opacity:.5; }
 </style>
 </head>
 <body>
-<div class="glow-orb"></div>
+<div class="glow-a"></div>
+<div class="glow-b"></div>
 
-<div class="diagram" id="diagram">
+<div class="page" id="page">
+<svg class="svg-layer" id="svg" aria-hidden="true">
+  <defs>
+    <marker id="ag" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#c9a05a" opacity=".80"/></marker>
+    <marker id="at" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#c05840" opacity=".80"/></marker>
+    <marker id="av" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#8a6aab" opacity=".80"/></marker>
+    <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#5a8c64" opacity=".80"/></marker>
+    <marker id="as" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3z" fill="#7a7469" opacity=".60"/></marker>
+    <marker id="am" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#56524b" opacity=".65"/></marker>
+  </defs>
+</svg>
 
-  <!-- SVG connector layer (drawn by JS after layout) -->
-  <svg class="connector-svg" id="svg-layer" aria-hidden="true">
-    <defs>
-      <!-- Gold arrowhead -->
-      <marker id="arr-gold" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-        <path d="M0,0 L0,6 L8,3 z" fill="#c9a05a" opacity="0.7"/>
-      </marker>
-      <!-- Smoke arrowhead -->
-      <marker id="arr-smoke" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-        <path d="M0,0 L0,6 L8,3 z" fill="#56524b"/>
-      </marker>
-      <!-- Terra arrowhead -->
-      <marker id="arr-terra" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-        <path d="M0,0 L0,6 L8,3 z" fill="#c05840" opacity="0.8"/>
-      </marker>
-      <!-- Stone arrowhead (small) -->
-      <marker id="arr-stone" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-        <path d="M0,0 L0,6 L6,3 z" fill="#7a7469"/>
-      </marker>
-    </defs>
-  </svg>
+<!-- TITLE -->
+<div class="title anim d0">
+  <div class="title-main">VOYAGER</div>
+  <div class="title-rule"></div>
+  <div class="title-sub">AI Travel Itinerary &nbsp;—&nbsp; Agent Pipeline (Capstone 2026)</div>
+</div>
 
-  <!-- ── TITLE ── -->
-  <div class="title-block row row-0">
-    <div class="title-main">VOYAGER</div>
-    <div class="title-rule"></div>
-    <div class="title-sub">AI Travel Itinerary &nbsp;—&nbsp; Generation Pipeline</div>
-  </div>
+<div class="cols">
 
-  <!-- ── USER NODE ── -->
-  <div class="node-row row row-1">
-    <div id="node-user" class="node-circle">
-      <div class="node-icon">👤</div>
+  <!-- ══ LEFT: main planning flow ══ -->
+  <div class="left">
+
+    <!-- User -->
+    <div class="anim d1" style="display:flex;flex-direction:column;align-items:center">
+      <div id="nd-user" class="nd-user">👤</div>
+      <div class="nd-user-label">User / Travel Advisor</div>
     </div>
-  </div>
-  <div class="node-label" style="text-align:center;margin-top:6px;margin-bottom:0" aria-label="User / Advisor">User / Advisor</div>
 
-  <div class="arrow-gap"></div>
+    <div class="vgap"></div>
 
-  <!-- ── GUARDRAILS ── -->
-  <div class="guardrail-row row row-2">
-    <div id="box-guard" class="box b-terra guardrail-box">
+    <!-- Guardrails -->
+    <div id="nd-guard" class="box b-terra nd-guard anim d2">
       <div class="box-name c-terra">Input Guardrails</div>
-      <div class="box-sub">Off-topic filter &nbsp;·&nbsp; Budget sanity ($20 – $10k / day)</div>
+      <div class="box-sub">Off-topic filter &nbsp;·&nbsp; Budget sanity ($20 – $10k/day) &nbsp;·&nbsp; Gemini 2.0 Flash sub-agents</div>
     </div>
-  </div>
 
-  <div class="arrow-gap"></div>
+    <div class="vgap"></div>
 
-  <!-- ── ORCHESTRATOR ── -->
-  <div class="orch-row row row-3">
-    <div id="box-orch" class="box b-amber orch-box">
+    <!-- Orchestrator -->
+    <div id="nd-orch" class="box b-amber nd-orch anim d3">
       <div class="box-name c-amber">Orchestrator Agent</div>
-      <div class="box-sub">gemini-2.5-flash &nbsp;·&nbsp; Manages conversation &amp; routing &nbsp;·&nbsp; Single-city or multi-city flow</div>
-    </div>
-  </div>
-
-  <div class="arrow-gap"></div>
-
-  <!-- ── AGENTS ROW ── -->
-  <div class="agents-outer row row-4">
-    <div class="agents-row">
-
-      <div id="agent-intake" class="box b-amber agent-box">
-        <div class="box-name c-amber">Intake</div>
-        <div class="box-sub">Parses request<br>→ TripRequest<br>+ CityLeg list</div>
-      </div>
-
-      <div id="agent-lodging" class="box b-stone agent-box">
-        <div class="box-name c-silk">Lodging</div>
-        <div class="box-sub">Hotels &amp; B&amp;Bs<br>per city</div>
-      </div>
-
-      <div id="agent-activity" class="box b-stone agent-box">
-        <div class="box-name c-silk">Activity</div>
-        <div class="box-sub">Attractions<br>&amp; museums<br>per city</div>
-      </div>
-
-      <div id="agent-dining" class="box b-stone agent-box">
-        <div class="box-name c-silk">Dining</div>
-        <div class="box-sub">Restaurants<br>3× trip days<br>per city</div>
-      </div>
-
-      <div id="agent-transport" class="box b-stone agent-box">
-        <div class="box-name c-silk">Transport</div>
-        <div class="box-sub">Inter-city<br>train / flight / bus<br>static table</div>
-      </div>
-
+      <div class="box-sub">Gemini 2.5 Flash &nbsp;·&nbsp; Manages full conversation &amp; routing &nbsp;·&nbsp; Dynamic prompt injects itinerary + weather + locked slots each turn</div>
+      <div class="box-sub" style="margin-top:5px;color:var(--ash)">question/analysis → Conversation &nbsp;·&nbsp; change/disruption → Replanner &nbsp;·&nbsp; new trip → planning flow</div>
     </div>
 
-    <!-- API stack -->
-    <div class="api-stack">
-      <div id="api-places" class="box b-smoke api-box">
-        <div class="box-name c-stone">Google Places API</div>
-        <div class="box-sub" style="color:var(--ash)">+ Local Cache</div>
-      </div>
-      <div id="api-maps" class="box b-smoke api-box">
-        <div class="box-name c-stone">Google Maps</div>
-        <div class="box-sub" style="color:var(--ash)">Routes API</div>
+    <div class="vgap"></div>
+
+    <!-- Step 1: Intake alone -->
+    <div class="anim d4" style="display:flex;flex-direction:column;align-items:center;width:100%">
+      <div class="fan-label">① Parse request</div>
+      <div id="nd-intake" class="box b-amber nd-intake">
+        <div class="box-name c-amber">Intake Agent</div>
+        <div class="box-sub">Free-text → TripRequest + CityLeg list<br><span style="color:var(--ash)">Today's date injected · infers relative dates</span></div>
       </div>
     </div>
-  </div>
 
-  <div class="arrow-gap"></div>
+    <div class="vgap-sm"></div>
 
-  <!-- ── SOLVER ── -->
-  <div class="solver-row row row-5">
-    <div id="box-solver" class="box b-verdant solver-box">
-      <div class="box-name c-verdant">Solver Agent &nbsp;<span style="color:var(--stone);font-weight:300">·</span>&nbsp; <span style="font-size:0.62rem;color:var(--stone);font-weight:400;letter-spacing:0.1em">gemini-2.0-flash</span></div>
-      <div class="solver-steps">
-        <span class="solver-step">Assign days per city</span>
-        <span class="solver-arrow">→</span>
-        <span class="solver-step">Sequence stops</span>
-        <span class="solver-arrow">→</span>
-        <span class="solver-step">Route matrix</span>
-        <span class="solver-arrow">→</span>
-        <span class="solver-step">Enforce constraints</span>
-        <span class="solver-arrow">→</span>
-        <span class="solver-step">Emit Markdown</span>
+    <!-- Step 2: Parallel agents -->
+    <div class="anim d5" style="display:flex;flex-direction:column;align-items:center;width:100%">
+      <div class="fan-label">② Parallel — all at once</div>
+      <div class="parallel-row">
+        <div id="nd-lodging"   class="box b-stone nd-agent">
+          <div class="box-name c-silk">Lodging</div>
+          <div class="box-sub">Hotels &amp; B&amp;Bs<br>per city leg</div>
+        </div>
+        <div id="nd-activity"  class="box b-stone nd-agent">
+          <div class="box-name c-silk">Activity</div>
+          <div class="box-sub">Attractions<br>&amp; museums</div>
+        </div>
+        <div id="nd-dining"    class="box b-stone nd-agent">
+          <div class="box-name c-silk">Dining</div>
+          <div class="box-sub">Restaurants<br>3× trip days</div>
+        </div>
+        <div id="nd-transport" class="box b-stone nd-agent">
+          <div class="box-name c-silk">Transport</div>
+          <div class="box-sub">Inter-city<br>train / flight / bus</div>
+        </div>
       </div>
-      <div class="solver-outputs">Maps route URLs &nbsp;·&nbsp; QR markers &nbsp;·&nbsp; Booking links</div>
     </div>
-  </div>
 
-  <div class="arrow-gap"></div>
+    <div class="vgap"></div>
 
-  <!-- ── FRONTEND ── -->
-  <div class="fe-row row row-6">
-    <div id="box-fe" class="box b-cerulean fe-box">
-      <div class="box-name c-cerulean">Frontend &nbsp;<span style="color:var(--ash);font-weight:300">·</span>&nbsp; <span style="font-size:0.56rem;color:var(--stone);font-weight:400;letter-spacing:0.06em">static/index.html</span></div>
-      <div class="box-sub">Parse Markdown &nbsp;→&nbsp; Day cards &nbsp;·&nbsp; City banners &nbsp;·&nbsp; Navigate buttons &nbsp;·&nbsp; QR codes &nbsp;·&nbsp; Booking links</div>
+    <!-- Step 3: Solver -->
+    <div class="anim d6" style="display:flex;flex-direction:column;align-items:center;width:100%">
+      <div class="fan-label">③ Sequence into itinerary</div>
+      <div id="nd-solver" class="box b-verdant nd-solver">
+        <div class="box-name c-verdant">Solver Agent &nbsp;<span style="color:var(--stone);font-weight:300">·</span>&nbsp; <span style="font-size:.58rem;color:var(--stone);font-weight:400;letter-spacing:.1em">Gemini 2.0 Flash</span></div>
+        <div class="solver-steps">
+          <span class="solver-step">Assign days per city</span><span class="solver-arr">→</span>
+          <span class="solver-step">Sequence stops</span><span class="solver-arr">→</span>
+          <span class="solver-step">Route matrix</span><span class="solver-arr">→</span>
+          <span class="solver-step">Enforce constraints</span><span class="solver-arr">→</span>
+          <span class="solver-step">Emit Markdown</span>
+        </div>
+        <div class="box-sub" style="margin-top:6px">Maps route URLs &nbsp;·&nbsp; QR markers &nbsp;·&nbsp; Booking links &nbsp;·&nbsp; Weather-aware &nbsp;·&nbsp; Multi-city travel days</div>
+      </div>
     </div>
-  </div>
 
-  <div class="arrow-gap"></div>
+    <div class="vgap"></div>
 
-  <!-- ── OUTPUT + DISRUPTION ── -->
-  <div class="output-row row row-7">
-    <div id="box-output" class="box b-amber output-box">
-      <div class="box-name c-amber">✦ &nbsp;Day-by-day Itinerary</div>
-      <div class="box-sub">User reviews &amp; navigates</div>
+    <!-- Frontend -->
+    <div id="nd-fe" class="box b-cerulean nd-fe anim d7">
+      <div class="box-name c-cerulean">Frontend &nbsp;<span style="color:var(--ash);font-weight:300">·</span>&nbsp; <span style="font-size:.52rem;color:var(--stone);font-weight:400;letter-spacing:.06em">static/index.html</span></div>
+      <div class="box-sub">Parse Markdown → Day cards · City banners · Weather badges · Budget bars · Slot actions</div>
+      <div class="box-sub" style="margin-top:3px;color:var(--ash)">Batch edit queue · Lock/unlock slots · Export PDF · Export .ics · SSE streaming progress</div>
     </div>
-    <div id="box-disruption" class="box b-terra disruption-box">
-      <div class="box-name c-terra">Disruption?</div>
-      <div class="box-sub">ReplannerAgent<br>locked slots respected</div>
-    </div>
-  </div>
 
-  <!-- ── LEGEND ── -->
-  <div class="legend-row row row-8">
-    <div class="legend-item">
-      <div class="legend-swatch" style="background:var(--amber)"></div>
-      <div class="legend-label">Orchestrator / key nodes</div>
-    </div>
-    <div class="legend-item">
-      <div class="legend-swatch" style="background:var(--verdant)"></div>
-      <div class="legend-label">Solver agent</div>
-    </div>
-    <div class="legend-item">
-      <div class="legend-swatch" style="background:var(--cerulean)"></div>
-      <div class="legend-label">Frontend</div>
-    </div>
-    <div class="legend-item">
-      <div class="legend-swatch" style="background:var(--terra)"></div>
-      <div class="legend-label">Guardrails / re-plan</div>
-    </div>
-    <div class="legend-item">
-      <div class="legend-swatch" style="background:var(--stone)"></div>
-      <div class="legend-label">Specialist agents</div>
-    </div>
-    <div class="legend-item">
-      <div class="legend-swatch" style="background:var(--smoke);border:1px solid var(--ash)"></div>
-      <div class="legend-label">External APIs</div>
-    </div>
-  </div>
+    <div class="vgap"></div>
 
-  <!-- ── FOOTER ── -->
-  <div class="footer row row-8" style="animation-delay:1.0s">
-    Voyager <span>·</span> Columbia IEOR Agentic AI Capstone <span>·</span> OpenAI Agents SDK + Vertex AI Gemini
-  </div>
+    <!-- Outputs -->
+    <div class="output-row anim d8">
+      <div id="nd-itin"    class="box b-amber   nd-out itin">
+        <div class="box-name c-amber">✦ &nbsp;Day-by-day Itinerary</div>
+        <div class="box-sub">Costs · weather · maps<br>Export PDF / .ics</div>
+      </div>
+      <div id="nd-disrupt" class="box b-terra   nd-out disrupt">
+        <div class="box-name c-terra">Disruption / Re-plan</div>
+        <div class="box-sub">Delta auto-applied<br>State updated</div>
+      </div>
+      <div id="nd-convo"   class="box b-violet  nd-out convo">
+        <div class="box-name c-violet">Conversational Q&amp;A</div>
+        <div class="box-sub">Weather · pacing<br>Suggestions</div>
+      </div>
+    </div>
 
-</div><!-- /diagram -->
+  </div><!-- /left -->
+
+  <!-- ══ RIGHT: reactive agents + APIs ══ -->
+  <div class="right anim d4">
+
+    <div class="right-section-label">On-demand routing</div>
+
+    <!-- Replanner — bigger, it's the moat -->
+    <div id="nd-replanner" class="box b-terra nd-replanner">
+      <div class="box-name c-terra">Replanner Agent</div>
+      <div class="box-sub" style="margin-top:6px">Re-optimises affected days only<br>Respects locked slots<br>Reuses candidate pool<br><span style="color:var(--ash)">The advisor's differentiator</span></div>
+    </div>
+
+    <!-- Conversation -->
+    <div id="nd-conv" class="box b-violet nd-conv">
+      <div class="box-name c-violet">Conversation Agent</div>
+      <div class="box-sub">Q&amp;A · Analysis · Suggestions<br><span style="color:var(--ash)">Context auto-injected · read-only</span></div>
+    </div>
+
+    <div class="right-divider"></div>
+    <div class="right-section-label">External APIs</div>
+
+    <div id="api-places"  class="box b-smoke nd-api">
+      <div class="box-name c-stone">Google Places API</div>
+      <div class="box-sub" style="color:var(--ash)">+ Local JSON Cache + GCS Sync</div>
+    </div>
+    <div id="api-maps"    class="box b-smoke nd-api">
+      <div class="box-name c-stone">Google Maps</div>
+      <div class="box-sub" style="color:var(--ash)">Routes · Geocoding · QR URLs</div>
+    </div>
+    <div id="api-weather" class="box b-smoke nd-api">
+      <div class="box-name c-stone">Open-Meteo</div>
+      <div class="box-sub" style="color:var(--ash)">Forecast (16d) + Historical avg</div>
+    </div>
+    <div id="api-tavily"  class="box b-smoke nd-api">
+      <div class="box-name c-stone">Tavily Search</div>
+      <div class="box-sub" style="color:var(--ash)">Booking link enrichment</div>
+    </div>
+    <div id="api-liteapi" class="box b-smoke nd-api">
+      <div class="box-name c-stone">LiteAPI</div>
+      <div class="box-sub" style="color:var(--ash)">Hotel nightly rates</div>
+    </div>
+
+  </div><!-- /right -->
+
+</div><!-- /cols -->
+
+<!-- Legend -->
+<div class="legend anim d9">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--amber)"></div><div class="legend-label">Orchestrator / Intake / Solver</div></div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--verdant)"></div><div class="legend-label">Solver agent</div></div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--cerulean)"></div><div class="legend-label">Frontend</div></div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--terra)"></div><div class="legend-label">Guardrails / Replanner</div></div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--stone)"></div><div class="legend-label">Specialist agents</div></div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--violet)"></div><div class="legend-label">Conversation Agent</div></div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--smoke);border:1px solid var(--ash)"></div><div class="legend-label">External APIs</div></div>
+</div>
+
+<div class="footer anim d10">
+  Voyager <span>·</span> Columbia IEOR Agentic AI Capstone 2026 <span>·</span> OpenAI Agents SDK + Vertex AI Gemini 2.5 Flash
+</div>
+
+</div><!-- /page -->
 
 <script>
-/* Draw SVG connectors after layout + animations are complete */
-function drawConnectors() {
-  const svg     = document.getElementById('svg-layer');
-  const diagram = document.getElementById('diagram');
+(function(){
+  function $(id){ return document.getElementById(id); }
 
-  /* Size SVG to match diagram */
-  const dW = diagram.offsetWidth;
-  const dH = diagram.offsetHeight;
-  svg.setAttribute('width',  dW);
-  svg.setAttribute('height', dH);
-  svg.setAttribute('viewBox', '0 0 ' + dW + ' ' + dH);
+  function draw(){
+    const svg  = $('svg');
+    const page = $('page');
+    const pw = page.offsetWidth, ph = page.offsetHeight;
+    svg.setAttribute('width',   pw);
+    svg.setAttribute('height',  ph);
+    svg.setAttribute('viewBox', '0 0 '+pw+' '+ph);
+    while(svg.children.length > 1) svg.removeChild(svg.lastChild);
 
-  /* Get element rect relative to diagram container using offsetTop/offsetLeft walk */
-  function r(el) {
-    let top = 0, left = 0, cur = el;
-    while (cur && cur !== diagram) {
-      top  += cur.offsetTop;
-      left += cur.offsetLeft;
-      cur   = cur.offsetParent;
+    function m(el){
+      const er = el.getBoundingClientRect();
+      const pr = page.getBoundingClientRect();
+      const t = er.top-pr.top, l = er.left-pr.left;
+      const w = er.width, h = er.height;
+      return {t,b:t+h,l,r:l+w,cx:l+w/2,cy:t+h/2,w,h};
     }
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    return {
-      top,
-      bottom: top  + h,
-      left,
-      right:  left + w,
-      cx:     left + w / 2,
-      cy:     top  + h / 2,
-      width:  w,
-      height: h,
-    };
+
+    function ln(x1,y1,x2,y2,o){
+      o=o||{};
+      const e=document.createElementNS('http://www.w3.org/2000/svg','line');
+      e.setAttribute('x1',x1); e.setAttribute('y1',y1);
+      e.setAttribute('x2',x2); e.setAttribute('y2',y2);
+      e.setAttribute('stroke',      o.s ||'#56524b');
+      e.setAttribute('stroke-width',o.w ||'1.5');
+      if(o.d)  e.setAttribute('stroke-dasharray',o.d);
+      if(o.mk) e.setAttribute('marker-end','url(#'+o.mk+')');
+      if(o.op) e.setAttribute('opacity',o.op);
+      svg.appendChild(e);
+    }
+
+    function pt(d,o){
+      o=o||{};
+      const e=document.createElementNS('http://www.w3.org/2000/svg','path');
+      e.setAttribute('d',d); e.setAttribute('fill','none');
+      e.setAttribute('stroke',      o.s ||'#56524b');
+      e.setAttribute('stroke-width',o.w ||'1.5');
+      if(o.d)  e.setAttribute('stroke-dasharray',o.d);
+      if(o.mk) e.setAttribute('marker-end','url(#'+o.mk+')');
+      if(o.op) e.setAttribute('opacity',o.op);
+      svg.appendChild(e);
+    }
+
+    const user      = m($('nd-user'));
+    const guard     = m($('nd-guard'));
+    const orch      = m($('nd-orch'));
+    const intake    = m($('nd-intake'));
+    const lodging   = m($('nd-lodging'));
+    const activity  = m($('nd-activity'));
+    const dining    = m($('nd-dining'));
+    const transport = m($('nd-transport'));
+    const replanner = m($('nd-replanner'));
+    const conv      = m($('nd-conv'));
+    const solver    = m($('nd-solver'));
+    const fe        = m($('nd-fe'));
+    const itin      = m($('nd-itin'));
+    const disrupt   = m($('nd-disrupt'));
+    const convo     = m($('nd-convo'));
+    const apip      = m($('api-places'));
+    const apim      = m($('api-maps'));
+    const apiw      = m($('api-weather'));
+    const apit      = m($('api-tavily'));
+    const apil      = m($('api-liteapi'));
+
+    const pA = [lodging,activity,dining,transport];
+
+    /* ── Main spine ── */
+    ln(user.cx, user.b,  guard.cx, guard.t,  {s:'#c9a05a',w:'2',op:'.55',mk:'ag'});
+    ln(guard.cx,guard.b, orch.cx,  orch.t,   {s:'#c9a05a',w:'2',op:'.55',mk:'ag'});
+
+    /* ── orch → intake ── */
+    ln(orch.cx, orch.b, intake.cx, intake.t, {s:'#c9a05a',w:'2',op:'.58',mk:'ag'});
+
+    /* ── intake → fan bar → parallel agents ── */
+    const fanY = intake.b + (lodging.t - intake.b)*0.5;
+    ln(intake.cx, intake.b,   intake.cx,    fanY,         {s:'#c9a05a',w:'1.5',op:'.38'});
+    ln(lodging.cx,fanY,       transport.cx, fanY,         {s:'#c9a05a',w:'1.5',op:'.38'});
+    pA.forEach(function(ag){ ln(ag.cx,fanY,ag.cx,ag.t,{s:'#c9a05a',w:'1.5',op:'.42',mk:'ag'}); });
+
+    /* ── parallel agents → collector bar → solver ── */
+    const colY = transport.b + (solver.t - transport.b)*0.45;
+    pA.forEach(function(ag){ ln(ag.cx,ag.b,ag.cx,colY,{s:'#56524b',w:'1.1',op:'.32'}); });
+    ln(lodging.cx,colY, transport.cx,colY, {s:'#56524b',w:'1.1',op:'.32'});
+    const midX = (lodging.cx+transport.cx)/2;
+    ln(midX,colY, solver.cx,solver.t, {s:'#c9a05a',w:'2',op:'.52',mk:'ag'});
+
+    /* ── solver → fe → outputs ── */
+    ln(solver.cx,solver.b, fe.cx,fe.t,        {s:'#5a8c64',w:'2',op:'.58',mk:'ar'});
+    ln(fe.cx,fe.b, itin.cx,   itin.t,         {s:'#c9a05a',w:'1.8',op:'.52',mk:'ag'});
+    ln(fe.cx,fe.b, disrupt.cx,disrupt.t,       {s:'#c05840',w:'1.8',op:'.52',mk:'at'});
+    ln(fe.cx,fe.b, convo.cx,  convo.t,         {s:'#8a6aab',w:'1.8',op:'.52',mk:'av'});
+
+    /* ── orch → replanner (right-angle path to right col) ── */
+    const rx1 = replanner.l - 10;
+    pt('M '+orch.r+' '+orch.cy+' L '+rx1+' '+orch.cy+' L '+rx1+' '+replanner.cy+' L '+replanner.l+' '+replanner.cy,
+       {s:'#c05840',w:'1.6',d:'6 4',op:'.55',mk:'at'});
+
+    /* ── orch → conv ── */
+    const rx2 = conv.l - 10;
+    const orchLow = orch.cy + 14;
+    pt('M '+orch.r+' '+orchLow+' L '+rx2+' '+orchLow+' L '+rx2+' '+conv.cy+' L '+conv.l+' '+conv.cy,
+       {s:'#8a6aab',w:'1.6',d:'5 4',op:'.55',mk:'av'});
+
+    /* ── replanner → solver (down then left across) ── */
+    const repBelow = replanner.b + 10;
+    pt('M '+replanner.cx+' '+replanner.b+
+       ' L '+replanner.cx+' '+repBelow+
+       ' L '+solver.r+' '+repBelow+
+       ' L '+solver.r+' '+solver.t,
+       {s:'#c05840',w:'1.4',d:'5 4',op:'.38',mk:'at'});
+
+    /* ── Re-plan feedback: disrupt output → left edge → up → orch left ── */
+    const loopX1 = Math.min(itin.l,guard.l) - 36;
+    pt('M '+disrupt.l+' '+disrupt.cy+
+       ' L '+loopX1+' '+disrupt.cy+
+       ' L '+loopX1+' '+orch.cy+
+       ' L '+orch.l+' '+orch.cy,
+       {s:'#c05840',w:'1.5',d:'7 4',op:'.42',mk:'at'});
+
+    /* ── Conv feedback: convo output → left → up → orch left (offset) ── */
+    const loopX2 = loopX1 - 20;
+    pt('M '+convo.l+' '+convo.cy+
+       ' L '+loopX2+' '+convo.cy+
+       ' L '+loopX2+' '+(orch.cy+14)+
+       ' L '+orch.l+' '+(orch.cy+14),
+       {s:'#8a6aab',w:'1.4',d:'5 4',op:'.36',mk:'av'});
+
+    /* ── API dashed connections (right side) ── */
+    [lodging,activity,dining].forEach(function(ag){
+      ln(ag.r,ag.cy, apip.l,apip.cy, {s:'#56524b',w:'1',d:'4 3',op:'.30',mk:'as'});
+    });
+    ln(transport.r,transport.cy, apim.l,apim.cy, {s:'#56524b',w:'1',d:'4 3',op:'.30',mk:'as'});
+    ln(conv.r,conv.cy,           apiw.l,apiw.cy,  {s:'#8a6aab',w:'1',d:'4 3',op:'.26',mk:'as'});
+    ln(solver.r,solver.cy-6,     apit.l,apit.cy,  {s:'#5a8c64',w:'1',d:'4 3',op:'.26',mk:'as'});
+    ln(solver.r,solver.cy+6,     apil.l,apil.cy,  {s:'#5a8c64',w:'1',d:'4 3',op:'.26',mk:'as'});
   }
 
-  function line(x1, y1, x2, y2, opts = {}) {
-    const el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    el.setAttribute('x1', x1); el.setAttribute('y1', y1);
-    el.setAttribute('x2', x2); el.setAttribute('y2', y2);
-    el.setAttribute('stroke',       opts.stroke       || '#56524b');
-    el.setAttribute('stroke-width', opts.strokeWidth  || '1.5');
-    if (opts.dash)         el.setAttribute('stroke-dasharray', opts.dash);
-    if (opts.markerEnd)    el.setAttribute('marker-end', `url(#${opts.markerEnd})`);
-    if (opts.opacity)      el.setAttribute('opacity', opts.opacity);
-    svg.appendChild(el);
-  }
-
-  function path(d, opts = {}) {
-    const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    el.setAttribute('d', d);
-    el.setAttribute('fill', 'none');
-    el.setAttribute('stroke',       opts.stroke       || '#56524b');
-    el.setAttribute('stroke-width', opts.strokeWidth  || '1.5');
-    if (opts.dash)         el.setAttribute('stroke-dasharray', opts.dash);
-    if (opts.markerEnd)    el.setAttribute('marker-end', `url(#${opts.markerEnd})`);
-    if (opts.opacity)      el.setAttribute('opacity', opts.opacity);
-    svg.appendChild(el);
-  }
-
-  const user    = r(document.getElementById('node-user'));
-  const guard   = r(document.getElementById('box-guard'));
-  const orch    = r(document.getElementById('box-orch'));
-  const intake  = r(document.getElementById('agent-intake'));
-  const lodging = r(document.getElementById('agent-lodging'));
-  const activity= r(document.getElementById('agent-activity'));
-  const dining  = r(document.getElementById('agent-dining'));
-  const transport=r(document.getElementById('agent-transport'));
-  const apip    = r(document.getElementById('api-places'));
-  const apim    = r(document.getElementById('api-maps'));
-  const solver  = r(document.getElementById('box-solver'));
-  const fe      = r(document.getElementById('box-fe'));
-  const output  = r(document.getElementById('box-output'));
-  const disrupt = r(document.getElementById('box-disruption'));
-
-  const agents  = [intake, lodging, activity, dining, transport];
-
-  /* ── user → guard ── */
-  line(user.cx, user.bottom, guard.cx, guard.top,
-       { stroke:'#c9a05a', strokeWidth:'1.5', opacity:'0.5', markerEnd:'arr-gold' });
-
-  /* ── guard → orch ── */
-  line(guard.cx, guard.bottom, orch.cx, orch.top,
-       { stroke:'#c9a05a', strokeWidth:'1.5', opacity:'0.5', markerEnd:'arr-gold' });
-
-  /* ── orch → each agent ── */
-  agents.forEach(ag => {
-    const col = ag === intake ? '#c9a05a' : '#56524b';
-    const mk  = ag === intake ? 'arr-gold' : 'arr-smoke';
-    line(ag.cx, orch.bottom, ag.cx, ag.top,
-         { stroke: col, strokeWidth:'1.5', opacity:'0.6', markerEnd: mk });
+  window.addEventListener('load',function(){
+    draw(); setTimeout(draw,600); setTimeout(draw,1300);
   });
-
-  /* ── dashed lines: lodging/activity/dining → api-places ── */
-  const apiPY = apip.cy;
-  [lodging, activity, dining].forEach(ag => {
-    line(ag.right, ag.cy, apip.left, apiPY,
-         { stroke:'#56524b', strokeWidth:'1', dash:'4 4', opacity:'0.5', markerEnd:'arr-stone' });
-  });
-
-  /* ── dashed line: transport → api-maps ── */
-  line(transport.right, transport.cy, apim.left, apim.cy,
-       { stroke:'#56524b', strokeWidth:'1', dash:'4 4', opacity:'0.5', markerEnd:'arr-stone' });
-
-  /* ── collector: horizontal line below agents, then down to solver ── */
-  const collectY = transport.bottom + 16;
-  const solverTopX = solver.cx;
-
-  // vertical drops from each agent to collector bar
-  agents.forEach(ag => {
-    line(ag.cx, ag.bottom, ag.cx, collectY,
-         { stroke:'#56524b', strokeWidth:'1', opacity:'0.45' });
-  });
-  // horizontal collector bar
-  line(intake.cx, collectY, transport.cx, collectY,
-       { stroke:'#56524b', strokeWidth:'1', opacity:'0.45' });
-  // vertical from collector midpoint down to solver
-  line(solverTopX, collectY, solverTopX, solver.top,
-       { stroke:'#c9a05a', strokeWidth:'1.8', opacity:'0.5', markerEnd:'arr-gold' });
-
-  /* ── solver → fe ── */
-  line(solver.cx, solver.bottom, fe.cx, fe.top,
-       { stroke:'#5a8c64', strokeWidth:'1.8', opacity:'0.6', markerEnd:'arr-gold' });
-
-  /* ── fe → output ── */
-  line(fe.cx, fe.bottom, output.cx, output.top,
-       { stroke:'#c9a05a', strokeWidth:'1.8', opacity:'0.5', markerEnd:'arr-gold' });
-
-  /* ── output → disruption ── */
-  line(output.right, output.cy, disrupt.left, disrupt.cy,
-       { stroke:'#c05840', strokeWidth:'1.5', opacity:'0.7', markerEnd:'arr-terra' });
-
-  /* ── re-plan loop: disruption top → right edge → up → orch right side ── */
-  const loopX  = Math.max(disrupt.right, orch.right) + 32;
-  const orchMidY = orch.cy;
-  const dTopY    = disrupt.top;
-
-  path(
-    'M ' + disrupt.right + ' ' + disrupt.cy +
-    ' L ' + loopX + ' ' + disrupt.cy +
-    ' L ' + loopX + ' ' + orch.cy +
-    ' L ' + orch.right + ' ' + orch.cy,
-    { stroke:'#c05840', strokeWidth:'1.5', dash:'6 4', opacity:'0.6', markerEnd:'arr-terra' }
-  );
-}
-
-/* Wait for the longest animation (row-8 at 0.95s) + render time */
-window.addEventListener('load', () => setTimeout(drawConnectors, 1100));
+  window.addEventListener('resize', draw);
+}());
 </script>
 </body>
 </html>
