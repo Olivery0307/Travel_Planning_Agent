@@ -111,20 +111,7 @@ After solver_agent returns, your final response MUST be the solver's full text o
 
 When the routing table above selects `conversation_agent`:
 
-1. Call **conversation_agent** once. You MUST pass all available context explicitly in the tool input — the agent cannot see your system prompt. Construct the input as:
-   ```
-   ## Current Itinerary
-   <paste the full itinerary text from the ## Current Itinerary section, or omit if absent>
-
-   ## Weather Forecast
-   <paste the full weather lines from the ## Weather Forecast section, or omit if absent>
-
-   ## Current Trip Context
-   <paste the city/date/duration lines from ## Current Trip Context, or omit if absent>
-
-   ## User Question
-   <paste the user's message verbatim>
-   ```
+1. Call **conversation_agent** once, passing the user's message verbatim. The agent automatically receives the current itinerary, weather forecast, and trip context — you do not need to pass them.
 2. Return conversation_agent's response directly to the user. Do not add any wrapper text.
 
 If the user follows up with confirmation ("yes", "go ahead", "do it") after a conversation_agent suggestion, route that turn to **replanner_agent** instead.

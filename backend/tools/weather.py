@@ -57,8 +57,12 @@ async def _geocode(city: str, country: str) -> tuple[float, float] | None:
 
 
 async def _forecast(lat: float, lng: float, start: date, days: int) -> list[dict]:
-    """Real forecast — Open-Meteo supports up to 16 days ahead."""
-    end = start + timedelta(days=days - 1)
+    """Real forecast — Open-Meteo supports up to 16 days from today."""
+    # Clamp end_date to 16 days from today so we never exceed the API window
+    max_end = date.today() + timedelta(days=16)
+    end = min(start + timedelta(days=days - 1), max_end)
+    if end < start:
+        return []
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
         f"latitude={lat}&longitude={lng}"
@@ -67,7 +71,12 @@ async def _forecast(lat: float, lng: float, start: date, days: int) -> list[dict
     )
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            d = (await client.get(url)).json().get("daily", {})
+            resp = await client.get(url)
+            body = resp.json()
+        if body.get("error"):
+            logger.warning("forecast API error: %s", body.get("reason"))
+            return []
+        d = body.get("daily", {})
         out = []
         for i, dt in enumerate(d.get("time", [])):
             code = int(d["weathercode"][i])
@@ -147,11 +156,22 @@ async def get_weather_forecast(
         return f"Weather unavailable — could not locate {city}, {country}."
     lat, lng = coords
 
-    days_ahead = (trip_start - date.today()).days
-    if days_ahead <= 16:
+    today = date.today()
+    forecast_cutoff = today + timedelta(days=16)
+
+    if trip_start >= forecast_cutoff:
+        # Entirely beyond forecast window — use historical only
+        weather = await _historical(lat, lng, trip_start, duration_days)
+    elif trip_start + timedelta(days=duration_days - 1) <= forecast_cutoff:
+        # Entirely within forecast window
         weather = await _forecast(lat, lng, trip_start, duration_days)
     else:
-        weather = await _historical(lat, lng, trip_start, duration_days)
+        # Straddles the boundary — forecast for the near days, historical for the rest
+        forecast_days = (forecast_cutoff - trip_start).days
+        hist_start = forecast_cutoff
+        hist_days = duration_days - forecast_days
+        weather = await _forecast(lat, lng, trip_start, forecast_days)
+        weather += await _historical(lat, lng, hist_start, hist_days)
 
     if not weather:
         return "Weather data unavailable — plan without weather constraints."
