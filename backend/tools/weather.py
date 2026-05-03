@@ -133,19 +133,14 @@ async def _historical(lat: float, lng: float, start: date, days: int) -> list[di
         return []
 
 
-@function_tool
-async def get_weather_forecast(
+async def _weather_forecast_impl(
     ctx: RunContextWrapper,
     city: str,
     country: str,
     start_date: str,
     duration_days: int,
 ) -> str:
-    """Fetch weather for the trip dates and store it in session context.
-    Within 16 days ahead: real forecast. Beyond 16 days: historical climate averages from last year.
-    start_date must be YYYY-MM-DD format.
-    Returns a plain-text day-by-day weather summary to include in the solver prompt.
-    """
+    """Core implementation — exposed for direct testing without FunctionTool wrapper."""
     try:
         trip_start = date.fromisoformat(start_date)
     except ValueError:
@@ -191,3 +186,19 @@ async def get_weather_forecast(
             f"Rain {w['precipitation_probability']}% | {outdoor} [{tag}]"
         )
     return "\n".join(lines)
+
+
+@function_tool
+async def get_weather_forecast(
+    ctx: RunContextWrapper,
+    city: str,
+    country: str,
+    start_date: str,
+    duration_days: int,
+) -> str:
+    """Fetch weather for the trip dates and store it in session context.
+    Within 16 days ahead: real forecast. Beyond 16 days: historical climate averages from last year.
+    start_date must be YYYY-MM-DD format.
+    Returns a plain-text day-by-day weather summary to include in the solver prompt.
+    """
+    return await _weather_forecast_impl(ctx, city, country, start_date, duration_days)

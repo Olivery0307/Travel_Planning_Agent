@@ -1,0 +1,148 @@
+[
+  {
+    "_comment": "STARTING ITINERARY used by all single-city Rome scenarios (injected into AppContext.itinerary_json before each replan call)",
+    "starting_itinerary": "**5-Day Rome Itinerary**\nBudget: $200/day | Lodging: ~$120/night | Activities+Dining: ~$80/day | Group: Couple\n\n**Day 1 — Vatican**\n- 🏨 Hotel Artemide (all nights, ~$120/night)\n- 🌅 Morning: Vatican Museums (3h, $25/person) — book tickets in advance\n- 🍽️ Lunch: La Nuova Piazzetta (~$18/person)\n- 🌇 Afternoon: St. Peter's Basilica (1.5h, free)\n- 🌆 Evening: Dinner at Tonnarello (~$20/person)\n- 💰 Day total: ~$183/person (lodging $120 + activities $25 + dining $38)\n\n**Day 2 — Ancient Rome**\n- 🌅 Morning: Colosseum (2h, $18/person) — book tickets in advance\n- 🍽️ Lunch: Osteria dell'Enoteca (~$20/person)\n- 🌇 Afternoon: Roman Forum (1.5h, $12/person)\n- 🌆 Evening: Dinner at Ristorante Pierluigi (~$30/person)\n- 💰 Day total: ~$200/person (lodging $120 + activities $30 + dining $50)\n\n**Day 3 — Borghese & Trastevere**\n- 🌅 Morning: Borghese Gallery (2h, $15/person) — must book in advance\n- 🍽️ Lunch: Da Enzo al 29 (~$22/person)\n- 🌇 Afternoon: Trastevere neighbourhood walk (free)\n- 🌆 Evening: Dinner at Supplì Roma (~$18/person)\n- 💰 Day total: ~$175/person (lodging $120 + activities $15 + dining $40)\n\n**Day 4 — Capitoline & Pantheon**\n- 🌅 Morning: Capitoline Museums (2.5h, $12/person)\n- 🍽️ Lunch: Roscioli (~$25/person)\n- 🌇 Afternoon: Pantheon (1h, $5/person)\n- 🌆 Evening: Dinner at Il Sorpasso (~$22/person)\n- 💰 Day total: ~$184/person (lodging $120 + activities $17 + dining $47)\n\n**Day 5 — Piazzas & Departure**\n- 🌅 Morning: Trevi Fountain (free) and Spanish Steps (free)\n- 🍽️ Lunch: Caffè Sant'Eustachio (~$12/person)\n- 🌇 Afternoon: Free time — shopping near Campo de' Fiori\n- 🌆 Evening: Farewell dinner at Giulio Passami l'Olio (~$28/person)\n- 💰 Day total: ~$160/person (lodging $120 + activities $0 + dining $40)\n\n**Total estimated cost: $1820 for 2 people over 5 days**"
+  },
+
+  {
+    "id": "venue_closed_no_locks",
+    "description": "Borghese Gallery closed on Day 3 morning. No locked slots. Replanner must swap morning only.",
+    "disruption_message": "The Borghese Gallery is unexpectedly closed today — it's Day 3 morning. Please find an alternative for the morning slot.",
+    "locked_slots": [],
+    "checks": {
+      "delta_non_empty": true,
+      "affected_days_contains": [3],
+      "locked_slots_not_touched": [],
+      "changed_or_removed_non_empty": true,
+      "must_not_appear_in_changed": ["Day 1", "Day 2", "Day 4", "Day 5"],
+      "reasoning_non_empty": true,
+      "comment": "Only Day 3 morning should change. All other days untouched."
+    }
+  },
+
+  {
+    "id": "venue_closed_with_lock",
+    "description": "Borghese closed Day 3 morning. Day 1 morning (Vatican) is locked — must survive intact.",
+    "disruption_message": "Borghese Gallery is closed. Day 3 morning needs an alternative. Locked: Vatican Museums on Day 1 morning.",
+    "locked_slots": ["day1_morning"],
+    "checks": {
+      "delta_non_empty": true,
+      "affected_days_contains": [3],
+      "locked_slots_not_touched": ["day1_morning"],
+      "changed_or_removed_non_empty": true,
+      "reasoning_non_empty": true,
+      "comment": "Lock integrity: day1_morning must not appear in changed_slots or removed_slots."
+    }
+  },
+
+  {
+    "id": "sick_day_whole_day",
+    "description": "One traveler is sick on Day 2. Replanner should lighten the full day — fewer activities, gentler pacing.",
+    "disruption_message": "One of us is sick today (Day 2). We need a much lighter schedule — minimal walking, close to the hotel, maybe just one easy thing in the afternoon. Hotel is locked.",
+    "locked_slots": ["day1_morning", "day1_evening"],
+    "checks": {
+      "delta_non_empty": true,
+      "affected_days_contains": [2],
+      "locked_slots_not_touched": ["day1_morning", "day1_evening"],
+      "changed_or_removed_non_empty": true,
+      "reasoning_non_empty": true,
+      "response_must_contain": ["sick", "rest", "light", "easy", "gentle"],
+      "comment": "Response must acknowledge the health situation. Day 2 slots should be lightened or removed."
+    }
+  },
+
+  {
+    "id": "bad_weather_outdoor_to_indoor",
+    "description": "Heavy rain on Day 4. Outdoor slots (Pantheon is covered but Trevi/Forum are open-air) should shift to indoor.",
+    "disruption_message": "Heavy rain forecast all day for Day 4. The outdoor walking slots won't work. Please replace with indoor alternatives — museums, galleries, covered markets.",
+    "locked_slots": [],
+    "checks": {
+      "delta_non_empty": true,
+      "affected_days_contains": [4],
+      "locked_slots_not_touched": [],
+      "changed_or_removed_non_empty": true,
+      "reasoning_non_empty": true,
+      "response_must_contain": ["indoor", "museum", "gallery", "rain", "weather"],
+      "comment": "Replacement activities must be indoor. Reasoning must mention weather."
+    }
+  },
+
+  {
+    "id": "budget_cut_mid_trip",
+    "description": "Budget reduced from $200 to $120/day starting Day 3. Replanner must find cheaper options.",
+    "disruption_message": "We need to cut costs starting from Day 3 — new budget is $120/day total (including lodging). Please find cheaper activity and dining options for Days 3, 4, and 5.",
+    "locked_slots": [],
+    "checks": {
+      "delta_non_empty": true,
+      "affected_days_contains": [3, 4, 5],
+      "locked_slots_not_touched": [],
+      "changed_or_removed_non_empty": true,
+      "reasoning_non_empty": true,
+      "comment": "All three remaining days should be affected. New slots should be lower cost."
+    }
+  },
+
+  {
+    "id": "opportunity_insertion",
+    "description": "Unexpected tickets available for a sold-out show on Day 2 evening. Day 2 morning is locked (Colosseum pre-paid).",
+    "disruption_message": "We just got last-minute tickets to a live opera at Teatro dell'Opera for Day 2 evening — it starts at 8pm. Please replace the Day 2 evening dinner slot to accommodate this. Day 2 morning Colosseum is locked, we have pre-paid tickets.",
+    "locked_slots": ["day2_morning"],
+    "checks": {
+      "delta_non_empty": true,
+      "affected_days_contains": [2],
+      "locked_slots_not_touched": ["day2_morning"],
+      "changed_or_removed_non_empty": true,
+      "reasoning_non_empty": true,
+      "response_must_contain": ["opera", "Teatro", "evening"],
+      "comment": "Day 2 evening should be replaced with the opera. Morning Colosseum unchanged."
+    }
+  },
+
+  {
+    "id": "multi_slot_two_locks",
+    "description": "Days 3 and 4 disrupted by a local strike closing many museums. Two slots locked across different days.",
+    "disruption_message": "There's a museum workers' strike affecting Day 3 morning (Borghese) and Day 4 morning (Capitoline). Both are closed. Please find alternatives for those two morning slots only. Day 1 morning Vatican and Day 2 morning Colosseum are locked — we have pre-paid tickets.",
+    "locked_slots": ["day1_morning", "day2_morning"],
+    "checks": {
+      "delta_non_empty": true,
+      "affected_days_contains": [3, 4],
+      "locked_slots_not_touched": ["day1_morning", "day2_morning"],
+      "changed_or_removed_non_empty": true,
+      "reasoning_non_empty": true,
+      "comment": "Locked slots on Days 1 and 2 must not be touched. Only Days 3 and 4 morning change."
+    }
+  },
+
+  {
+    "id": "group_preference_shift",
+    "description": "Traveler preference shift on Day 5 — less sightseeing, more food and leisure.",
+    "disruption_message": "For Day 5 we'd rather just relax and eat well — skip the Trevi/Spanish Steps rush and replace the morning with a leisurely brunch somewhere nice, and maybe a cooking class or food market in the afternoon. Evening dinner stays.",
+    "locked_slots": ["day5_evening"],
+    "checks": {
+      "delta_non_empty": true,
+      "affected_days_contains": [5],
+      "locked_slots_not_touched": ["day5_evening"],
+      "changed_or_removed_non_empty": true,
+      "reasoning_non_empty": true,
+      "response_must_contain": ["food", "brunch", "market", "cooking", "relax"],
+      "comment": "Morning and afternoon of Day 5 should shift to food-focused activities. Evening locked."
+    }
+  },
+
+  {
+    "_comment": "MULTI-CITY scenario uses a different starting itinerary",
+    "id": "multicity_transit_delay",
+    "description": "Lisbon→Porto transit delayed. Day 4 (travel day) starts later than planned — afternoon activities in Porto must shift.",
+    "starting_itinerary": "**7-Day Portugal Itinerary**\nBudget: $150/day | Group: Couple\nCities: Lisbon (3 nights) → Porto (4 nights)\n\n🏙 **Lisbon** — Days 1–3\n\n**Day 1 — Alfama & Historic Lisbon**\n- 🏨 Hotel Lisboa (Days 1–3, ~$90/night)\n- 🌅 Morning: São Jorge Castle (2h, $10/person)\n- 🍽️ Lunch: Time Out Market (~$18/person)\n- 🌇 Afternoon: Belém Tower (1.5h, $8/person)\n- 🌆 Evening: Dinner at Solar dos Presuntos (~$25/person)\n- 💰 Day total: ~$151/person (lodging $90 + activities $18 + dining $43)\n\n**Day 2 — Sintra Day Trip**\n- 🌅 Morning: Sintra — Pena Palace (3h, $15/person)\n- 🍽️ Lunch: Piriquita Sintra (~$12/person)\n- 🌇 Afternoon: Quinta da Regaleira (1.5h, $8/person)\n- 🌆 Evening: Dinner at Taberna da Rua das Flores (~$22/person)\n- 💰 Day total: ~$147/person (lodging $90 + activities $23 + dining $34)\n\n**Day 3 — LX Factory & Chiado**\n- 🌅 Morning: LX Factory market (free)\n- 🍽️ Lunch: Zé da Mouraria (~$15/person)\n- 🌇 Afternoon: MAAT Museum (1.5h, $10/person)\n- 🌆 Evening: Dinner at Alma (~$35/person)\n- 💰 Day total: ~$150/person (lodging $90 + activities $10 + dining $50)\n\n🏙 **Porto** — Days 4–7\n\n**Day 4 — Travel Day + Arrival**\n- 🌅 Morning: Free time in Lisbon\n- 🚆 Afternoon: Travel Lisbon→Porto — CP Alfa Pendular (~3h, ~$40/person). Depart 14:00 Oriente, arrive 17:00 Porto Campanhã.\n- 🏨 Hotel Infante Sagres (Days 4–7, ~$100/night)\n- 🌆 Evening: Arrival dinner in Ribeira district at Antiqvvm (~$30/person)\n- 💰 Day total: ~$170/person (transport $40 + lodging $100 + dining $30)\n\n**Day 5 — Ribeira & Wine Cellars**\n- 🌅 Morning: Livraria Lello bookshop (1h, $5/person)\n- 🍽️ Lunch: DOP (~$25/person)\n- 🌇 Afternoon: Graham's Port Lodge wine tasting (2h, $20/person)\n- 🌆 Evening: Dinner at Cantinho do Avillez (~$28/person)\n- 💰 Day total: ~$178/person (lodging $100 + activities $25 + dining $53)\n\n**Day 6 — Porto Highlights**\n- 🌅 Morning: Palácio da Bolsa (1.5h, $10/person)\n- 🍽️ Lunch: Tasca do Chico (~$18/person)\n- 🌇 Afternoon: Serralves Museum (2h, $12/person)\n- 🌆 Evening: Dinner at Vinum (~$35/person)\n- 💰 Day total: ~$175/person (lodging $100 + activities $22 + dining $53)\n\n**Day 7 — Matosinhos & Departure**\n- 🌅 Morning: Matosinhos seafood market (free)\n- 🍽️ Lunch: A Cozinha do Matosinhos (~$20/person)\n- 🌇 Afternoon: Soares dos Reis Museum (1.5h, $5/person)\n- 🌆 Evening: Farewell dinner at O Paparico (~$40/person)\n- 💰 Day total: ~$165/person (lodging $100 + activities $5 + dining $60)\n\n**Total estimated cost: $2100 for 2 people over 7 days**",
+    "disruption_message": "Our Lisbon→Porto train on Day 4 is delayed by 3 hours — we won't arrive in Porto until 20:00 instead of 17:00. The evening dinner reservation at Antiqvvm can stay (it's late anyway), but we need to adjust Day 5 morning if needed to account for the late arrival. Transport slot on Day 4 is locked.",
+    "locked_slots": ["day4_travel"],
+    "checks": {
+      "delta_non_empty": true,
+      "affected_days_contains": [4, 5],
+      "locked_slots_not_touched": ["day4_travel"],
+      "changed_or_removed_non_empty": true,
+      "reasoning_non_empty": true,
+      "comment": "Late arrival should reduce Day 4 or lighten Day 5 morning. Transport slot preserved."
+    }
+  }
+]
