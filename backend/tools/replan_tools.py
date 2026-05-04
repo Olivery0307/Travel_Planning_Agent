@@ -332,7 +332,7 @@ def resolve_slots(
         period_canonical = _PERIOD_NORM.get(period, period)
 
         for line_idx, line in day_lines:
-            if not line.strip().startswith(("-", "•", "*", "🌅", "🌇", "🌆", "🍽")):
+            if not line.strip().startswith(("-", "•", "*", "🌅", "🌇", "🌆", "🍽", "🏨")):
                 continue
             line_period = _period_of_line(line)
             # Match by normalized period; lodging lines return None from _period_of_line

@@ -3615,17 +3615,29 @@ function renderDelta(delta, fullItineraryText) {
   const removed = (delta.removed_slots || []).map(s => ({ ...s, _used: false }));
   const changed = (delta.changed_slots || []).map(s => ({ ...s, _used: false }));
 
-  // Build paired swaps: for each removed slot, find a changed slot on the same day+period
+  // Build paired swaps: for each removed slot, find a changed slot on the same day+period.
+  // Lodging is special: the replanner may label removed as 'morning' and changed as 'lodging'
+  // or vice versa, so for lodging we match by day alone (ignoring period).
+  const _isLodging = p => _normP(p) === 'lodging' || p === 'hotel';
   const pairs = []; // { day, period, removed, added }
 
   for (const r of removed) {
     const rDay = r.day_number;
     const rPeriod = _normP(r.period);
-    const match = changed.find(c => !c._used && c.day_number === rDay && _normP(c.period) === rPeriod);
+    const rIsLodging = _isLodging(r.period);
+    const match = changed.find(c =>
+      !c._used &&
+      c.day_number === rDay &&
+      (rIsLodging || _isLodging(c.period)
+        ? true                               // lodging: same day is enough
+        : _normP(c.period) === rPeriod)      // others: require matching period
+    );
     if (match) {
       match._used = true;
       r._used = true;
-      pairs.push({ day: rDay, period: rPeriod, removed: r, added: match });
+      // Display period: prefer 'lodging' if either side is lodging
+      const displayPeriod = (rIsLodging || _isLodging(match.period)) ? 'lodging' : rPeriod;
+      pairs.push({ day: rDay, period: displayPeriod, removed: r, added: match });
     }
   }
 
