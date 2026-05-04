@@ -2632,7 +2632,11 @@ function parseLine(raw) {
     const sep = kw[0].slice(kw[1].length);
     if (/[:\-–—]/.test(sep) || period !== 'lodging') {
       s = s.slice(kw[0].length).trim();
-      // Strip "at " prefix left by "Dinner at Name" or "Lunch at Name" formats
+      // Strip descriptive prefixes left after period keyword removal:
+      // "Evening: Dinner at Name" → strips "Evening:" → "Dinner at Name" → strip to "Name"
+      // Covers: "Dinner at", "Lunch at", "Shopping at", "Dining at", "Eating at", etc.
+      s = s.replace(/^\w+\s+at\s+/i, '').trim();
+      // Also strip bare "at " if that's all that remains (e.g. from "Dinner: at Name")
       s = s.replace(/^at\s+/i, '').trim();
     }
   } else {

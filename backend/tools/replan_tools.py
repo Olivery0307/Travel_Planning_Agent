@@ -94,19 +94,28 @@ def _period_of_line(line: str) -> str | None:
     return None
 
 
+_PREFIX_RE = re.compile(r'^\w+\s+at\s+', re.IGNORECASE)  # "Dinner at ", "Shopping at ", etc.
+
+
+def _strip_verb_prefix(name: str) -> str:
+    """Strip descriptive prefixes like 'Dinner at', 'Shopping at', 'Dining at' from a name."""
+    return _PREFIX_RE.sub('', name).strip()
+
+
 def _extract_place_name(line: str) -> str:
     """Pull the venue name from a slot line (bold or plain text after period keyword)."""
-    # Try **Bold Name**
+    # Try **Bold Name** — strip any verb prefix that got bolded too
     m = re.search(r"\*\*([^*]+)\*\*", line)
     if m:
-        return m.group(1).strip()
+        return _strip_verb_prefix(m.group(1).strip())
     # Try text after period keyword
     m = re.search(
         r"(?:Morning|Afternoon|Evening|Lunch|Dinner)[:\s–—]+([^(~\[📍\n]+)",
         line, re.IGNORECASE,
     )
     if m:
-        return m.group(1).strip().rstrip(".,—–")
+        name = m.group(1).strip().rstrip(".,—–")
+        return _strip_verb_prefix(name)
     return ""
 
 
@@ -333,14 +342,26 @@ def resolve_slots(
                 or (line_period == period_canonical)
                 or (period_canonical == "lodging" and "🏨" in line)
             )
-            name_in_line = venue_hint and venue_hint in line.lower()
-            if period_match and (name_in_line or not venue_hint):
-                best_idx = line_idx
-                best_line = line
-                best_name = _extract_place_name(line)
-                best_cost = _extract_cost(line)
+            # Strip verb prefix from venue_hint before comparing (handles "Dinner at Name")
+            clean_hint = _strip_verb_prefix(venue_hint) if venue_hint else ""
+            name_in_line = bool(
+                (clean_hint and clean_hint in line.lower())
+                or (venue_hint and venue_hint in line.lower())
+            )
+            if period_match:
                 if name_in_line:
-                    break  # exact match wins
+                    # Exact period+name match — take it immediately
+                    best_idx = line_idx
+                    best_line = line
+                    best_name = _extract_place_name(line)
+                    best_cost = _extract_cost(line)
+                    break
+                elif not venue_hint or best_idx == -1:
+                    # Period match with no name hint, or no better match found yet — use as fallback
+                    best_idx = line_idx
+                    best_line = line
+                    best_name = _extract_place_name(line)
+                    best_cost = _extract_cost(line)
 
         resolved.append({
             "day_number": day,
