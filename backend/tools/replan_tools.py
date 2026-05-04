@@ -29,7 +29,13 @@ logger = logging.getLogger(__name__)
 # ── staging store: passes data between tools without complex parameters ────────
 # Keyed by session_id. Cleared at the start of each replan run by parse_disruption.
 _replan_staging: dict[str, dict] = {}
-# Structure: { session_id: { "resolved": [...], "candidates": [[...], ...] } }
+# Structure: {
+#   session_id: {
+#     "resolved": [...],
+#     "candidates": [[...], ...],
+#     "opportunity_venue": str,   # set when disruption_type == "opportunity"
+#   }
+# }
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -47,6 +53,16 @@ _PERIOD_RE = re.compile(
 
 _DAY_RE = re.compile(r"^\*\*Day\s+(\d+)", re.MULTILINE)
 _COST_RE = re.compile(r"~?\$[\d,]+(?:/person)?")
+# Matches the budget breakdown line: 💰 Day total: ~$X/person (...)
+_BUDGET_LINE_RE = re.compile(r"^\s*[-•*]?\s*💰\s*Day total:", re.IGNORECASE)
+# Matches the Maps navigate line: [🗺 Navigate Day N on Google Maps](url)
+_NAV_LINE_RE = re.compile(r"^\[🗺 Navigate Day \d+ on Google Maps\]", re.IGNORECASE)
+# Matches the QR marker line: [QR_DAY_N](url)
+_QR_LINE_RE = re.compile(r"^\[QR_DAY_\d+\]", re.IGNORECASE)
+# Extracts Maps search addresses from slot lines: [📍 Maps](url?query=ADDR)
+_MAPS_ADDR_RE = re.compile(
+    r"\[📍 Maps\]\(https://www\.google\.com/maps/search/\?api=1&query=([^)]+)\)"
+)
 
 
 def _lines_for_day(text: str, day: int) -> list[tuple[int, str]]:
@@ -123,11 +139,12 @@ def _format_slot_line(period: str, place: dict, category: str) -> str:
     if category == "dining":
         label = "Lunch" if period == "afternoon" else "Dinner"
         cost_str = f"~${int(cost)}/person" if cost else ""
-        parts = [f"- 🍽️ {label}: {name}"]
+        line = f"- 🍽️ {label}: {name}"
         if cost_str:
-            parts[0] += f" ({cost_str})"
+            line += f" ({cost_str})"
         if maps:
-            parts[0] += f" {maps}"
+            line += f" {maps}"
+        return line
     elif category == "lodging":
         cost_str = f"~${int(cost)}/night" if cost else ""
         line = f"- 🏨 {name}"
@@ -147,7 +164,64 @@ def _format_slot_line(period: str, place: dict, category: str) -> str:
             line += f" {maps}"
         return line
 
-    return parts[0]
+
+def _rebuild_day_nav_and_budget(lines: list[str], day: int) -> None:
+    """After slot patches, rebuild the 💰 budget line and 🗺 nav/QR lines for a day in-place."""
+    day_line_indices = []
+    current_day = 0
+    for i, line in enumerate(lines):
+        m = _DAY_RE.match(line)
+        if m:
+            current_day = int(m.group(1))
+            continue
+        if current_day == day:
+            day_line_indices.append(i)
+        elif current_day > day:
+            break
+
+    if not day_line_indices:
+        return
+
+    # ── Rebuild budget line ────────────────────────────────────────────────────
+    # Sum costs from all slot lines in this day
+    total_cost = 0.0
+    for i in day_line_indices:
+        line = lines[i]
+        if _BUDGET_LINE_RE.match(line):
+            continue  # skip existing budget line
+        cost = _extract_cost(line)
+        total_cost += cost
+
+    budget_idx = next(
+        (i for i in day_line_indices if _BUDGET_LINE_RE.match(lines[i])), None
+    )
+    if budget_idx is not None and total_cost > 0:
+        # Replace just the leading cost figure, preserve the breakdown text if possible
+        new_budget = f"- 💰 Day total: ~${int(total_cost)}/person"
+        lines[budget_idx] = new_budget
+
+    # ── Rebuild nav and QR lines ───────────────────────────────────────────────
+    # Collect addresses from Maps links in slot lines (skip budget/nav/QR lines)
+    addresses: list[str] = []
+    for i in day_line_indices:
+        line = lines[i]
+        if _BUDGET_LINE_RE.match(line) or _NAV_LINE_RE.match(line) or _QR_LINE_RE.match(line):
+            continue
+        for enc_addr in _MAPS_ADDR_RE.findall(line):
+            addresses.append(enc_addr)  # already URL-encoded
+
+    nav_idx = next(
+        (i for i in day_line_indices if _NAV_LINE_RE.match(lines[i])), None
+    )
+    qr_idx = next(
+        (i for i in day_line_indices if _QR_LINE_RE.match(lines[i])), None
+    )
+
+    if addresses and nav_idx is not None:
+        route_url = "https://www.google.com/maps/dir/" + "/".join(addresses) + "/"
+        lines[nav_idx] = f"[🗺 Navigate Day {day} on Google Maps]({route_url})"
+        if qr_idx is not None:
+            lines[qr_idx] = f"[QR_DAY_{day}]({route_url})"
 
 
 # ── module-level parser reference (set by build_replanner_agent) ─────────────
@@ -179,6 +253,19 @@ async def parse_disruption(ctx: RunContextWrapper, user_message: str) -> str:
         # Clear staging for this session so previous replan data doesn't bleed in
         sid = ctx.context.session_id if ctx.context else "default"
         _replan_staging[sid] = {}
+
+        # For opportunity disruptions, store the venue name so apply_swap can insert it
+        # directly without a cache lookup
+        if parsed.disruption_type.value == "opportunity":
+            opp_venue = ""
+            for slot in parsed.affected_slots:
+                if slot.venue_name:
+                    opp_venue = slot.venue_name
+                    break
+            if not opp_venue and parsed.special_instructions:
+                opp_venue = parsed.special_instructions
+            _replan_staging[sid]["opportunity_venue"] = opp_venue
+
         return parsed.model_dump_json()
     except Exception as e:
         logger.error("parse_disruption failed: %s", e)
@@ -192,7 +279,6 @@ class _AffectedSlotInput(BaseModel):
     period: str = ""
     venue_name: str = ""
     category: str = "activity"
-
 
 
 @function_tool
@@ -408,6 +494,7 @@ def apply_swap(
     staging = _replan_staging.get(sid, {})
     resolved_slots: list[dict] = staging.get("resolved", [])
     candidates_per_slot: list[list[dict]] = staging.get("candidates", [])
+    opportunity_venue: str = staging.get("opportunity_venue", "")
 
     if not resolved_slots:
         return "Error: resolve_slots must be called before apply_swap."
@@ -436,6 +523,7 @@ def apply_swap(
         day = slot.get("day_number", 1)
         period = slot.get("period", "morning")
         slot_key = f"day{day}_{period}"
+        category = slot.get("category", "activity")
 
         if slot_key in locked:
             logger.info("apply_swap: skipping locked slot %s", slot_key)
@@ -443,8 +531,34 @@ def apply_swap(
 
         line_idx = slot.get("line_index", -1)
         orig_name = slot.get("place_name", "")
-        category = slot.get("category", "activity")
         orig_cost = slot.get("cost_usd", 0.0)
+
+        # ── Opportunity: insert user-specified venue directly ─────────────────
+        if disruption_type == "opportunity" and opportunity_venue:
+            new_line = (
+                f"- 🌆 {period.capitalize()}: {opportunity_venue} "
+                f"(see your tickets for details)"
+            )
+            if orig_name:
+                removed_slots.append(DeltaSlot(
+                    day_number=day, period=period,
+                    place_name=orig_name, category=category, cost_usd=orig_cost,
+                ))
+            if line_idx >= 0:
+                lines[line_idx] = new_line
+            else:
+                for i, line in enumerate(lines):
+                    m = _DAY_RE.match(line)
+                    if m and int(m.group(1)) == day:
+                        lines.insert(i + 1, new_line)
+                        break
+            changed_slots.append(DeltaSlot(
+                day_number=day, period=period,
+                place_name=opportunity_venue, category=category,
+                notes="opportunity insertion",
+            ))
+            affected_days.add(day)
+            continue
 
         # Record removal
         if orig_name:
@@ -456,12 +570,19 @@ def apply_swap(
                 cost_usd=orig_cost,
             ))
 
-        # Health/weather with no replacement — just remove the slot
-        if disruption_type in ("health",) and not candidates:
-            if line_idx >= 0:
-                lines[line_idx] = f"- 🛌 {period.capitalize()}: Rest — light activity only"
-            affected_days.add(day)
-            continue
+        # ── Health/sick day: lighten activity slots; keep dining slots intact ─
+        if disruption_type == "health":
+            if category == "dining":
+                # Keep the meal — sick traveler still needs to eat
+                removed_slots.pop()  # undo the removal we just recorded
+                logger.info("apply_swap: health disruption — keeping dining slot %s", slot_key)
+                continue
+            if not candidates:
+                # Replace activity with rest note
+                if line_idx >= 0:
+                    lines[line_idx] = f"- 🛌 {period.capitalize()}: Rest — light activity only"
+                affected_days.add(day)
+                continue
 
         if not candidates:
             logger.warning("apply_swap: no candidates for slot %s, keeping original", slot_key)
@@ -500,6 +621,10 @@ def apply_swap(
         ))
         affected_days.add(day)
 
+    # ── Rebuild budget + nav/QR lines for every affected day ─────────────────
+    for day in affected_days:
+        _rebuild_day_nav_and_budget(lines, day)
+
     # Write patched text back to context
     updated_text = "\n".join(lines)
     ctx.context.itinerary_json = json.dumps({
@@ -508,8 +633,14 @@ def apply_swap(
     })
 
     # Build and store ItineraryDelta
-    disruption_day = resolved_slots[0].get("day_number", 1) if resolved_slots else 1
-    disruption_period = resolved_slots[0].get("period", "") if resolved_slots else ""
+    # Use the minimum day number across all resolved slots as the disruption day
+    disruption_day = min(
+        (s.get("day_number", 1) for s in resolved_slots), default=1
+    )
+    disruption_period = next(
+        (s.get("period", "") for s in resolved_slots if s.get("day_number") == disruption_day),
+        "",
+    )
 
     # Always include the disruption's own day — even if its slot was locked/unchanged
     affected_days.add(disruption_day)

@@ -37,9 +37,9 @@ Call `find_candidates_parallel` ONCE for all slots together — it runs lookups 
 Returns a JSON string: list of candidate lists, one per slot (already deduplicated).
 
 **Disruption-type overrides:**
-- `health`: set `special_instructions="indoor low-walking rest"`
+- `health`: set `special_instructions="indoor low-walking rest"` — find_candidates_parallel still runs for activity slots so lighter replacements are found; dining slots are kept automatically by apply_swap (sick travelers still need to eat)
 - `weather`: set `special_instructions="indoor"` — museums, galleries only
-- `opportunity`: skip find_candidates_parallel — call apply_swap directly; the tool will use empty candidates and insert a rest note for health disruptions
+- `opportunity`: still call find_candidates_parallel normally — apply_swap will use the venue name from parse_disruption to insert it directly (candidates are only used as fallback)
 
 ---
 

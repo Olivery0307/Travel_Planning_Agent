@@ -1437,11 +1437,12 @@
 
     /* Diff UI */
     .diff-header {
-      padding: 1.1rem 1.35rem 0.8rem;
+      padding: 1.1rem 1.35rem 0.9rem;
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.65rem;
+      flex-wrap: wrap;
     }
 
     .diff-title {
@@ -1450,6 +1451,7 @@
       font-weight: 300;
       color: var(--amber-lt);
       flex: 1;
+      min-width: 120px;
     }
 
     .diff-toggle {
@@ -1459,7 +1461,7 @@
       font-family: var(--font-body);
       font-size: 0.6rem;
       letter-spacing: 0.06em;
-      padding: 0.3rem 0.7rem;
+      padding: 0.32rem 0.75rem;
       border-radius: 2px;
       cursor: pointer;
       transition: all 0.15s;
@@ -1468,77 +1470,139 @@
     .diff-toggle:hover { border-color: var(--amber-line); color: var(--amber); }
 
     .diff-reasoning {
-      margin: 0.9rem 1.35rem;
+      margin: 0.9rem 1.35rem 0.6rem;
       padding: 0.75rem 1rem;
       border-left: 3px solid var(--amber);
       background: var(--amber-glow);
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       color: var(--silk);
-      line-height: 1.6;
+      line-height: 1.65;
     }
 
-    .diff-days { padding: 0 1.35rem 1.35rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .diff-days { padding: 0 1.35rem 1.5rem; display: flex; flex-direction: column; gap: 0.65rem; }
+
+    .diff-day-group { display: flex; flex-direction: column; gap: 0.35rem; }
 
     .diff-day-label {
-      font-size: 0.6rem;
+      font-size: 0.58rem;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--stone);
-      margin-bottom: 0.35rem;
+      letter-spacing: 0.13em;
+      color: var(--ash);
+      margin-bottom: 0.2rem;
       font-weight: 600;
+      padding: 0.5rem 0 0.15rem;
+      border-top: 1px solid var(--border-subtle);
     }
 
-    .diff-slot {
+    /* Paired swap card: removed + arrow + added stacked */
+    .diff-swap {
+      border: 1px solid var(--border-subtle);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .diff-swap-removed {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 0.6rem;
-      padding: 0.6rem 0.75rem;
-      border-radius: 2px;
-      border: 1px solid transparent;
-      margin-bottom: 0.3rem;
+      padding: 0.55rem 0.75rem;
+      background: rgba(192,88,64,0.07);
+      border-bottom: 1px solid rgba(192,88,64,0.18);
     }
 
-    .diff-slot.removed {
-      border-color: rgba(192,88,64,0.3);
-      background: rgba(192,88,64,0.06);
+    .diff-swap-removed .diff-slot-name {
       text-decoration: line-through;
-      opacity: 0.7;
+      color: var(--stone);
+      font-size: 0.77rem;
+      flex: 1;
     }
 
-    .diff-slot.added {
-      border-color: rgba(90,140,100,0.35);
+    .diff-swap-arrow {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
       background: rgba(90,140,100,0.07);
     }
 
-    .diff-slot-period {
-      font-size: 0.55rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--stone);
-      padding-top: 0.1rem;
-      min-width: 52px;
+    .diff-swap-arrow .diff-slot-name {
+      color: var(--ivory);
+      font-size: 0.77rem;
+      flex: 1;
     }
 
-    .diff-slot-name { font-size: 0.78rem; color: var(--ivory); flex: 1; }
+    /* Pure removal (no replacement) */
+    .diff-slot-removed-only {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid rgba(192,88,64,0.25);
+      border-radius: 3px;
+      background: rgba(192,88,64,0.06);
+    }
+
+    .diff-slot-removed-only .diff-slot-name {
+      text-decoration: line-through;
+      color: var(--stone);
+      font-size: 0.77rem;
+      flex: 1;
+    }
+
+    /* Pure insertion (opportunity, no prior slot) */
+    .diff-slot-added-only {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid rgba(90,140,100,0.3);
+      border-radius: 3px;
+      background: rgba(90,140,100,0.07);
+    }
+
+    .diff-slot-added-only .diff-slot-name {
+      color: var(--ivory);
+      font-size: 0.77rem;
+      flex: 1;
+    }
+
+    .diff-slot-period {
+      font-size: 0.52rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ash);
+      min-width: 56px;
+      flex-shrink: 0;
+    }
+
+    .diff-new-badge {
+      font-size: 0.5rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--verdant);
+      margin-right: 0.35rem;
+      flex-shrink: 0;
+    }
 
     .diff-cost-badge {
-      font-size: 0.6rem;
-      padding: 0.15rem 0.45rem;
+      font-size: 0.58rem;
+      padding: 0.13rem 0.42rem;
       border-radius: 2px;
       font-weight: 600;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
-    .diff-cost-badge.positive { background: rgba(192,88,64,0.15); color: var(--terra); }
-    .diff-cost-badge.negative { background: rgba(90,140,100,0.15); color: var(--verdant); }
+    .diff-cost-badge.removed { background: rgba(192,88,64,0.13); color: var(--terra); }
+    .diff-cost-badge.added   { background: rgba(90,140,100,0.13); color: var(--verdant); }
 
     .diff-cascade-banner {
-      margin: 0.5rem 1.35rem 0;
-      padding: 0.5rem 0.75rem;
-      background: rgba(74,122,171,0.1);
-      border: 1px solid rgba(74,122,171,0.25);
+      margin: 0.35rem 1.35rem 0;
+      padding: 0.45rem 0.75rem;
+      background: rgba(74,122,171,0.08);
+      border: 1px solid rgba(74,122,171,0.2);
       border-radius: 2px;
-      font-size: 0.65rem;
+      font-size: 0.63rem;
       color: var(--cerulean);
     }
 
@@ -3534,21 +3598,106 @@ function renderDelta(delta, fullItineraryText) {
     `<span style="margin-right:0.75rem">Day ${escHtml(String(dc.day))}: <strong>$${Number(dc.cost_usd).toFixed(0)}</strong></span>`
   ).join('');
 
-  const removedHtml = (delta.removed_slots || []).map(s => `
-    <div class="diff-slot removed">
-      <div class="diff-slot-period">${escHtml(s.period || '')}</div>
-      <div class="diff-slot-name">${escHtml(s.place_name || '')}</div>
-      <span class="diff-cost-badge positive">removed</span>
-    </div>`).join('');
+  // ── Pair removed → changed by day + period, then group by day ────────────
+  const _normP = p => {
+    p = (p || '').toLowerCase();
+    if (p === 'lunch') return 'afternoon';
+    if (p === 'dinner') return 'evening';
+    return p;
+  };
 
-  const changedHtml = (delta.changed_slots || []).map(s => `
-    <div class="diff-slot added">
-      <div class="diff-slot-period">${escHtml(s.period || '')}</div>
-      <div class="diff-slot-name">
-        <span style="font-size:0.6rem;font-weight:700;color:var(--verdant);margin-right:0.4rem;letter-spacing:0.04em">↳ NEW</span>${escHtml(s.place_name || '')}${s.notes ? `<br><span style="font-size:0.65rem;color:var(--stone)">${escHtml(s.notes)}</span>` : ''}
-      </div>
-      ${s.cost_usd ? `<span class="diff-cost-badge negative">$${Number(s.cost_usd).toFixed(0)}</span>` : '<span class="diff-cost-badge negative">new</span>'}
-    </div>`).join('');
+  const removed = (delta.removed_slots || []).map(s => ({ ...s, _used: false }));
+  const changed = (delta.changed_slots || []).map(s => ({ ...s, _used: false }));
+
+  // Build paired swaps: for each removed slot, find a changed slot on the same day+period
+  const pairs = []; // { day, period, removed, added }
+
+  for (const r of removed) {
+    const rDay = r.day_number;
+    const rPeriod = _normP(r.period);
+    const match = changed.find(c => !c._used && c.day_number === rDay && _normP(c.period) === rPeriod);
+    if (match) {
+      match._used = true;
+      r._used = true;
+      pairs.push({ day: rDay, period: rPeriod, removed: r, added: match });
+    }
+  }
+
+  // Remaining unmatched removals (pure deletions)
+  for (const r of removed) {
+    if (!r._used) pairs.push({ day: r.day_number, period: _normP(r.period), removed: r, added: null });
+  }
+
+  // Remaining unmatched additions (pure insertions, e.g. opportunity)
+  for (const c of changed) {
+    if (!c._used) pairs.push({ day: c.day_number, period: _normP(c.period), removed: null, added: c });
+  }
+
+  // Sort pairs by day then period order
+  const periodOrder = { morning: 0, afternoon: 1, evening: 2 };
+  pairs.sort((a, b) => a.day !== b.day ? a.day - b.day : (periodOrder[a.period] ?? 3) - (periodOrder[b.period] ?? 3));
+
+  // Group by day
+  const byDay = {};
+  for (const p of pairs) {
+    (byDay[p.day] = byDay[p.day] || []).push(p);
+  }
+
+  const _periodLabel = p => p ? p.toUpperCase() : '';
+  const _costBadge = (s, cls) => s.cost_usd
+    ? `<span class="diff-cost-badge ${cls}">$${Number(s.cost_usd).toFixed(0)}</span>`
+    : '';
+
+  let groupsHtml = '';
+  for (const day of Object.keys(byDay).map(Number).sort((a,b)=>a-b)) {
+    const dayPairs = byDay[day];
+    let cardsHtml = '';
+    for (const p of dayPairs) {
+      if (p.removed && p.added) {
+        // Swap card: strikethrough old → new below
+        cardsHtml += `
+          <div class="diff-swap">
+            <div class="diff-swap-removed">
+              <div class="diff-slot-period">${_periodLabel(p.period)}</div>
+              <div class="diff-slot-name">${escHtml(p.removed.place_name || '')}</div>
+              ${_costBadge(p.removed, 'removed')}
+            </div>
+            <div class="diff-swap-arrow">
+              <div class="diff-slot-period" style="color:var(--verdant);font-size:0.6rem">↳</div>
+              <div class="diff-slot-name">
+                <span class="diff-new-badge">NEW</span>${escHtml(p.added.place_name || '')}
+                ${p.added.notes ? `<span style="font-size:0.63rem;color:var(--stone);margin-left:0.4rem">${escHtml(p.added.notes)}</span>` : ''}
+              </div>
+              ${_costBadge(p.added, 'added')}
+            </div>
+          </div>`;
+      } else if (p.removed) {
+        // Pure deletion
+        cardsHtml += `
+          <div class="diff-slot-removed-only">
+            <div class="diff-slot-period">${_periodLabel(p.period)}</div>
+            <div class="diff-slot-name">${escHtml(p.removed.place_name || '')}</div>
+            <span class="diff-cost-badge removed">removed</span>
+          </div>`;
+      } else if (p.added) {
+        // Pure insertion
+        cardsHtml += `
+          <div class="diff-slot-added-only">
+            <div class="diff-slot-period">${_periodLabel(p.period)}</div>
+            <div class="diff-slot-name">
+              <span class="diff-new-badge">NEW</span>${escHtml(p.added.place_name || '')}
+              ${p.added.notes ? `<span style="font-size:0.63rem;color:var(--stone);margin-left:0.4rem">${escHtml(p.added.notes)}</span>` : ''}
+            </div>
+            ${_costBadge(p.added, 'added')}
+          </div>`;
+      }
+    }
+    groupsHtml += `
+      <div class="diff-day-group">
+        <div class="diff-day-label">Day ${day}</div>
+        ${cardsHtml}
+      </div>`;
+  }
 
   itinPane.innerHTML = `
     <div class="diff-header">
@@ -3560,11 +3709,8 @@ function renderDelta(delta, fullItineraryText) {
     <div class="diff-reasoning">${escHtml(delta.reasoning || '')}</div>
     ${cascadeNote}
     <div class="diff-days">
-      ${costRows ? `<div style="padding:0.5rem 0; font-size:0.65rem; color:var(--stone)">${costRows}</div>` : ''}
-      ${removedHtml || changedHtml
-        ? `<div class="diff-day-label">Changes</div>${removedHtml}${changedHtml}`
-        : '<div style="font-size:0.75rem;color:var(--stone);padding:1rem 0">No slot changes — see chat for details.</div>'
-      }
+      ${costRows ? `<div style="padding:0.35rem 0 0.1rem; font-size:0.63rem; color:var(--stone)">${costRows}</div>` : ''}
+      ${groupsHtml || '<div style="font-size:0.75rem;color:var(--stone);padding:1rem 0">No slot changes — see chat for details.</div>'}
     </div>`;
 }
 

@@ -12,12 +12,16 @@ Built for the **Columbia IEOR Agentic AI for Analytics** capstone.
 ## Demo
 
 ### Trip Planning
-<!-- INSERT: gif or screenshot of a Rome 5-day itinerary being generated -->
-> _Placeholder: screen recording of natural language input → full itinerary output_
+
+https://github.com/user-attachments/assets/planner_demo.mp4
+
+<video src="assets/videos/planner_demo.mp4" controls width="100%"></video>
 
 ### Re-planning
-<!-- INSERT: gif of disruption input → re-planned day with delta highlight -->
-> _Placeholder: screen recording of "Day 2: Borghese Gallery is closed" → re-planned itinerary_
+
+https://github.com/user-attachments/assets/replanner_demo.mp4
+
+<video src="assets/videos/replanner_demo.mp4" controls width="100%"></video>
 
 ### Pipeline Visualization
 
@@ -59,19 +63,23 @@ User message
       └─► OrchestratorAgent  [gemini-2.5-flash]
            ├─► IntakeAgent          → TripRequest + CityLeg list
            ├─► WeatherTool          → per-day forecast / historical avg
-           ├─► LodgingAgent  ×city  → hotel candidates
-           ├─► ActivityAgent ×city  → attraction candidates    (parallel)
-           ├─► DiningAgent   ×city  → restaurant candidates    (parallel)
+           ├─► LodgingAgent  ×city  → hotel candidates        (parallel)
+           ├─► ActivityAgent ×city  → attraction candidates   (parallel)
+           ├─► DiningAgent   ×city  → restaurant candidates   (parallel)
            ├─► TransportAgent       → inter-city options
            └─► SolverAgent          → Markdown itinerary
                                           ↓  (on disruption)
-                                   ReplannerAgent + store_delta
+                                   ReplannerAgent
+                                     1. parse_disruption   → DisruptionRequest (LLM)
+                                     2. resolve_slots      → matched itinerary lines
+                                     3. find_candidates    → cache-first replacements
+                                     4. apply_swap         → patched text + ItineraryDelta
                                           ↓  (on question)
                                    ConversationAgent
 ```
 
 **Agent framework:** OpenAI Agents SDK (`openai-agents`) — specialists exposed via `agent.as_tool()`
-**Models:** `vertex_ai/gemini-2.5-flash` (orchestrator) · `vertex_ai/gemini-2.5-flash-lite` (specialists)
+**Models:** `vertex_ai/gemini-2.5-flash` (orchestrator + solver) · `vertex_ai/gemini-2.0-flash` (specialists + replanner)
 **Backend:** FastAPI · **Frontend:** Vanilla HTML/CSS/JS
 **Places data:** Google Places API + local JSON cache + GCS bucket
 **Routing:** Google Maps Routes API
@@ -190,7 +198,9 @@ Edit `.env`:
 ```env
 # LLM via Vertex AI
 ORCHESTRATOR_MODEL=vertex_ai/gemini-2.5-flash
-SPECIALIST_MODEL=vertex_ai/gemini-2.5-flash-lite
+SPECIALIST_MODEL=vertex_ai/gemini-2.0-flash
+SOLVER_MODEL=vertex_ai/gemini-2.5-flash      # stronger model for itinerary formatting
+REPLANNER_MODEL=vertex_ai/gemini-2.0-flash
 GOOGLE_CLOUD_PROJECT=your-gcp-project-id
 GOOGLE_CLOUD_LOCATION=us-central1
 
@@ -302,11 +312,11 @@ Deployed on **Google Cloud Run** via Cloud Build trigger on push to `main`.
 gcloud run deploy traveling-planning-agent \
   --region=us-central1 \
   --image=us-central1-docker.pkg.dev/YOUR_PROJECT/... \
-  --set-env-vars="ORCHESTRATOR_MODEL=vertex_ai/gemini-2.5-flash,SPECIALIST_MODEL=vertex_ai/gemini-2.5-flash-lite"
+  --set-env-vars="ORCHESTRATOR_MODEL=vertex_ai/gemini-2.5-flash,SPECIALIST_MODEL=vertex_ai/gemini-2.0-flash,SOLVER_MODEL=vertex_ai/gemini-2.0-flash,REPLANNER_MODEL=vertex_ai/gemini-2.0-flash"
 ```
 
 Required Cloud Run env vars: `ORCHESTRATOR_MODEL`, `SPECIALIST_MODEL`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GOOGLE_MAPS_API_KEY`, `GOOGLE_PLACES_API_KEY`.
-Optional: `PLACES_CACHE_BUCKET`, `TAVILY_API_KEY`, `LITEAPI_KEY`.
+Optional: `SOLVER_MODEL`, `REPLANNER_MODEL`, `PLACES_CACHE_BUCKET`, `TAVILY_API_KEY`, `LITEAPI_KEY`.
 
 ---
 

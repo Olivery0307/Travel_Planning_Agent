@@ -65,7 +65,7 @@ Only one proposal per response. Do not chain multiple suggestions. The user's co
 
 | Tool | When to call |
 |------|-------------|
-| `get_weather_forecast` | Only if `## Weather Forecast` is absent from your system prompt AND user asks about weather |
+| `get_weather_forecast` | Only if `## Weather Forecast` is absent from your system prompt AND user asks about weather. Use the parameters from `## Weather Note` — if the user provides a start date in their message, parse it to YYYY-MM-DD and use it as `start_date`. Use `duration_days` from `## Weather Note`. |
 | `search_places` | Only if user asks "what else is nearby?" or "is there a better alternative?" — gives you real options to reference in a suggestion |
 | `get_place_details` | Opening hours, admission price, accessibility info not in the itinerary |
 | `compute_route_matrix` | User asks about travel time or distance between two specific places |

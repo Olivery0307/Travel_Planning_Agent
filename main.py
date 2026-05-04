@@ -14,7 +14,7 @@ from collections import defaultdict
 
 import typer
 import uvicorn
-from agents import InputGuardrailTripwireTriggered, Runner
+from agents import InputGuardrailTripwireTriggered, MaxTurnsExceeded, Runner
 from agents.extensions.models.litellm_model import LitellmModel
 from agents.items import TResponseInputItem
 from agents.memory.session import SessionABC
@@ -85,6 +85,7 @@ litellm.request_timeout = 90   # kill silent Vertex AI hangs; LiteLLM retries au
 _orchestrator_model_str = os.environ.get("ORCHESTRATOR_MODEL") or os.environ.get("MODEL")
 _specialist_model_str = os.environ.get("SPECIALIST_MODEL") or os.environ.get("MODEL")
 _replanner_model_str = os.environ.get("REPLANNER_MODEL") or _orchestrator_model_str
+_solver_model_str = os.environ.get("SOLVER_MODEL") or _orchestrator_model_str
 
 if not _orchestrator_model_str or not _specialist_model_str:
     sys.exit("ERROR: ORCHESTRATOR_MODEL and SPECIALIST_MODEL (or MODEL) must be set in .env")
@@ -246,6 +247,7 @@ def _capture_itinerary(ctx: "AppContext", response: str) -> None:
 _orchestrator_model = LitellmModel(model=_orchestrator_model_str, api_key="unused")
 _specialist_model = LitellmModel(model=_specialist_model_str, api_key="unused")
 _replanner_model = LitellmModel(model=_replanner_model_str, api_key="unused")
+_solver_model = LitellmModel(model=_solver_model_str, api_key="unused")
 
 # Import here (after models are defined) to avoid circular issues at module load
 from backend.agents.orchestrator import build_orchestrator  # noqa: E402
@@ -262,6 +264,7 @@ agent = build_orchestrator(
     specialist_model=_specialist_model,
     input_guardrails=[off_topic_guardrail, budget_sanity_guardrail],
     replanner_model=_replanner_model,
+    solver_model=_solver_model,
 )
 
 
@@ -786,7 +789,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
                 request.message,
                 session=session,
                 context=ctx,
-                max_turns=25,
+                max_turns=50,
             ),
             timeout=480,  # 8 minutes max per request
         )
@@ -801,6 +804,12 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         logger.info("guardrail triggered session=%s guardrail=%s", session_id, guardrail_name)
         msg = _guardrail_message(request.message)
         return ChatResponse(response=msg, session_id=session_id)
+    except MaxTurnsExceeded:
+        logger.warning("chat max_turns exceeded session=%s", session_id)
+        return ChatResponse(
+            response="The planner ran too many steps and couldn't finish. Please try again or simplify your request.",
+            session_id=session_id,
+        )
     except Exception as e:
         err = str(e)
         if any(k in err.lower() for k in ("timeout", "timed out", "read timeout", "connect")):
@@ -910,6 +919,14 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
             except InputGuardrailTripwireTriggered:
                 msg = _guardrail_message(request.message)
                 queue.put_nowait({"type": "done", "response": msg, "session_id": session_id})
+                return
+            except MaxTurnsExceeded:
+                logger.warning("chat/stream max_turns exceeded session=%s", session_id)
+                queue.put_nowait({
+                    "type": "done",
+                    "response": "The planner ran too many steps and couldn't finish. Please try again or simplify your request.",
+                    "session_id": session_id,
+                })
                 return
             except Exception as exc:
                 logger.error("chat/stream error: %s", traceback.format_exc())
