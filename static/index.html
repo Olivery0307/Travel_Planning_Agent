@@ -3933,14 +3933,14 @@ function _buildQueueMessage() {
   if (editQueue.size === 0) return null;
   const parts = [];
   for (const [, item] of editQueue) {
+    // Notes are user annotations — exclude them from the replanner message
     if (item.type === 'replace') {
       parts.push(`Day ${item.dayNum} ${item.period}: replace "${item.name}" with a suitable alternative.`);
     } else if (item.type === 'broken') {
       parts.push(`Day ${item.dayNum} ${item.period}: "${item.name}" is unavailable/closed — please re-plan this slot.`);
-    } else if (item.type === 'note') {
-      parts.push(`Day ${item.dayNum} ${item.period} "${item.name}": ${item.note}`);
     }
   }
+  if (parts.length === 0) return null;
   const hasDisruption = [...editQueue.values()].some(i => i.type === 'broken');
   const prefix = hasDisruption
     ? 'Please re-plan the following disruptions and changes in one pass:\n'

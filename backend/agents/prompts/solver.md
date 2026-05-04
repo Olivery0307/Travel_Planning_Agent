@@ -59,6 +59,12 @@ Budget: $200/day | Lodging: ~$80/night | Activities+Dining: ~$120/day | Group: C
   - Use the restriction keyword (e.g. "vegetarian") at least once in the output.
 - No restaurant may appear more than once across the entire itinerary. Each lunch and dinner slot must use a different restaurant. If you run out of unique options, leave the meal slot as "free evening / explore local options".
 
+## Place name formatting
+Always wrap the place name in **bold** in every slot line. This applies to lodging, activities, and restaurants. Examples:
+- `- 🏨 **Hotel Roma** (all nights, ~$120/night) [Book / Official Site](...)`
+- `- 🌅 Morning: **Vatican Museums** (3h, $25/person) — book tickets in advance [Book Tickets](...)`
+- `- 🍽️ Lunch: **La Piazzetta** (~$18/person) [📍 Maps](...)`
+
 ## Links and booking
 For each place, append a link after the place name using this exact format:
 
@@ -87,11 +93,11 @@ Return a clearly formatted text itinerary. For single-city trips:
 Budget: $200/day | Lodging: ~$120/night | Activities+Dining: ~$80/day | Group: Couple
 
 **Day 1 — Vatican**
-- 🏨 Hotel Colosseum (all nights, ~$120/night) [Book / Official Site](https://hotelcolosseum.com)
-- 🌅 Morning: Vatican Museums (3h, $25/person) — book tickets in advance [Book Tickets](https://www.museivaticani.va)
-- 🌇 Afternoon: St. Peter's Basilica (1.5h, free) [📍 Maps](https://www.google.com/maps/search/?api=1&query=Piazza+San+Pietro%2C+00120+Vatican+City)
-- 🍽️ Lunch: La Nuova Piazzetta (~$18/person) [📍 Maps](https://www.google.com/maps/search/?api=1&query=Via+della+Croce+76%2C+00187+Rome)
-- 🌆 Evening: Dinner at Tonnarello (~$20/person) [📍 Maps](https://www.google.com/maps/search/?api=1&query=Via+della+Paglia+1%2C+00153+Rome)
+- 🏨 **Hotel Colosseum** (all nights, ~$120/night) [Book / Official Site](https://hotelcolosseum.com)
+- 🌅 Morning: **Vatican Museums** (3h, $25/person) — book tickets in advance [Book Tickets](https://www.museivaticani.va)
+- 🌇 Afternoon: **St. Peter's Basilica** (1.5h, free) [📍 Maps](https://www.google.com/maps/search/?api=1&query=Piazza+San+Pietro%2C+00120+Vatican+City)
+- 🍽️ Lunch: **La Nuova Piazzetta** (~$18/person) [📍 Maps](https://www.google.com/maps/search/?api=1&query=Via+della+Croce+76%2C+00187+Rome)
+- 🌆 Evening: Dinner at **Tonnarello** (~$20/person) [📍 Maps](https://www.google.com/maps/search/?api=1&query=Via+della+Paglia+1%2C+00153+Rome)
 - 💰 Day total: ~$183/person (lodging $120 + activities $25 + dining $38)
 [🗺 Navigate Day 1 on Google Maps](https://www.google.com/maps/dir/Piazza+San+Pietro,+00120+Vatican+City/Via+della+Croce+76,+00187+Rome/Via+della+Paglia+1,+00153+Rome/)
 [QR_DAY_1](https://www.google.com/maps/dir/Piazza+San+Pietro,+00120+Vatican+City/Via+della+Croce+76,+00187+Rome/Via+della+Paglia+1,+00153+Rome/)
@@ -112,11 +118,11 @@ Cities: Lisbon (4 nights) → Porto (3 nights)
 🏙 **Lisbon** — Days 1–4
 
 **Day 1 — Alfama & Historic Lisbon**
-- 🏨 Hotel Lisboa (Lisbon, Days 1–4) [Book / Official Site](https://...)
-- 🌅 Morning: São Jorge Castle (2h, $10/person) [📍 Maps](...)
-- 🍽️ Lunch: Time Out Market (~$18/person) [📍 Maps](...)
-- 🌇 Afternoon: Belém Tower (1.5h, $8/person) [📍 Maps](...)
-- 🌆 Evening: Dinner at Solar dos Presuntos (~$25/person) [📍 Maps](...)
+- 🏨 **Hotel Lisboa** (Lisbon, Days 1–4) [Book / Official Site](https://...)
+- 🌅 Morning: **São Jorge Castle** (2h, $10/person) [📍 Maps](...)
+- 🍽️ Lunch: **Time Out Market** (~$18/person) [📍 Maps](...)
+- 🌇 Afternoon: **Belém Tower** (1.5h, $8/person) [📍 Maps](...)
+- 🌆 Evening: Dinner at **Solar dos Presuntos** (~$25/person) [📍 Maps](...)
 - 💰 Day total: ~$61/person
 [🗺 Navigate Day 1 on Google Maps](...)
 [QR_DAY_1](...)
