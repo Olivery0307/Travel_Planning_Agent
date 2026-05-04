@@ -176,9 +176,14 @@ _CITY_COUNTRY: dict[str, str] = {
     "london": "GB", "edinburgh": "GB", "manchester": "GB", "bath": "GB",
     "amsterdam": "NL", "rotterdam": "NL",
     "berlin": "DE", "munich": "DE", "hamburg": "DE",
-    "tokyo": "JP", "kyoto": "JP", "osaka": "JP", "hiroshima": "JP",
+    "tokyo": "JP", "kyoto": "JP", "osaka": "JP", "hiroshima": "JP", "nara": "JP",
+    "taipei": "TW", "kaohsiung": "TW", "tainan": "TW",
     "bangkok": "TH", "chiang mai": "TH", "phuket": "TH",
     "hanoi": "VN", "ho chi minh city": "VN", "hoi an": "VN",
+    "singapore": "SG",
+    "seoul": "KR", "busan": "KR", "jeju": "KR",
+    "bali": "ID", "jakarta": "ID", "yogyakarta": "ID",
+    "kuala lumpur": "MY", "penang": "MY",
     "athens": "GR", "santorini": "GR", "mykonos": "GR",
     "dubrovnik": "HR", "split": "HR", "zagreb": "HR",
     "istanbul": "TR", "cappadocia": "TR",
@@ -937,30 +942,9 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
             logger.info("chat/stream final_output len=%d looks_like_itin=%s first100=%r",
                         len(final_output), _looks_like_itinerary(final_output), final_output[:100])
 
-            # Post-process hotel rates only — link enrichment runs in background after done is sent
+            # Extract city for post-processing — both enrichments run after done is sent
             city_m = re.search(r'\b([A-Z][a-z]+)\s+Itinerary\b', final_output)
             city = city_m.group(1) if city_m else ""
-            if _looks_like_itinerary(final_output) and (city or ctx.last_city):
-                from datetime import date as _date
-                checkin_date = None
-                if ctx.last_checkin:
-                    try:
-                        checkin_date = _date.fromisoformat(ctx.last_checkin)
-                    except ValueError:
-                        pass
-                try:
-                    await asyncio.wait_for(
-                        _enrich_lodging_rates(
-                            final_output, ctx,
-                            city=city or ctx.last_city,
-                            country_code=_country_code(city or ctx.last_city),
-                            checkin=checkin_date,
-                            nights=ctx.last_nights or 5,
-                        ),
-                        timeout=10.0,
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning("lodging rate enrichment timed out")
 
             _capture_itinerary(ctx, final_output)
 
@@ -989,18 +973,45 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                 "weather": weather,
             })
 
-            # Enrich booking links after done is sent — never blocks the response
-            if _looks_like_itinerary(final_output) and city:
+            # Both enrichments run in background — never block the done event
+            if _looks_like_itinerary(final_output):
                 async def _bg_enrich(text: str, c: str, context: "AppContext") -> None:
-                    try:
-                        enriched = await asyncio.wait_for(_enrich_itinerary_links(text, c), timeout=25.0)
-                        if enriched != text and context.itinerary_json:
-                            itin = json.loads(context.itinerary_json)
-                            itin["text"] = enriched
-                            context.itinerary_json = json.dumps(itin)
-                            context.save()
-                    except Exception:
-                        pass
+                    from datetime import date as _date
+                    # Booking links
+                    if c:
+                        try:
+                            enriched = await asyncio.wait_for(
+                                _enrich_itinerary_links(text, c), timeout=25.0
+                            )
+                            if enriched != text and context.itinerary_json:
+                                itin = json.loads(context.itinerary_json)
+                                itin["text"] = enriched
+                                context.itinerary_json = json.dumps(itin)
+                                context.save()
+                        except Exception:
+                            pass
+                    # Hotel rates
+                    eff_city = c or context.last_city
+                    if eff_city:
+                        checkin_date = None
+                        if context.last_checkin:
+                            try:
+                                checkin_date = _date.fromisoformat(context.last_checkin)
+                            except ValueError:
+                                pass
+                        try:
+                            await asyncio.wait_for(
+                                _enrich_lodging_rates(
+                                    text, context,
+                                    city=eff_city,
+                                    country_code=_country_code(eff_city),
+                                    checkin=checkin_date,
+                                    nights=context.last_nights or 5,
+                                ),
+                                timeout=15.0,
+                            )
+                        except Exception:
+                            pass
                 asyncio.create_task(_bg_enrich(final_output, city, ctx))
 
         task = asyncio.create_task(_run_agent())
