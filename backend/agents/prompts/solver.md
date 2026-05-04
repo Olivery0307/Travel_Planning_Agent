@@ -62,17 +62,18 @@ Budget: $200/day | Lodging: ~$80/night | Activities+Dining: ~$120/day | Group: C
 ## Links and booking
 For each place, append a link after the place name using this exact format:
 
-For every place (lodging, activity, restaurant), always emit a Google Maps search link using the place's street address:
-  `[📍 Maps](https://www.google.com/maps/search/?api=1&query=ENCODED_ADDRESS)`
-  URL-encode the address (spaces as +, commas as %2C). Use the real `address` field from the place data — never use a placeholder. If address is empty, omit the link.
+For every place (lodging, activity, restaurant), emit a Google Maps link that opens the place card directly:
+  - If the place has a `place_id`: `[📍 Maps](https://www.google.com/maps/search/?api=1&query=ENCODED_NAME&query_place_id=PLACE_ID)`
+  - If no `place_id` available: `[📍 Maps](https://www.google.com/maps/search/?api=1&query=ENCODED_NAME+ENCODED_CITY)`
+  URL-encode the name (spaces as +). This opens the named place card (e.g. "Colosseum") not a raw address pin. Never use the address as the query — always use the place name.
 
 In addition:
 - For lodging: if the place has a `website` field, also append `[Book / Official Site](website_url)`.
 - For activities: if the place has a `website` field and `booking_required=True`, also append `[Book Tickets](website_url)`.
 
-At the end of each day section, output a Google Maps multi-stop route URL using the real street **addresses** (not names) of each stop in visit order, skipping the hotel:
+At the end of each day section, output a Google Maps multi-stop route URL using real street **addresses** of each stop in visit order, skipping the hotel:
   `[🗺 Navigate Day N on Google Maps](https://www.google.com/maps/dir/ADDR1/ADDR2/ADDR3/)`
-URL-encode each address. Use only addresses from the actual candidate data passed to you — never invent addresses.
+URL-encode each address. Use only addresses from the actual candidate data — never invent addresses. (The nav route uses addresses for accurate routing; the per-place 📍 links use place names/IDs for the place card.)
 
 After the maps link, output a QR code marker line:
   `[QR_DAY_N](SAME_MAPS_URL)`

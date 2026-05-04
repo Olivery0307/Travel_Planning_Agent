@@ -118,20 +118,22 @@ def _extract_cost(line: str) -> float:
     return 0.0
 
 
-def _build_maps_link(address: str) -> str:
-    if not address:
+def _build_maps_link(name: str, place_id: str = "", city: str = "") -> str:
+    if not name:
         return ""
-    enc = address.replace(" ", "+").replace(",", "%2C")
-    return f"[📍 Maps](https://www.google.com/maps/search/?api=1&query={enc})"
+    enc_name = name.replace(" ", "+").replace(",", "%2C")
+    if place_id:
+        return f"[📍 Maps](https://www.google.com/maps/search/?api=1&query={enc_name}&query_place_id={place_id})"
+    suffix = f"+{city.replace(' ', '+')}" if city else ""
+    return f"[📍 Maps](https://www.google.com/maps/search/?api=1&query={enc_name}{suffix})"
 
 
 def _format_slot_line(period: str, place: dict, category: str) -> str:
     """Format a replacement slot line matching the itinerary style."""
     name = place.get("name", "")
-    address = place.get("address", "")
     cost = place.get("estimated_cost_usd") or place.get("price_level", 0)
     website = place.get("website", "")
-    maps = _build_maps_link(address)
+    maps = _build_maps_link(name, place.get("place_id", ""), place.get("city", ""))
 
     emoji_map = {"morning": "🌅", "afternoon": "🌇", "evening": "🌆"}
     emoji = emoji_map.get(period, "🌅")
