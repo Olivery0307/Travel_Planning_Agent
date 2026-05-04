@@ -182,15 +182,19 @@ class PlacesCache:
         if not candidates:
             return []
 
-        # score by query word overlap in name
+        # score by query word overlap + rating + log-scaled popularity (review count)
         query_words = set(re.sub(r"[^a-z0-9 ]", "", query.lower()).split())
 
+        import math
         def score(p: dict) -> float:
             name_words = set(re.sub(r"[^a-z0-9 ]", "", p.get("name", "").lower()).split())
             addr_words = set(re.sub(r"[^a-z0-9 ]", "", p.get("address", "").lower()).split())
-            overlap = len(query_words & (name_words | addr_words))
-            rating  = float(p.get("rating") or 0)
-            return overlap * 10 + rating
+            overlap    = len(query_words & (name_words | addr_words))
+            rating     = float(p.get("rating") or 0)
+            n_reviews  = int(p.get("user_ratings_total") or 0)
+            # log10(1+n) gives ~0 for 0 reviews, ~2 for 100, ~4 for 10k, ~5 for 100k
+            popularity = math.log10(1 + n_reviews)
+            return overlap * 10 + rating * 2 + popularity
 
         rated = [p for p in candidates if (p.get("rating") or 0) >= min_rating]
         if len(rated) < 3:

@@ -533,10 +533,19 @@ def apply_swap(
         orig_name = slot.get("place_name", "")
         orig_cost = slot.get("cost_usd", 0.0)
 
-        # ── Opportunity: insert user-specified venue directly ─────────────────
+        # ── Opportunity: insert user-specified venue directly (once only) ───────
         if disruption_type == "opportunity" and opportunity_venue:
+            # Guard: only insert the venue once even if parser produced multiple slots
+            already_inserted = any(
+                s.place_name == opportunity_venue for s in changed_slots
+            )
+            if already_inserted:
+                logger.info("apply_swap: opportunity venue already inserted, skipping slot %s", slot_key)
+                continue
+            emoji_map = {"morning": "🌅", "afternoon": "🌇", "evening": "🌆"}
+            emoji = emoji_map.get(period, "🌆")
             new_line = (
-                f"- 🌆 {period.capitalize()}: {opportunity_venue} "
+                f"- {emoji} {period.capitalize()}: {opportunity_venue} "
                 f"(see your tickets for details)"
             )
             if orig_name:

@@ -227,7 +227,7 @@ def _capture_itinerary(ctx: "AppContext", response: str) -> None:
         "version": ctx.disruption_count + 1,
     })
     # Extract city, nights, and checkin from the itinerary header for post-processing
-    city_m = re.search(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+Itinerary\b', response)
+    city_m = re.search(r'\b([A-Z][a-z]+)\s+Itinerary\b', response)
     if city_m:
         ctx.last_city = city_m.group(1)
         ctx.last_country_code = _country_code(ctx.last_city)
@@ -824,7 +824,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
     # Post-process: add missing booking links + fetch hotel nightly rates (non-blocking)
     if _looks_like_itinerary(final_output):
-        city_m = re.search(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+Itinerary\b', final_output)
+        city_m = re.search(r'\b([A-Z][a-z]+)\s+Itinerary\b', final_output)
         city = city_m.group(1) if city_m else ""
         try:
             final_output = await asyncio.wait_for(
@@ -934,39 +934,33 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                 return
 
             final_output = _extract_itinerary_text(result.final_output)
+            logger.info("chat/stream final_output len=%d looks_like_itin=%s first100=%r",
+                        len(final_output), _looks_like_itinerary(final_output), final_output[:100])
 
-            # Post-process: add missing booking links + fetch hotel nightly rates (non-blocking)
-            if _looks_like_itinerary(final_output):
-                city_m = re.search(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+Itinerary\b', final_output)
-                city = city_m.group(1) if city_m else ""
+            # Post-process hotel rates only — link enrichment runs in background after done is sent
+            city_m = re.search(r'\b([A-Z][a-z]+)\s+Itinerary\b', final_output)
+            city = city_m.group(1) if city_m else ""
+            if _looks_like_itinerary(final_output) and (city or ctx.last_city):
+                from datetime import date as _date
+                checkin_date = None
+                if ctx.last_checkin:
+                    try:
+                        checkin_date = _date.fromisoformat(ctx.last_checkin)
+                    except ValueError:
+                        pass
                 try:
-                    final_output = await asyncio.wait_for(
-                        _enrich_itinerary_links(final_output, city), timeout=20.0
+                    await asyncio.wait_for(
+                        _enrich_lodging_rates(
+                            final_output, ctx,
+                            city=city or ctx.last_city,
+                            country_code=_country_code(city or ctx.last_city),
+                            checkin=checkin_date,
+                            nights=ctx.last_nights or 5,
+                        ),
+                        timeout=10.0,
                     )
                 except asyncio.TimeoutError:
-                    logger.warning("link enrichment timed out — returning itinerary without enrichment")
-
-                if city or ctx.last_city:
-                    from datetime import date as _date
-                    checkin_date = None
-                    if ctx.last_checkin:
-                        try:
-                            checkin_date = _date.fromisoformat(ctx.last_checkin)
-                        except ValueError:
-                            pass
-                    try:
-                        await asyncio.wait_for(
-                            _enrich_lodging_rates(
-                                final_output, ctx,
-                                city=city or ctx.last_city,
-                                country_code=_country_code(city or ctx.last_city),
-                                checkin=checkin_date,
-                                nights=ctx.last_nights or 5,
-                            ),
-                            timeout=15.0,
-                        )
-                    except asyncio.TimeoutError:
-                        logger.warning("lodging rate enrichment timed out")
+                    logger.warning("lodging rate enrichment timed out")
 
             _capture_itinerary(ctx, final_output)
 
@@ -994,6 +988,20 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                 "delta": validated_delta,
                 "weather": weather,
             })
+
+            # Enrich booking links after done is sent — never blocks the response
+            if _looks_like_itinerary(final_output) and city:
+                async def _bg_enrich(text: str, c: str, context: "AppContext") -> None:
+                    try:
+                        enriched = await asyncio.wait_for(_enrich_itinerary_links(text, c), timeout=25.0)
+                        if enriched != text and context.itinerary_json:
+                            itin = json.loads(context.itinerary_json)
+                            itin["text"] = enriched
+                            context.itinerary_json = json.dumps(itin)
+                            context.save()
+                    except Exception:
+                        pass
+                asyncio.create_task(_bg_enrich(final_output, city, ctx))
 
         task = asyncio.create_task(_run_agent())
 
