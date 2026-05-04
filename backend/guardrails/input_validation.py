@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from agents import Agent, GuardrailFunctionOutput, RunContextWrapper, input_guardrail
 from agents.extensions.models.litellm_model import LitellmModel
 from pydantic import BaseModel
@@ -49,11 +51,42 @@ def init_guardrail_agents(model: LitellmModel) -> None:
     )
 
 
+_TRAVEL_KEYWORDS = re.compile(
+    r"\b(trip|travel|itinerary|hotel|flight|city|day|night|visit|tour|plan|book|"
+    r"restaurant|museum|budget|airport|train|bus|ferry|tickets?|activities|attractions?|"
+    r"accommodation|hostel|resort|beach|hike|sightseeing|vacation|holiday|passport|visa|"
+    r"morning|afternoon|evening|week|weekend|days?|nights?)\b",
+    re.IGNORECASE,
+)
+
+
+def _input_as_text(input: str | list) -> str:
+    """Normalize SDK input to a plain string for regex checks."""
+    if isinstance(input, str):
+        return input
+    # list of message dicts — extract text content from the last user message
+    for item in reversed(input):
+        if isinstance(item, dict):
+            content = item.get("content", "")
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                return " ".join(
+                    p.get("text", "") for p in content if isinstance(p, dict)
+                )
+    return ""
+
+
 @input_guardrail
 async def off_topic_guardrail(
     ctx: RunContextWrapper, agent: Agent, input: str
 ) -> GuardrailFunctionOutput:
     """Reject messages unrelated to travel planning."""
+    text = _input_as_text(input)
+    # Fast-pass: if the message contains obvious travel keywords, skip the LLM call
+    if _TRAVEL_KEYWORDS.search(text):
+        return GuardrailFunctionOutput(output_info=None, tripwire_triggered=False)
+
     if _relevance_agent is None:
         return GuardrailFunctionOutput(output_info=None, tripwire_triggered=False)
     from agents import Runner

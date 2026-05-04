@@ -51,8 +51,20 @@ def _make_instructions(ctx: RunContextWrapper, agent: Agent) -> str:
             summary += f" ({ctx.context.last_country_code})"
         if ctx.context.last_checkin:
             summary += f"\n- Start date: {ctx.context.last_checkin}"
-        if ctx.context.last_nights:
-            summary += f"\n- Duration: {ctx.context.last_nights} nights"
+        nights = ctx.context.last_nights or 0
+        summary += f"\n- Duration: {nights} nights"
+        if not ctx.context.weather_data:
+            summary += (
+                "\n\n## Weather Note\n"
+                "No weather data has been fetched yet (trip was planned without a start date). "
+                "If the user provides or mentions a start date, call `get_weather_forecast` ONCE with:\n"
+                f"  city=\"{ctx.context.last_city}\"\n"
+                f"  country=\"{ctx.context.last_country_code or 'unknown'}\"\n"
+                f"  start_date=<the date the user provided, in YYYY-MM-DD format>\n"
+                f"  duration_days={nights or 7}\n"
+                "Call it only once for the first city — do NOT call it separately per city. "
+                "Historical climate data for the first city is representative for the whole trip."
+            )
         prompt += summary
 
     return prompt

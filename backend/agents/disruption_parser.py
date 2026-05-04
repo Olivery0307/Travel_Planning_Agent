@@ -29,12 +29,14 @@ Read the user's message and the current itinerary (provided in context), then po
 - For "sick all of Day 2" → three entries: day=2 morning/afternoon/evening, venue_name="" (whole day)
 - For "heavy rain on Day 4" → entries for outdoor slots on Day 4 (morning and afternoon typically)
 - For budget/preference changes across multiple days → one entry per affected slot
+- For opportunity disruptions (e.g. "got opera tickets for Day 2 evening"): one entry for the slot being replaced, with venue_name set to the NEW venue being inserted (e.g. "Teatro dell'Opera"), not the old one
 
 **locked_slot_keys** — parse "Locked: day1_morning, day2_evening" style text. Format: "day{N}_{period}".
 
 **new_budget_per_day** — only set for budget_change. Extract the number from "$120/day" → 120.0.
 
 **special_instructions** — capture constraints like "indoor only", "max 1km walking", "no stairs", "vegetarian restaurants only".
+For `opportunity` disruptions, set special_instructions to the name of the new venue being inserted (e.g. "Teatro dell'Opera") so apply_swap can find it.
 
 **reasoning** — one sentence summary of what happened.
 
