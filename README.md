@@ -13,15 +13,11 @@ Built for the **Columbia IEOR Agentic AI for Analytics** capstone.
 
 ### Trip Planning
 
-https://github.com/user-attachments/assets/planner_demo.mp4
-
-<video src="assets/videos/planner_demo.mp4" controls width="100%"></video>
+![Trip Planning Demo](assets/images/planner_demo.gif)
 
 ### Re-planning
 
-https://github.com/user-attachments/assets/replanner_demo.mp4
-
-<video src="assets/videos/replanner_demo.mp4" controls width="100%"></video>
+![Re-planning Demo](assets/images/replanner_demo.gif)
 
 ### Pipeline Visualization
 
