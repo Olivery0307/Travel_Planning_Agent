@@ -329,6 +329,50 @@ class ChatResponse(BaseModel):
     weather: list | None = None    # Per-day weather data for badge rendering
 
 
+def _inject_booking_links_from_pool(text: str, ctx: "AppContext") -> str:
+    """Tier 1: inject booking links deterministically from ctx.candidate_pool.
+    Runs before Tavily — no API calls, instant. Only touches lines missing a booking link."""
+    all_candidates: list[dict] = []
+    for places in ctx.candidate_pool.values():
+        all_candidates.extend(places)
+    if not all_candidates:
+        return text
+
+    pool_by_name: dict[str, dict] = {}
+    for p in all_candidates:
+        name = (p.get("name") or "").strip().lower()
+        if name:
+            pool_by_name[name] = p
+
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if not line.strip().startswith(("-", "•", "*")):
+            continue
+        existing = re.findall(r'\[([^\]]+)\]\((https?://[^)]+)\)', line)
+        if any('google.com/maps' not in url for _, url in existing):
+            continue
+        name_m = re.search(r'\*\*([^*]+)\*\*', line)
+        if not name_m:
+            continue
+        venue_lower = name_m.group(1).strip().lower()
+        match = pool_by_name.get(venue_lower) or next(
+            (p for n, p in pool_by_name.items() if venue_lower in n or n in venue_lower),
+            None,
+        )
+        if not match:
+            continue
+        website = (match.get("website") or match.get("booking_url") or "").strip()
+        if not website:
+            continue
+        label = ("Book / Official Site" if "🏨" in line
+                 else "Book Tickets" if any(e in line for e in ("🌅", "🌇", "🌆"))
+                 else "Reserve")
+        lines[i] = line.rstrip() + f" [{label}]({website})"
+        logger.info("pool link injected: %r → %s", match.get("name"), website)
+
+    return "\n".join(lines)
+
+
 async def _enrich_itinerary_links(text: str, city: str) -> str:
     """Find missing booking links in itinerary slots via Tavily. Non-blocking, capped at 20s."""
     from backend.tools.tavily_search import find_booking_url
@@ -362,6 +406,7 @@ async def _enrich_itinerary_links(text: str, city: str) -> str:
             if not hm:
                 continue
             venue = hm.group(1).strip().rstrip('.,;—–').strip()
+            venue = re.sub(r'\*\*', '', venue).strip()        # strip bold markers
             venue = re.sub(r'\s*\([^)]*\)', '', venue).strip()
             if len(venue) < 3:
                 continue
@@ -375,6 +420,7 @@ async def _enrich_itinerary_links(text: str, city: str) -> str:
         if not nm:
             continue
         venue = nm.group(1).strip().rstrip('.,;—–').strip()
+        venue = re.sub(r'\*\*', '', venue).strip()            # strip bold markers
         venue = re.sub(r'\s*\([^)]*\)', '', venue).strip()  # remove (Xh, $Y) parentheticals
         venue = re.sub(r'^(?:dinner|lunch|breakfast)\s+at\s+', '', venue, flags=re.IGNORECASE).strip()
         if len(venue) < 3:
@@ -837,6 +883,9 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     if _looks_like_itinerary(final_output):
         city_m = re.search(r'\b([A-Z][a-z]+)\s+Itinerary\b', final_output)
         city = city_m.group(1) if city_m else ""
+        # Tier 1: deterministic pool lookup (no API call)
+        final_output = _inject_booking_links_from_pool(final_output, ctx)
+        # Tier 2+3: Tavily for anything still missing
         try:
             final_output = await asyncio.wait_for(
                 _enrich_itinerary_links(final_output, city), timeout=20.0
@@ -983,17 +1032,21 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
             if _looks_like_itinerary(final_output):
                 async def _bg_enrich(text: str, c: str, context: "AppContext") -> None:
                     from datetime import date as _date
-                    # Booking links
+                    # Booking links: Tier 1 (pool, sync) then Tier 2+3 (Tavily, async)
+                    enriched = _inject_booking_links_from_pool(text, context)
                     if c:
                         try:
                             enriched = await asyncio.wait_for(
-                                _enrich_itinerary_links(text, c), timeout=25.0
+                                _enrich_itinerary_links(enriched, c), timeout=25.0
                             )
-                            if enriched != text and context.itinerary_json:
-                                itin = json.loads(context.itinerary_json)
-                                itin["text"] = enriched
-                                context.itinerary_json = json.dumps(itin)
-                                context.save()
+                        except Exception:
+                            pass
+                    if enriched != text and context.itinerary_json:
+                        try:
+                            itin = json.loads(context.itinerary_json)
+                            itin["text"] = enriched
+                            context.itinerary_json = json.dumps(itin)
+                            context.save()
                         except Exception:
                             pass
                     # Hotel rates
