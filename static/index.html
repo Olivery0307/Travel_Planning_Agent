@@ -2632,6 +2632,8 @@ function parseLine(raw) {
     const sep = kw[0].slice(kw[1].length);
     if (/[:\-–—]/.test(sep) || period !== 'lodging') {
       s = s.slice(kw[0].length).trim();
+      // Strip "at " prefix left by "Dinner at Name" or "Lunch at Name" formats
+      s = s.replace(/^at\s+/i, '').trim();
     }
   } else {
     // No keyword, but emoji tells us the period (e.g. "🏨 The Westin Excelsior (all nights…)")

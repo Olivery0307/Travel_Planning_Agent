@@ -316,12 +316,23 @@ def resolve_slots(
         best_name = ""
         best_cost = 0.0
 
+        # Normalize raw period keyword to match _period_of_line() output:
+        # parse_disruption may return "dinner"/"lunch" but _period_of_line returns "evening"/"afternoon"
+        _PERIOD_NORM = {"dinner": "evening", "lunch": "afternoon", "breakfast": "afternoon",
+                        "hotel": "lodging"}
+        period_canonical = _PERIOD_NORM.get(period, period)
+
         for line_idx, line in day_lines:
             if not line.strip().startswith(("-", "•", "*", "🌅", "🌇", "🌆", "🍽")):
                 continue
             line_period = _period_of_line(line)
-            # Match by period, and optionally by venue name hint
-            period_match = (not period) or (line_period == period)
+            # Match by normalized period; lodging lines return None from _period_of_line
+            # so match hotel slots by emoji instead
+            period_match = (
+                (not period)
+                or (line_period == period_canonical)
+                or (period_canonical == "lodging" and "🏨" in line)
+            )
             name_in_line = venue_hint and venue_hint in line.lower()
             if period_match and (name_in_line or not venue_hint):
                 best_idx = line_idx
