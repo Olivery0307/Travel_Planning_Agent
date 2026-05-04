@@ -169,6 +169,12 @@ def search_places(
                     live_results.append(_dict_to_place_result(p, category))
                     seen.add(p["place_id"])
 
+        # Sort by popularity (review count) then rating so top attractions surface first
+        import math
+        live_results.sort(
+            key=lambda r: math.log10(1 + (r.user_ratings_total or 0)) + (r.rating or 0) * 0.5,
+            reverse=True,
+        )
         final = live_results[:max_results]
         _add_to_pool(ctx, final, category)
         return final

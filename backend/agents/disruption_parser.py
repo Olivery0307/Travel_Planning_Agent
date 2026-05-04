@@ -29,7 +29,7 @@ Read the user's message and the current itinerary (provided in context), then po
 - For "sick all of Day 2" → three entries: day=2 morning/afternoon/evening, venue_name="" (whole day)
 - For "heavy rain on Day 4" → entries for outdoor slots on Day 4 (morning and afternoon typically)
 - For budget/preference changes across multiple days → one entry per affected slot
-- For opportunity disruptions (e.g. "got opera tickets for Day 2 evening"): one entry for the slot being replaced, with venue_name set to the NEW venue being inserted (e.g. "Teatro dell'Opera"), not the old one
+- For opportunity disruptions (e.g. "I want Statue of Liberty included", "got opera tickets"): EXACTLY ONE entry for the single most appropriate slot, with venue_name set to the NEW venue. Choose the period that best fits the venue (morning for outdoor landmarks, evening for shows/dinners). Never produce multiple slots for an opportunity — the venue is inserted once only.
 
 **locked_slot_keys** — parse "Locked: day1_morning, day2_evening" style text. Format: "day{N}_{period}".
 
@@ -44,6 +44,7 @@ For `opportunity` disruptions, set special_instructions to the name of the new v
 - Always produce at least one affected_slot entry.
 - If day number is ambiguous, default to day 1.
 - If period is ambiguous for health/weather, produce entries for morning, afternoon, AND evening.
+- For opportunity: ALWAYS exactly one slot entry, never three. The "whole day" rule does NOT apply to opportunity.
 - Never refuse — always return a valid DisruptionRequest.
 """
 
