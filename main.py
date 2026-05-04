@@ -744,9 +744,15 @@ def _apply_delta_to_stored_itinerary(ctx: "AppContext", delta: dict) -> None:
                         cost_str = f" ~${changed['cost_usd']:.0f}/pp" if changed.get("cost_usd") else ""
                         note_str = f" | {changed['notes']}" if changed.get("notes") else ""
                         maps_str = ""
-                        if changed.get("address"):
+                        if changed.get("place_name"):
                             from urllib.parse import quote_plus
-                            maps_str = f" [📍 Maps](https://www.google.com/maps/search/?api=1&query={quote_plus(changed['address'])})"
+                            enc = quote_plus(changed["place_name"])
+                            pid = changed.get("place_id", "")
+                            maps_str = (
+                                f" [📍 Maps](https://www.google.com/maps/search/?api=1&query={enc}&query_place_id={pid})"
+                                if pid else
+                                f" [📍 Maps](https://www.google.com/maps/search/?api=1&query={enc})"
+                            )
                         book_str = f" [Book]({changed['booking_url']})" if changed.get("booking_url") else ""
                         new_lines.append(f"- **{changed['place_name']}**{cost_str}{note_str}{maps_str}{book_str}")
                     # else: pure removal — drop line without replacement
