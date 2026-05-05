@@ -65,9 +65,11 @@ Examples by disruption type:
 - venue_closed: "Due to the unexpected closure of X, Day N morning has been replaced with Y."
 - weather: "Due to heavy rain/bad weather on Day N, the outdoor slots have been swapped for indoor alternatives at [venues]."
 - health: "To accommodate the sick day, Day N has been lightened to easy, low-walking indoor activities and rest."
-- opportunity: "The Teatro dell'Opera opera has been added to Day N evening — the original dinner slot has been moved."
+- opportunity: "The [venue] has been added to Day N [period] — the original slot has been moved. [If locked_slot_keys non-empty: Your locked [slot] remains unchanged.]"
 - group_preference_shift: "Day N has been updated with food/relaxation focused activities — [venue] for brunch and [venue] for the afternoon."
 - budget_change: "Days N–M have been updated with more budget-friendly options to fit the new $X/day budget."
+
+**Locked slot acknowledgment rule:** If `locked_slot_keys` is non-empty, your Step 5 response MUST explicitly state that the locked slot(s) were not changed. Example: "Your Day 2 morning Colosseum visit remains untouched."
 
 ---
 

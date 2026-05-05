@@ -432,6 +432,13 @@ def _lookup_for_slot(
         )
         pool = ctx_context.candidate_pool.get(pool_key, [])
         pool_filtered = [p for p in pool if p.get("name", "").lower() not in exclude_lower]
+        # Apply the same indoor/outdoor constraint to the pool fallback
+        if "indoor" in instr_lower:
+            pool_indoor = [p for p in pool_filtered if not p.get("outdoor_suitable", True)]
+            pool_filtered = pool_indoor if pool_indoor else pool_filtered
+        elif "outdoor" in instr_lower:
+            pool_outdoor = [p for p in pool_filtered if p.get("outdoor_suitable", False)]
+            pool_filtered = pool_outdoor if pool_outdoor else pool_filtered
         filtered = pool_filtered or filtered
 
     return filtered[:max_results]

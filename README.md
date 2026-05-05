@@ -144,19 +144,19 @@ Each agent receives a carefully crafted system prompt in Markdown. The orchestra
 Eval script: [`backend/tests/evals/run_planner_eval.py`](backend/tests/evals/run_planner_eval.py)
 Golden cases: [`backend/tests/evals/golden_trips_full.json`](backend/tests/evals/golden_trips_full.json)
 
-### Replanner Eval — 96% (57/59 checks, 9 cases)
+### Replanner Eval — 100% (64/64 checks, 9 cases)
 
 | Case | Status | Time |
 |---|---|---|
-| Venue closed — no locks | ✅ PASS | 8.5s |
-| Venue closed — with lock | ✅ PASS | 8.3s |
-| Sick day — whole day lighten | ✅ PASS | 9.5s |
-| Bad weather — outdoor → indoor | ✅ PASS | 24.6s |
-| Budget cut mid-trip | ✅ PASS | 18.8s |
-| Opportunity insertion (opera) | ⚠️ PARTIAL 6/7 | 9.2s |
-| Multi-slot two locks | ✅ PASS | 13.0s |
-| Group preference shift | ✅ PASS | 15.4s |
-| Multi-city transit delay | ✅ PASS | 9.9s |
+| Venue closed — no locks | ✅ PASS | 9.7s |
+| Venue closed — with lock | ✅ PASS | 7.8s |
+| Sick day — whole day lighten | ✅ PASS | 14.3s |
+| Bad weather — outdoor → indoor | ✅ PASS | 10.2s |
+| Budget cut mid-trip | ✅ PASS | 21.8s |
+| Opportunity insertion (opera) | ✅ PASS | 9.2s |
+| Multi-slot two locks | ✅ PASS | 9.9s |
+| Group preference shift | ✅ PASS | 11.1s |
+| Multi-city transit delay | ✅ PASS | 10.9s |
 
 **Lock violations: 0 · Surgical edit failures: 0**
 
