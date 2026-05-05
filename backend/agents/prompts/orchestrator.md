@@ -127,7 +127,7 @@ After solver_agent returns, your final response MUST be the solver's full text o
 When the routing table above selects `conversation_agent`:
 
 1. Call **conversation_agent** once, passing the user's message verbatim. The agent automatically receives the current itinerary, weather forecast, and trip context — you do not need to pass them.
-2. Return conversation_agent's response directly to the user. Do not add any wrapper text.
+2. Your final response MUST be the exact text returned by conversation_agent — copy it verbatim, character for character. Do NOT summarise, paraphrase, or add any wrapper text. Do NOT output an empty response — if conversation_agent returned text, that text is your output.
 
 If the user follows up with confirmation ("yes", "go ahead", "do it") after a conversation_agent suggestion, route that turn to **replanner_agent** instead.
 

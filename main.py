@@ -887,6 +887,18 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
     final_output = _strip_place_id_params(_extract_itinerary_text(result.final_output))
 
+    # Guard: orchestrator occasionally returns empty when conversation_agent result isn't echoed
+    if not final_output.strip():
+        logger.warning("chat empty final_output session=%s — asking user to clarify", session_id)
+        return ChatResponse(
+            response=(
+                "I didn't quite catch that. Could you rephrase? "
+                "For example: \"replace the museum on Day 2 afternoon with a night market\" "
+                "or \"which day has too much Italian food?\""
+            ),
+            session_id=session_id,
+        )
+
     # Post-process: add missing booking links + fetch hotel nightly rates (non-blocking)
     if _looks_like_itinerary(final_output):
         city_m = re.search(r'\b([A-Z][a-z]+)\s+Itinerary\b', final_output)
@@ -1006,6 +1018,21 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                 return
 
             final_output = _strip_place_id_params(_extract_itinerary_text(result.final_output))
+
+            # Guard: orchestrator occasionally returns empty when conversation_agent result isn't echoed
+            if not final_output.strip():
+                logger.warning("chat/stream empty final_output session=%s — asking user to clarify", session_id)
+                queue.put_nowait({
+                    "type": "done",
+                    "response": (
+                        "I didn't quite catch that. Could you rephrase? "
+                        "For example: \"replace the museum on Day 2 afternoon with a night market\" "
+                        "or \"which day has too much Italian food?\""
+                    ),
+                    "session_id": session_id,
+                })
+                return
+
             logger.info("chat/stream final_output len=%d looks_like_itin=%s first100=%r",
                         len(final_output), _looks_like_itinerary(final_output), final_output[:100])
 
