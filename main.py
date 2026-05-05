@@ -850,7 +850,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
                 request.message,
                 session=session,
                 context=ctx,
-                max_turns=50,
+                max_turns=15,
             ),
             timeout=480,  # 8 minutes max per request
         )
@@ -868,7 +868,11 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     except MaxTurnsExceeded:
         logger.warning("chat max_turns exceeded session=%s", session_id)
         return ChatResponse(
-            response="The planner ran too many steps and couldn't finish. Please try again or simplify your request.",
+            response=(
+                "I wasn't able to figure out exactly which slot to change from that description. "
+                "Could you be a bit more specific? For example: \"replace the museum on Day 2 afternoon with a night market\" "
+                "or \"swap Day 3 morning to something food-related\"."
+            ),
             session_id=session_id,
         )
     except Exception as e:
@@ -978,7 +982,7 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                     request.message,
                     session=session,
                     context=ctx,
-                    max_turns=50,
+                    max_turns=15,
                 )
             except InputGuardrailTripwireTriggered:
                 msg = _guardrail_message(request.message)
@@ -988,7 +992,11 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                 logger.warning("chat/stream max_turns exceeded session=%s", session_id)
                 queue.put_nowait({
                     "type": "done",
-                    "response": "The planner ran too many steps and couldn't finish. Please try again or simplify your request.",
+                    "response": (
+                        "I wasn't able to figure out exactly which slot to change from that description. "
+                        "Could you be a bit more specific? For example: \"replace the museum on Day 2 afternoon with a night market\" "
+                        "or \"swap Day 3 morning to something food-related\"."
+                    ),
                     "session_id": session_id,
                 })
                 return
@@ -1142,7 +1150,7 @@ def ask(query: str, session_id: str = "cli_session") -> None:
         ctx = AppContext.get_or_create(session_id)
 
         try:
-            result = await Runner.run(agent, query, session=session, context=ctx, max_turns=50)
+            result = await Runner.run(agent, query, session=session, context=ctx, max_turns=15)
         except InputGuardrailTripwireTriggered:
             typer.echo(_guardrail_message(query))
             return
