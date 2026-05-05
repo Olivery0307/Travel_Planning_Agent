@@ -154,6 +154,12 @@ class AppContext(BaseModel):
 
 # Itinerary capture ------------------------------------------------------------
 
+_PLACE_ID_RE = re.compile(r"&query_place_id=[^)\s]+")
+
+def _strip_place_id_params(text: str) -> str:
+    """Remove stale query_place_id params from Maps links — they cause wrong-location redirects."""
+    return _PLACE_ID_RE.sub("", text)
+
 def _extract_itinerary_text(text: str) -> str:
     """Strip markdown code fences and leading preamble so the parser sees raw itinerary."""
     # Pull content out of ```...``` or ```text...``` blocks
@@ -792,13 +798,11 @@ def _apply_delta_to_stored_itinerary(ctx: "AppContext", delta: dict) -> None:
                         maps_str = ""
                         if changed.get("place_name"):
                             from urllib.parse import quote_plus
-                            enc = quote_plus(changed["place_name"])
-                            pid = changed.get("place_id", "")
-                            maps_str = (
-                                f" [📍 Maps](https://www.google.com/maps/search/?api=1&query={enc}&query_place_id={pid})"
-                                if pid else
-                                f" [📍 Maps](https://www.google.com/maps/search/?api=1&query={enc})"
-                            )
+                            query = changed["place_name"]
+                            if ctx.last_city:
+                                query += f" {ctx.last_city}"
+                            enc = quote_plus(query)
+                            maps_str = f" [📍 Maps](https://www.google.com/maps/search/?api=1&query={enc})"
                         book_str = f" [Book]({changed['booking_url']})" if changed.get("booking_url") else ""
                         new_lines.append(f"- **{changed['place_name']}**{cost_str}{note_str}{maps_str}{book_str}")
                     # else: pure removal — drop line without replacement
@@ -877,7 +881,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             )
         raise
 
-    final_output = _extract_itinerary_text(result.final_output)
+    final_output = _strip_place_id_params(_extract_itinerary_text(result.final_output))
 
     # Post-process: add missing booking links + fetch hotel nightly rates (non-blocking)
     if _looks_like_itinerary(final_output):
@@ -993,7 +997,7 @@ async def chat_stream_endpoint(request: ChatRequest) -> StreamingResponse:
                 queue.put_nowait({"type": "error", "detail": str(exc), "session_id": session_id})
                 return
 
-            final_output = _extract_itinerary_text(result.final_output)
+            final_output = _strip_place_id_params(_extract_itinerary_text(result.final_output))
             logger.info("chat/stream final_output len=%d looks_like_itin=%s first100=%r",
                         len(final_output), _looks_like_itinerary(final_output), final_output[:100])
 

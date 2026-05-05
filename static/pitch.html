@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voyager — Elevator Pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────
+   RESET & TOKENS
+───────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --ink:    #0d0d0d;
+  --paper:  #f5f0e8;
+  --cream:  #ede7d9;
+  --gold:   #c9a84c;
+  --gold-lt:#e8c96a;
+  --rust:   #b54c2f;
+  --slate:  #2a2a35;
+  --muted:  #6b6555;
+
+  /* unified slide geometry */
+  --pad-v: 4.5rem;
+  --pad-h: 6rem;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--ink);
+  font-family: 'Outfit', sans-serif;
+}
+
+/* ─────────────────────────────────────────
+   DECK & SLIDE SHELL  — identical for all
+───────────────────────────────────────── */
+#deck {
+  width: 100vw; height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  /* ↓ THE ONE LAYOUT RULE every slide shares */
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: var(--pad-v) var(--pad-h);
+  overflow: hidden;
+
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(36px);
+  transition: opacity .65s cubic-bezier(.16,1,.3,1),
+              transform .65s cubic-bezier(.16,1,.3,1);
+}
+.slide.active  { opacity: 1; pointer-events: all; transform: translateY(0); }
+.slide.exit    { opacity: 0; transform: translateY(-36px); pointer-events: none; }
+
+/* per-slide background colours */
+#s1 { background: var(--ink); }
+#s2 { background: var(--paper); }
+#s3 { background: var(--slate); }
+
+/* decorative bg panels */
+#s1::before {
+  content:'';
+  position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse 55% 65% at 78% 58%, rgba(42,42,53,.85) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 45% at 12% 78%, rgba(201,168,76,.09) 0%, transparent 58%);
+}
+#s2::before {
+  content:'';
+  position:absolute; top:0; right:0; width:44%; height:100%; pointer-events:none;
+  background: var(--cream);
+  clip-path: polygon(18% 0%, 100% 0%, 100% 100%, 0% 100%);
+}
+#s3::before {
+  content:'';
+  position:absolute; top:0; left:0; width:44%; height:100%; pointer-events:none;
+  background: rgba(201,168,76,.04);
+  clip-path: polygon(0% 0%, 82% 0%, 100% 100%, 0% 100%);
+}
+
+/* ghost slide number — absolute, behind everything */
+.slide-num {
+  position: absolute;
+  top: -1.5rem; right: 2.5rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(9rem,17vw,17rem);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -.05em;
+  pointer-events: none;
+  z-index: 0;
+}
+#s1 .slide-num { color: rgba(201,168,76,.05); }
+#s2 .slide-num { color: rgba(201,168,76,.10); }
+#s3 .slide-num { color: rgba(201,168,76,.08); }
+
+/* ─────────────────────────────────────────
+   UNIFIED HEADER  (row 1)
+───────────────────────────────────────── */
+.slide-header {
+  position: relative;
+  z-index: 1;
+}
+#s1 .slide-header {
+  margin-top: 10rem;
+}
+#s1 .slide-body {
+  margin-top: -5rem;
+}
+
+.slide-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: .63rem;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  margin-bottom: .75rem;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.slide-eyebrow::before {
+  content: '';
+  width: 22px; height: 1px;
+  flex-shrink: 0;
+}
+/* colour per slide */
+#s1 .slide-eyebrow        { color: var(--gold); }
+#s1 .slide-eyebrow::before{ background: var(--gold); }
+#s2 .slide-eyebrow        { color: var(--rust); }
+#s2 .slide-eyebrow::before{ background: var(--rust); }
+#s3 .slide-eyebrow        { color: var(--gold); }
+#s3 .slide-eyebrow::before{ background: var(--gold); }
+
+.slide-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(2.6rem, 4.2vw, 4.6rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -.02em;
+}
+#s1 .slide-title { color: var(--paper); font-size: clamp(3.6rem, 6vw, 6.4rem); }
+#s2 .slide-title { color: var(--ink); }
+#s3 .slide-title { color: var(--paper); }
+
+.slide-title em { font-style: italic; }
+#s1 .slide-title em { color: var(--gold); }
+#s2 .slide-title em { color: var(--rust); }
+#s3 .slide-title em { color: var(--gold-lt); }
+
+/* ─────────────────────────────────────────
+   UNIFIED BODY  (row 2 — 2-col grid)
+───────────────────────────────────────── */
+.slide-body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 4rem;
+  row-gap: 1.8rem;
+  align-content: center;
+}
+
+/* ─────────────────────────────────────────
+   UNIFIED FOOTER  (row 3)
+───────────────────────────────────────── */
+.slide-footer {
+  position: relative;
+  z-index: 1;
+  padding-top: 1.4rem;
+  border-top: 1px solid;
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+}
+#s1 .slide-footer { border-color: rgba(201,168,76,.15); }
+#s2 .slide-footer { border-color: rgba(201,168,76,.2); }
+#s3 .slide-footer { border-color: rgba(201,168,76,.18); }
+
+.footer-item {
+  font-family: 'DM Mono', monospace;
+  font-size: .59rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+#s1 .footer-item { color: rgba(107,101,85,.75); }
+#s2 .footer-item { color: var(--muted); }
+#s3 .footer-item { color: rgba(201,168,76,.55); }
+
+.footer-sep {
+  width: 1px; height: .8rem;
+}
+#s1 .footer-sep { background: rgba(107,101,85,.3); }
+#s2 .footer-sep { background: rgba(107,101,85,.3); }
+#s3 .footer-sep { background: rgba(201,168,76,.25); }
+
+/* ─────────────────────────────────────────
+   SLIDE 1 — body content
+───────────────────────────────────────── */
+.s1-sub {
+  font-size: .95rem;
+  font-weight: 300;
+  color: rgba(245,240,232,.5);
+  line-height: 1.72;
+  max-width: 38ch;
+}
+
+.s1-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  margin-top: .6rem;
+}
+.tag {
+  font-family: 'DM Mono', monospace;
+  font-size: .58rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid rgba(107,101,85,.38);
+  padding: .28rem .72rem;
+  border-radius: 100px;
+  transition: border-color .25s, color .25s;
+}
+.tag:hover { border-color: var(--gold); color: var(--gold); }
+
+.s1-globe-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.globe-art {
+  position: relative;
+  width: min(270px, 85%);
+  aspect-ratio: 1;
+}
+.globe-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid;
+}
+.gr1 { inset:0;   border-color:rgba(201,168,76,.24); animation: spin 30s linear infinite; }
+.gr2 { inset:9%;  border-color:rgba(201,168,76,.14); animation: spin 22s linear infinite reverse; }
+.gr3 { inset:19%; border-color:rgba(201,168,76,.18); animation: spin 40s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.meridian {
+  position:absolute; inset:0; border-radius:50%;
+}
+.meridian::before {
+  content:''; position:absolute;
+  background:rgba(201,168,76,.1);
+}
+.m-v::before  { width:1px;  height:100%; left:50%; top:0; }
+.m-h::before  { height:1px; width:100%;  top:50%;  left:0; }
+.m-d1 { transform:rotate(45deg);  } .m-d1::before { width:1px; height:100%; left:50%; top:0; }
+.m-d2 { transform:rotate(-45deg); } .m-d2::before { width:1px; height:100%; left:50%; top:0; }
+
+.globe-center {
+  position:absolute; inset:28%;
+  border-radius:50%;
+  background: radial-gradient(circle at 38% 38%, rgba(201,168,76,.16), rgba(201,168,76,.03));
+  border: 1px solid rgba(201,168,76,.28);
+  display:flex; align-items:center; justify-content:center;
+}
+.globe-v {
+  font-family:'Cormorant Garamond',serif;
+  font-size:2.6rem; font-weight:300; font-style:italic;
+  color:var(--gold); opacity:.88;
+}
+.city-pin {
+  position:absolute;
+  font-family:'DM Mono',monospace;
+  font-size:.52rem; letter-spacing:.1em;
+  color:rgba(201,168,76,.62);
+  white-space:nowrap;
+  animation: bob 5s ease-in-out infinite;
+}
+.city-pin::before { content:'◦ '; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+
+/* ─────────────────────────────────────────
+   SLIDE 2 — body content
+───────────────────────────────────────── */
+.pain-card {
+  border-top: 2px solid;
+  padding-top: 1.3rem;
+}
+.pain-card:nth-child(1) { border-color: var(--rust); }
+.pain-card:nth-child(2) { border-color: var(--gold); }
+.pain-card:nth-child(3) { border-color: var(--muted); }
+.pain-card:nth-child(4) { border-color: var(--ink); }
+
+.pain-stat {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(2rem,3.4vw,3.4rem);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -.03em;
+}
+.pain-stat-unit {
+  font-size:.48em; font-weight:300; vertical-align:super;
+}
+.pain-label {
+  font-size:.78rem; font-weight:500;
+  color:var(--ink); margin-top:.38rem; letter-spacing:.02em;
+}
+.pain-desc {
+  font-size:.75rem; color:var(--muted);
+  line-height:1.55; margin-top:.35rem; font-weight:300;
+}
+
+/* ─────────────────────────────────────────
+   SLIDE 3 — body content
+───────────────────────────────────────── */
+.feat-card {
+  border-top: 2px solid var(--gold);
+  padding-top: 1.5rem;
+}
+.feat-card-tag {
+  font-family:'DM Mono',monospace;
+  font-size:.58rem; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--gold); margin-bottom:.6rem;
+}
+.feat-card-title {
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(1.7rem,2.6vw,2.6rem);
+  font-weight:400; line-height:1.05;
+  color:var(--paper); letter-spacing:-.02em;
+  margin-bottom:.85rem;
+}
+.feat-card-title em { font-style:italic; color:var(--gold-lt); }
+.feat-card-desc {
+  font-size:.78rem; font-weight:300;
+  color:rgba(245,240,232,.55); line-height:1.65;
+  margin-bottom:1rem;
+}
+.feat-bullets { display:flex; flex-direction:column; gap:.4rem; }
+.feat-bullet {
+  font-size:.74rem; font-weight:300;
+  color:rgba(245,240,232,.5); line-height:1.4;
+  padding-left:.85rem; position:relative;
+}
+.feat-bullet::before {
+  content:'—'; position:absolute; left:0;
+  color:var(--gold); font-size:.65rem;
+}
+.feat-bullet strong { font-weight:500; color:rgba(245,240,232,.82); }
+
+/* CTA link in footer of slide 3 */
+.cta-link {
+  display:inline-flex; align-items:center; gap:.55rem;
+  background:var(--gold); color:var(--ink);
+  font-family:'DM Mono',monospace;
+  font-size:.68rem; letter-spacing:.18em; text-transform:uppercase;
+  padding:.75rem 1.6rem; border-radius:2px;
+  text-decoration:none; font-weight:400;
+  transition:background .22s, transform .18s;
+}
+.cta-link:hover { background:var(--gold-lt); transform:translateY(-2px); }
+
+/* ─────────────────────────────────────────
+   ANIMATIONS
+───────────────────────────────────────── */
+.slide.active .au {
+  animation: au .68s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes au {
+  from { opacity:0; transform:translateY(22px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+/* stagger children of the same parent */
+.au:nth-child(1){animation-delay:.04s}
+.au:nth-child(2){animation-delay:.11s}
+.au:nth-child(3){animation-delay:.18s}
+.au:nth-child(4){animation-delay:.25s}
+.au:nth-child(5){animation-delay:.32s}
+.au:nth-child(6){animation-delay:.39s}
+
+.slide.active .af {
+  animation: af .6s ease both;
+  animation-delay:.28s;
+}
+@keyframes af { from{opacity:0} to{opacity:1} }
+
+/* ─────────────────────────────────────────
+   NAV
+───────────────────────────────────────── */
+#nav {
+  position:fixed; bottom:2.2rem; left:50%; transform:translateX(-50%);
+  z-index:100;
+  display:flex; align-items:center; gap:1.1rem;
+  background:rgba(13,13,13,.72);
+  backdrop-filter:blur(14px);
+  border:1px solid rgba(201,168,76,.3);
+  border-radius:100px;
+  padding:.55rem 1.3rem;
+}
+.dot {
+  width:7px; height:7px; border-radius:50%;
+  background:var(--muted); cursor:pointer;
+  transition:background .28s, transform .28s;
+}
+.dot.on { background:var(--gold); transform:scale(1.45); }
+.nav-btn {
+  background:none; border:none; cursor:pointer;
+  color:var(--muted); font-size:.9rem;
+  display:flex; align-items:center;
+  padding:0 .18rem;
+  transition:color .2s;
+  line-height:1;
+}
+.nav-btn:hover { color:var(--gold); }
+#slide-counter {
+  font-family:'DM Mono',monospace;
+  font-size:.62rem; color:var(--muted);
+  letter-spacing:.12em; min-width:3ch; text-align:center;
+}
+
+/* progress bar */
+#bar {
+  position:fixed; top:0; left:0; height:2px;
+  background:var(--gold);
+  transition:width .6s cubic-bezier(.16,1,.3,1);
+  z-index:200;
+}
+</style>
+</head>
+<body>
+
+<div id="bar"></div>
+<div id="deck">
+
+  <!-- ══ SLIDE 1 · TITLE ══════════════════════════════════ -->
+  <div class="slide active" id="s1">
+    <div class="slide-num af">01</div>
+
+    <!-- HEADER -->
+    <div class="slide-header">
+      <div class="slide-eyebrow au">AI Travel Planning</div>
+      <h1 class="slide-title au">Voy<em>ager</em></h1>
+    </div>
+
+    <!-- BODY -->
+    <div class="slide-body">
+      <div class="au" style="display:flex;flex-direction:column;gap:1.4rem;justify-content:center;">
+        <p class="s1-sub">One sentence. A complete, optimized travel itinerary — ready in under two minutes.</p>
+        <div class="s1-tags">
+          <span class="tag">Multi-agent AI</span>
+          <span class="tag">Gemini 2.5</span>
+          <span class="tag">Real-time planning</span>
+          <span class="tag">Columbia IEOR Capstone</span>
+        </div>
+      </div>
+
+      <div class="s1-globe-col au">
+        <div class="globe-art af">
+          <div class="globe-ring gr1"></div>
+          <div class="globe-ring gr2"></div>
+          <div class="globe-ring gr3"></div>
+          <div class="meridian m-v"></div>
+          <div class="meridian m-h"></div>
+          <div class="meridian m-d1"></div>
+          <div class="meridian m-d2"></div>
+          <div class="globe-center"><span class="globe-v">V</span></div>
+          <div class="city-pin" style="top:9%;left:15%;animation-delay:0s">TOKYO</div>
+          <div class="city-pin" style="top:25%;right:4%;animation-delay:.8s">PARIS</div>
+          <div class="city-pin" style="bottom:22%;left:7%;animation-delay:1.6s">ROME</div>
+          <div class="city-pin" style="bottom:11%;right:11%;animation-delay:2.4s">TAIPEI</div>
+          <div class="city-pin" style="top:52%;left:1%;animation-delay:.4s">LISBON</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="slide-footer au">
+      <span class="footer-item">Chung-Yeh Yang</span>
+      <div class="footer-sep"></div>
+      <span class="footer-item">Kuan-Ting Chen</span>
+      <div class="footer-sep"></div>
+      <span class="footer-item">Columbia IEOR · 2026</span>
+    </div>
+  </div>
+
+
+  <!-- ══ SLIDE 2 · PROBLEM ════════════════════════════════ -->
+  <div class="slide" id="s2">
+    <div class="slide-num af">02</div>
+
+    <!-- HEADER -->
+    <div class="slide-header">
+      <div class="slide-eyebrow au">The Problem</div>
+      <h2 class="slide-title au">Travel planning is<br><em>exhausting work</em></h2>
+    </div>
+
+    <!-- BODY -->
+    <div class="slide-body">
+      <div class="pain-card au">
+        <div class="pain-stat">2–3<span class="pain-stat-unit">days</span></div>
+        <div class="pain-label">Average planning time per trip</div>
+        <div class="pain-desc">Solo travelers and agencies spend days researching, cross-referencing, and assembling a single itinerary across a dozen fragmented sites.</div>
+      </div>
+
+      <div class="pain-card au">
+        <div class="pain-stat">12<span class="pain-stat-unit">+</span></div>
+        <div class="pain-label">Tabs open at once</div>
+        <div class="pain-desc">Google Maps, TripAdvisor, Booking.com, weather apps, airline sites — each trip requires juggling a dozen fragmented sources simultaneously.</div>
+      </div>
+
+      <div class="pain-card au">
+        <div class="pain-stat">3×</div>
+        <div class="pain-label">Replanning per disruption</div>
+        <div class="pain-desc">A cancelled venue or sudden bad weather means rebuilding the day manually — re-checking hours, re-routing, re-budgeting from scratch.</div>
+      </div>
+
+      <div class="pain-card au">
+        <div class="pain-stat">40<span class="pain-stat-unit">%</span></div>
+        <div class="pain-label">Agency time lost to logistics</div>
+        <div class="pain-desc">Travel agencies burn nearly half their billable hours on repetitive search and scheduling — time that could go toward high-value client work.</div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="slide-footer au">
+      <span class="footer-item">Solo travelers</span>
+      <div class="footer-sep"></div>
+      <span class="footer-item">Travel agencies</span>
+      <div class="footer-sep"></div>
+      <span class="footer-item">All spending too much time on logistics</span>
+    </div>
+  </div>
+
+
+  <!-- ══ SLIDE 3 · SOLUTION ═══════════════════════════════ -->
+  <div class="slide" id="s3">
+    <div class="slide-num af">03</div>
+
+    <!-- HEADER -->
+    <div class="slide-header">
+      <div class="slide-eyebrow au">The Solution</div>
+      <h2 class="slide-title au">Two features.<br><em>All you need.</em></h2>
+    </div>
+
+    <!-- BODY -->
+    <div class="slide-body">
+      <div class="feat-card au">
+        <div class="feat-card-tag">Feature 01</div>
+        <div class="feat-card-title">Trip <em>Planner</em></div>
+        <p class="feat-card-desc">Describe your trip in plain language. Seven AI agents run in parallel to build a complete, optimized itinerary in under two minutes.</p>
+        <div class="feat-bullets">
+          <div class="feat-bullet"><strong>Natural language input</strong> — budget, dates, dietary needs, must-sees</div>
+          <div class="feat-bullet"><strong>Weather-aware scheduling</strong> — real 16-day forecast per slot</div>
+          <div class="feat-bullet"><strong>Maps routes + booking links</strong> — every day, ready to go</div>
+        </div>
+      </div>
+
+      <div class="feat-card au">
+        <div class="feat-card-tag">Feature 02</div>
+        <div class="feat-card-title">Trip <em>Replanner</em></div>
+        <p class="feat-card-desc">When plans change — a venue closes, weather turns — one message re-optimizes the affected day without touching anything else.</p>
+        <div class="feat-bullets">
+          <div class="feat-bullet"><strong>Disruption handling</strong> — closed venue, bad weather, budget cut</div>
+          <div class="feat-bullet"><strong>Locked slots respected</strong> — zero violations across all eval cases</div>
+          <div class="feat-bullet"><strong>Instant swap</strong> — cache-first, no redundant API calls</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="slide-footer au">
+      <a href="https://traveling-planning-agent-32542646336.us-central1.run.app"
+         target="_blank" class="cta-link">Try Live Demo →</a>
+      <div class="footer-sep"></div>
+      <span class="footer-item">100% eval pass rate · 8 trip types</span>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- NAV -->
+<div id="nav">
+  <button class="nav-btn" onclick="goTo(cur-1)">&#8592;</button>
+  <div class="dot on"  onclick="goTo(0)"></div>
+  <div class="dot"     onclick="goTo(1)"></div>
+  <div class="dot"     onclick="goTo(2)"></div>
+  <span id="slide-counter">1 / 3</span>
+  <button class="nav-btn" onclick="goTo(cur+1)">&#8594;</button>
+</div>
+
+<script>
+  let cur = 0;
+  const slides  = document.querySelectorAll('.slide');
+  const dots    = document.querySelectorAll('.dot');
+  const counter = document.getElementById('slide-counter');
+  const bar     = document.getElementById('bar');
+
+  function goTo(n) {
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    if (n === cur) return;
+    const prev = cur;
+    cur = n;
+    slides[prev].classList.remove('active');
+    slides[prev].classList.add('exit');
+    setTimeout(() => slides[prev].classList.remove('exit'), 700);
+    slides[cur].classList.add('active');
+    dots.forEach((d, i) => d.classList.toggle('on', i === cur));
+    counter.textContent = `${cur + 1} / ${slides.length}`;
+    bar.style.width = `${((cur + 1) / slides.length) * 100}%`;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') goTo(cur + 1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                    goTo(cur - 1);
+  });
+
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+  document.addEventListener('touchend',   e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) goTo(dx < 0 ? cur + 1 : cur - 1);
+  });
+
+  bar.style.width = `${(1 / slides.length) * 100}%`;
+</script>
+</body>
+</html>

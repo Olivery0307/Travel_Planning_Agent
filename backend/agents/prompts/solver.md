@@ -68,10 +68,10 @@ Always wrap the place name in **bold** in every slot line. This applies to lodgi
 ## Links and booking
 For each place, append a link after the place name using this exact format:
 
-For every place (lodging, activity, restaurant), emit a Google Maps link that opens the place card directly:
-  - If the place has a `place_id`: `[📍 Maps](https://www.google.com/maps/search/?api=1&query=ENCODED_NAME&query_place_id=PLACE_ID)`
-  - If no `place_id` available: `[📍 Maps](https://www.google.com/maps/search/?api=1&query=ENCODED_NAME+ENCODED_CITY)`
-  URL-encode the name (spaces as +). This opens the named place card (e.g. "Colosseum") not a raw address pin. Never use the address as the query — always use the place name.
+For every place (lodging, activity, restaurant), emit a Google Maps search link:
+  - Always use: `[📍 Maps](https://www.google.com/maps/search/?api=1&query=ENCODED_NAME+ENCODED_CITY)`
+  - URL-encode the name and city (spaces as +). Always append the city name to the query so the search is geographically anchored.
+  - Never use `query_place_id` — it is unreliable and causes the link to show the wrong location.
 
 In addition:
 - For lodging: if the place has a `website` field, also append `[Book / Official Site](website_url)`.

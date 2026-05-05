@@ -130,11 +130,9 @@ def _extract_cost(line: str) -> float:
 def _build_maps_link(name: str, place_id: str = "", city: str = "") -> str:
     if not name:
         return ""
-    enc_name = name.replace(" ", "+").replace(",", "%2C")
-    if place_id:
-        return f"[📍 Maps](https://www.google.com/maps/search/?api=1&query={enc_name}&query_place_id={place_id})"
     suffix = f"+{city.replace(' ', '+')}" if city else ""
-    return f"[📍 Maps](https://www.google.com/maps/search/?api=1&query={enc_name}{suffix})"
+    enc_name = (name + (" " + city if city else "")).replace(" ", "+").replace(",", "%2C")
+    return f"[📍 Maps](https://www.google.com/maps/search/?api=1&query={enc_name})"
 
 
 def _format_slot_line(period: str, place: dict, category: str) -> str:
